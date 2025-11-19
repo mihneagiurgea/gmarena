@@ -1,3 +1,7 @@
+---
+description: Write the initial code for the game engine, in Python.
+---
+
 # Task
 
 Write Python code that can simulate the following game rules. The code should be self-contained and should not require any external dependencies.
