@@ -1,0 +1,48 @@
+{
+    "spells": [
+        {
+            "name": "Fireball",
+            "damage": 20,
+            "range": 5
+        },
+        {
+            "name": "Lightning Bolt",
+            "damage": 10,
+            "range": 8
+        }
+    ],
+    "units": [
+        {
+            "name": "Warrior",
+            "health": 90,
+            "AC": 18,
+            "WC": 9,
+            "attack_damage": 20,
+            "speed": 5,
+            "spells": []
+        },
+        {
+            "name": "Mage",
+            "health": 50,
+            "AC": 12,
+            "WC": 3,
+            "attack_damage": 5,
+            "speed": 5,
+            "spells": [
+                "Fireball",
+                "Lightning Bolt"
+            ]
+        },
+        {
+            "name": "Battlemage",
+            "health": 70,
+            "AC": 15,
+            "WC": 6,
+            "attack_damage": 15,
+            "speed": 5,
+            "spells": [
+                "Lightning Bolt"
+            ]
+        }
+    ],
+}
