@@ -6,6 +6,19 @@ from typing import List, Optional, Tuple, Dict
 
 # --- Data Classes ---
 
+@dataclass(frozen=True)
+class Position:
+    x: int
+    y: int
+
+    def distance_to(self, other: 'Position') -> int:
+        dx = abs(self.x - other.x)
+        dy = abs(self.y - other.y)
+        diag = min(dx, dy)
+        straight = max(dx, dy) - diag
+        # 1 for straight, 1.5 for diagonal (floor(1.5 * diag) = diag + diag//2)
+        return straight + diag + (diag // 2)
+
 @dataclass
 class Spell:
     name: str
@@ -27,7 +40,7 @@ class Unit:
     uid: int
     unit_type: UnitType
     player_id: int
-    position: Tuple[int, int]
+    position: Position
     current_health: int
     
     @property
@@ -45,7 +58,7 @@ class GameEngine:
         self.grid_width = 17
         self.grid_height = 24
         self.units: Dict[int, Unit] = {}
-        self.grid: Dict[Tuple[int, int], int] = {} # (x, y) -> unit_uid
+        self.grid: Dict[Position, int] = {} # Position -> unit_uid
         self.spells: Dict[str, Spell] = {}
         self.unit_types: Dict[str, UnitType] = {}
         self.next_uid = 1
@@ -71,13 +84,13 @@ class GameEngine:
         # Player 1 (Top)
         p1_units = ["Warrior", "Mage", "Battlemage"]
         for i, u_name in enumerate(p1_units):
-            pos = (2 + i * 4, 2) # Simple initial placement
+            pos = Position(2 + i * 4, 2) # Simple initial placement
             self.add_unit(u_name, 1, pos)
             
         # Player 2 (Bottom)
         p2_units = ["Warrior", "Mage", "Battlemage"]
         for i, u_name in enumerate(p2_units):
-            pos = (2 + i * 4, 21) # Simple initial placement
+            pos = Position(2 + i * 4, 21) # Simple initial placement
             self.add_unit(u_name, 2, pos)
             
         self.turn_order = list(self.units.keys())
@@ -85,7 +98,7 @@ class GameEngine:
         random.shuffle(self.turn_order)
         print(f"Game Initialized. Turn Order: {self.turn_order}")
 
-    def add_unit(self, type_name: str, player_id: int, position: Tuple[int, int]):
+    def add_unit(self, type_name: str, player_id: int, position: Position):
         if position in self.grid:
             raise ValueError(f"Position {position} is already occupied.")
         
@@ -120,24 +133,18 @@ class GameEngine:
                 break
         print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
-    def calculate_distance(self, p1: Tuple[int, int], p2: Tuple[int, int]) -> int:
-        dx = abs(p1[0] - p2[0])
-        dy = abs(p1[1] - p2[1])
-        diag = min(dx, dy)
-        straight = max(dx, dy) - diag
-        # 1 for straight, 1.5 for diagonal (floor(1.5 * diag) = diag + diag//2)
-        return straight + diag + (diag // 2)
 
-    def is_valid_move(self, unit: Unit, target_pos: Tuple[int, int], max_dist: int) -> bool:
-        if not (0 <= target_pos[0] < self.grid_width and 0 <= target_pos[1] < self.grid_height):
+
+    def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
+        if not (0 <= target_pos.x < self.grid_width and 0 <= target_pos.y < self.grid_height):
             return False
         if target_pos in self.grid and self.grid[target_pos] != unit.uid:
             return False # Occupied
         
-        dist = self.calculate_distance(unit.position, target_pos)
+        dist = unit.position.distance_to(target_pos)
         return dist <= max_dist
 
-    def move(self, unit: Unit, target_pos: Tuple[int, int]):
+    def move(self, unit: Unit, target_pos: Position):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
             print(f"Invalid move for {unit.name} to {target_pos}")
             return False
@@ -149,7 +156,7 @@ class GameEngine:
         return True
 
     def attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
-        dist = self.calculate_distance(attacker.position, target.position)
+        dist = attacker.position.distance_to(target.position)
         if dist > 1:
             print(f"Target out of range for attack (dist: {dist})")
             return False
@@ -169,7 +176,7 @@ class GameEngine:
             print("Miss!")
         return True
 
-    def charge(self, attacker: Unit, move_target_pos: Tuple[int, int], attack_target: Unit):
+    def charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
         if not self.is_valid_move(attacker, move_target_pos, attacker.unit_type.speed):
              print(f"Invalid charge move for {attacker.name} to {move_target_pos}")
@@ -190,7 +197,7 @@ class GameEngine:
             return False
         
         spell = self.spells[spell_name]
-        dist = self.calculate_distance(attacker.position, target.position)
+        dist = attacker.position.distance_to(target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
         roll = random.randint(1, 20)
@@ -236,8 +243,8 @@ if __name__ == "__main__":
         if not enemies:
             break
             
-        target = min(enemies, key=lambda u: game.calculate_distance(current_unit.position, u.position))
-        dist = game.calculate_distance(current_unit.position, target.position)
+        target = min(enemies, key=lambda u: current_unit.position.distance_to(u.position))
+        dist = current_unit.position.distance_to(target.position)
         
         print(f"\n--- Turn: {current_unit.name} (P{current_unit.player_id}) ---")
         
@@ -251,13 +258,13 @@ if __name__ == "__main__":
         # Else move towards target
         else:
             # Simple move logic: move 1 step closer in x or y
-            dx = target.position[0] - current_unit.position[0]
-            dy = target.position[1] - current_unit.position[1]
+            dx = target.position.x - current_unit.position.x
+            dy = target.position.y - current_unit.position.y
             
             step_x = 1 if dx > 0 else -1 if dx < 0 else 0
             step_y = 1 if dy > 0 else -1 if dy < 0 else 0
             
-            new_pos = (current_unit.position[0] + step_x, current_unit.position[1] + step_y)
+            new_pos = Position(current_unit.position.x + step_x, current_unit.position.y + step_y)
             if game.is_valid_move(current_unit, new_pos, current_unit.unit_type.speed):
                 game.move(current_unit, new_pos)
             else:
