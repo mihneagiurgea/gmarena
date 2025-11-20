@@ -51,20 +51,14 @@ class Unit:
     def is_alive(self):
         return self.current_health > 0
 
-# --- Game Engine ---
+# --- Game Configuration ---
 
-class GameEngine:
+class GameConfig:
     def __init__(self, fixtures_path: str = "fixtures.json"):
         self.grid_width = 9
         self.grid_height = 13
-        self.units: Dict[int, Unit] = {}
-        self.grid: Dict[Position, int] = {} # Position -> unit_uid
         self.spells: Dict[str, Spell] = {}
         self.unit_types: Dict[str, UnitType] = {}
-        self.next_uid = 1
-        self.turn_order: List[int] = []
-        self.current_turn_index = 0
-        
         self._load_fixtures(fixtures_path)
 
     def _load_fixtures(self, path: str):
@@ -80,29 +74,22 @@ class GameEngine:
                 u['attack_damage'], u['speed'], u['spells']
             )
 
-    def initialize_game(self):
-        # Player 1 (Top)
-        p1_units = ["Warrior", "Mage", "Battlemage"]
-        for i, u_name in enumerate(p1_units):
-            pos = Position(2 + i * 4, 2) # Simple initial placement
-            self.add_unit(u_name, 1, pos)
-            
-        # Player 2 (Bottom)
-        p2_units = ["Warrior", "Mage", "Battlemage"]
-        for i, u_name in enumerate(p2_units):
-            pos = Position(2 + i * 4, 21) # Simple initial placement
-            self.add_unit(u_name, 2, pos)
-            
-        self.turn_order = list(self.units.keys())
-        # Simple initiative: random shuffle
-        random.shuffle(self.turn_order)
-        print(f"Game Initialized. Turn Order: {self.turn_order}")
+# --- Game State ---
+
+class GameState:
+    def __init__(self, config: GameConfig):
+        self.config = config
+        self.units: Dict[int, Unit] = {}
+        self.grid: Dict[Position, int] = {} # Position -> unit_uid
+        self.next_uid = 1
+        self.turn_order: List[int] = []
+        self.current_turn_index = 0
 
     def add_unit(self, type_name: str, player_id: int, position: Position):
         if position in self.grid:
             raise ValueError(f"Position {position} is already occupied.")
         
-        u_type = self.unit_types[type_name]
+        u_type = self.config.unit_types[type_name]
         unit = Unit(
             uid=self.next_uid,
             unit_type=u_type,
@@ -133,10 +120,8 @@ class GameEngine:
                 break
         print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
-
-
     def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
-        if not (0 <= target_pos.x < self.grid_width and 0 <= target_pos.y < self.grid_height):
+        if not (0 <= target_pos.x < self.config.grid_width and 0 <= target_pos.y < self.config.grid_height):
             return False
         if target_pos in self.grid and self.grid[target_pos] != unit.uid:
             return False # Occupied
@@ -196,7 +181,7 @@ class GameEngine:
             print(f"{attacker.name} does not know spell {spell_name}")
             return False
         
-        spell = self.spells[spell_name]
+        spell = self.config.spells[spell_name]
         dist = attacker.position.distance_to(target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
@@ -225,6 +210,64 @@ class GameEngine:
             print("Player 1 Wins!")
             return True
         return False
+
+# --- Game Engine ---
+
+class GameEngine:
+    def __init__(self, fixtures_path: str = "fixtures.json"):
+        self.config = GameConfig(fixtures_path)
+        self.state = GameState(self.config)
+
+    def initialize_game(self):
+        # Player 1 (Top)
+        p1_units = ["Warrior", "Mage", "Battlemage"]
+        for i, u_name in enumerate(p1_units):
+            pos = Position(2 + i * 4, 2) # Simple initial placement
+            self.state.add_unit(u_name, 1, pos)
+            
+        # Player 2 (Bottom)
+        p2_units = ["Warrior", "Mage", "Battlemage"]
+        for i, u_name in enumerate(p2_units):
+            pos = Position(2 + i * 4, 21) # Simple initial placement
+            self.state.add_unit(u_name, 2, pos)
+            
+        self.state.turn_order = list(self.state.units.keys())
+        # Simple initiative: random shuffle
+        random.shuffle(self.state.turn_order)
+        print(f"Game Initialized. Turn Order: {self.state.turn_order}")
+
+    # Delegation methods for backward compatibility / ease of use
+    def get_current_unit(self) -> Optional[Unit]:
+        return self.state.get_current_unit()
+
+    def next_turn(self):
+        self.state.next_turn()
+
+    def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
+        return self.state.is_valid_move(unit, target_pos, max_dist)
+
+    def move(self, unit: Unit, target_pos: Position):
+        return self.state.move(unit, target_pos)
+
+    def attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
+        return self.state.attack(attacker, target, penalty_wc)
+
+    def charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
+        return self.state.charge(attacker, move_target_pos, attack_target)
+
+    def cast_spell(self, attacker: Unit, spell_name: str, target: Unit):
+        return self.state.cast_spell(attacker, spell_name, target)
+
+    def check_game_over(self):
+        return self.state.check_game_over()
+
+    @property
+    def units(self):
+        return self.state.units
+
+    @property
+    def grid(self):
+        return self.state.grid
 
 # --- Verification Block ---
 if __name__ == "__main__":
