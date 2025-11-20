@@ -55,8 +55,8 @@ class Unit:
 
 class GameEngine:
     def __init__(self, fixtures_path: str = "fixtures.json"):
-        self.grid_width = 17
-        self.grid_height = 24
+        self.grid_width = 9
+        self.grid_height = 13
         self.units: Dict[int, Unit] = {}
         self.grid: Dict[Position, int] = {} # Position -> unit_uid
         self.spells: Dict[str, Spell] = {}
