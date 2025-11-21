@@ -1,4 +1,8 @@
 {
+    "grid": {
+        "width": 9,
+        "height": 13
+    },
     "spells": [
         {
             "name": "Fireball",

@@ -90,20 +90,18 @@ class GameMove:
 # --- Game Configuration ---
 
 class GameConfig:
-    def __init__(self, fixtures_path: str = "fixtures.json"):
-        self.grid_width = 9
-        self.grid_height = 13
-        self.spells: Dict[str, Spell] = {}
-        self.unit_types: Dict[str, UnitType] = {}
-        self._load_fixtures(fixtures_path)
-
-    def _load_fixtures(self, path: str):
-        with open(path, 'r') as f:
+    def __init__(self, config_path: str = "config.json"):
+        with open(config_path, 'r') as f:
             data = json.load(f)
+
+        self.grid_width = data['grid']['width']
+        self.grid_height = data['grid']['height']
         
+        self.spells: Dict[str, Spell] = {}
         for s in data['spells']:
             self.spells[s['name']] = Spell(s['name'], s['damage'], s['range'])
             
+        self.unit_types: Dict[str, UnitType] = {}
         for u in data['units']:
             self.unit_types[u['name']] = UnitType(
                 u['name'], u['health'], u['AC'], u['WC'], 
@@ -387,46 +385,17 @@ class GameState:
             return True
         return False
 
-# --- Game Engine ---
-
-class GameEngine:
-    def __init__(self, fixtures_path: str = "fixtures.json"):
-        self.config = GameConfig(fixtures_path)
-        self.instance = GameInstance(self.config)
-
-    def initialize_game(self):
-        p1_units = ["Warrior", "Mage", "Battlemage"]
-        p2_units = ["Warrior", "Mage", "Battlemage"]
-        self.state = self.instance.start_game(p1_units, p2_units)
-
-    # Delegation methods for backward compatibility / ease of use
-    def get_current_unit(self) -> Optional[UnitState]:
-        return self.state.get_current_unit()
-
-    def next_turn(self):
-        self.state.next_turn()
-
-    def is_valid_move(self, unit: UnitState, target_pos: Position, max_dist: int) -> bool:
-        return self.state.is_valid_move(unit, target_pos, max_dist)
-
-    def execute_move(self, move: GameMove):
-        self.state.execute_move(move)
-
-    def check_game_over(self):
-        return self.state.check_game_over()
-
-    @property
-    def units(self):
-        return self.state.units
-
-    @property
-    def grid(self):
-        return self.state.grid
-
 # --- Verification Block ---
 if __name__ == "__main__":
-    game = GameEngine()
-    game.initialize_game()
+    config = GameConfig()
+    instance = GameInstance(config)
+    
+    # Initialize one of each unit type for both players
+    unit_types = list(config.unit_types.keys())
+    p1_units = unit_types
+    p2_units = unit_types
+    
+    game = instance.start_game(p1_units, p2_units)
     
     # Simulate a few turns
     for _ in range(5):
