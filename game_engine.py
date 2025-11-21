@@ -76,14 +76,13 @@ class GameConfig:
 
 # --- Game State ---
 
-class GameState:
+class GameInstance:
     def __init__(self, config: GameConfig):
         self.config = config
+        self.turn_order: List[int] = []
         self.units: Dict[int, Unit] = {}
         self.grid: Dict[Position, int] = {} # Position -> unit_uid
         self.next_uid = 1
-        self.turn_order: List[int] = []
-        self.current_turn_index = 0
 
     def add_unit(self, type_name: str, player_id: int, position: Position):
         if position in self.grid:
@@ -101,18 +100,38 @@ class GameState:
         self.grid[position] = unit.uid
         self.next_uid += 1
 
+    def start_game(self) -> 'GameState':
+        self.turn_order = list(self.units.keys())
+        random.shuffle(self.turn_order)
+        print(f"Game Initialized. Turn Order: {self.turn_order}")
+        return GameState(self)
+
+class GameState:
+    def __init__(self, instance: GameInstance):
+        self.instance = instance
+        # Create a shallow copy of the initial state from the instance
+        # Note: Units are mutable, so modifications in GameState will affect GameInstance's references
+        # unless we deep copy. For now, we share the references as per typical game loop patterns
+        # where GameInstance might just be the container.
+        # However, to support "restart", we might want deep copy. 
+        # Let's stick to shallow copy of the structure for now.
+        self.units: Dict[int, Unit] = instance.units.copy()
+        self.grid: Dict[Position, int] = instance.grid.copy()
+        self.next_uid = instance.next_uid
+        self.current_turn_index = 0
+
     def get_current_unit(self) -> Optional[Unit]:
-        if not self.turn_order:
+        if not self.instance.turn_order:
             return None
-        uid = self.turn_order[self.current_turn_index]
+        uid = self.instance.turn_order[self.current_turn_index]
         return self.units.get(uid)
 
     def next_turn(self):
         # Skip dead units
         original_index = self.current_turn_index
         while True:
-            self.current_turn_index = (self.current_turn_index + 1) % len(self.turn_order)
-            uid = self.turn_order[self.current_turn_index]
+            self.current_turn_index = (self.current_turn_index + 1) % len(self.instance.turn_order)
+            uid = self.instance.turn_order[self.current_turn_index]
             if self.units[uid].is_alive:
                 break
             if self.current_turn_index == original_index:
@@ -121,7 +140,7 @@ class GameState:
         print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
     def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
-        if not (0 <= target_pos.x < self.config.grid_width and 0 <= target_pos.y < self.config.grid_height):
+        if not (0 <= target_pos.x < self.instance.config.grid_width and 0 <= target_pos.y < self.instance.config.grid_height):
             return False
         if target_pos in self.grid and self.grid[target_pos] != unit.uid:
             return False # Occupied
@@ -181,7 +200,7 @@ class GameState:
             print(f"{attacker.name} does not know spell {spell_name}")
             return False
         
-        spell = self.config.spells[spell_name]
+        spell = self.instance.config.spells[spell_name]
         dist = attacker.position.distance_to(target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
@@ -216,25 +235,22 @@ class GameState:
 class GameEngine:
     def __init__(self, fixtures_path: str = "fixtures.json"):
         self.config = GameConfig(fixtures_path)
-        self.state = GameState(self.config)
+        self.instance = GameInstance(self.config)
 
     def initialize_game(self):
         # Player 1 (Top)
         p1_units = ["Warrior", "Mage", "Battlemage"]
         for i, u_name in enumerate(p1_units):
             pos = Position(2 + i * 4, 2) # Simple initial placement
-            self.state.add_unit(u_name, 1, pos)
+            self.instance.add_unit(u_name, 1, pos)
             
         # Player 2 (Bottom)
         p2_units = ["Warrior", "Mage", "Battlemage"]
         for i, u_name in enumerate(p2_units):
             pos = Position(2 + i * 4, 21) # Simple initial placement
-            self.state.add_unit(u_name, 2, pos)
+            self.instance.add_unit(u_name, 2, pos)
             
-        self.state.turn_order = list(self.state.units.keys())
-        # Simple initiative: random shuffle
-        random.shuffle(self.state.turn_order)
-        print(f"Game Initialized. Turn Order: {self.state.turn_order}")
+        self.state = self.instance.start_game()
 
     # Delegation methods for backward compatibility / ease of use
     def get_current_unit(self) -> Optional[Unit]:
