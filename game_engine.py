@@ -3,6 +3,7 @@ import math
 import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Dict
+from enum import Enum, auto
 
 # --- Data Classes ---
 
@@ -50,6 +51,18 @@ class Unit:
     @property
     def is_alive(self):
         return self.current_health > 0
+
+class MoveType(Enum):
+    MOVE = auto()
+    ATTACK = auto()
+    CHARGE = auto()
+    CAST_SPELL = auto()
+
+@dataclass
+class GameMove:
+    move_type: MoveType
+    target_pos: Position
+    spell_name: Optional[str] = None
 
 # --- Game Configuration ---
 
@@ -148,22 +161,69 @@ class GameState:
         dist = unit.position.distance_to(target_pos)
         return dist <= max_dist
 
-    def move(self, unit: Unit, target_pos: Position):
+    def execute_move(self, move: GameMove):
+        attacker = self.get_current_unit()
+        if not attacker:
+            raise ValueError("No active unit for turn.")
+
+        if move.move_type == MoveType.MOVE:
+            self._move(attacker, move.target_pos)
+            return
+        
+        # For other moves, target_pos must contain a unit
+        target_uid = self.grid.get(move.target_pos)
+        if target_uid is None:
+            raise ValueError(f"No target unit at {move.target_pos}")
+        
+        target = self.units[target_uid]
+
+        if move.move_type == MoveType.ATTACK:
+            self._attack(attacker, target)
+            
+        elif move.move_type == MoveType.CHARGE:
+            # Infer move position: adjacent to target, closest to attacker
+            best_pos = self._find_charge_pos(attacker, target)
+            if not best_pos:
+                raise ValueError(f"No valid charge position near {target.name}")
+            self._charge(attacker, best_pos, target)
+            
+        elif move.move_type == MoveType.CAST_SPELL:
+            if move.spell_name is None:
+                raise ValueError("Spell name required for CAST_SPELL")
+            self._cast_spell(attacker, move.spell_name, target)
+
+        else:
+            raise ValueError("Unhandled move_type: " + move)
+
+    def _find_charge_pos(self, attacker: Unit, target: Unit) -> Optional[Position]:
+        # Find valid move position adjacent to target
+        candidates = []
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == 0 and dy == 0: continue
+                pos = Position(target.position.x + dx, target.position.y + dy)
+                if self.is_valid_move(attacker, pos, attacker.unit_type.speed):
+                    candidates.append(pos)
+        
+        if not candidates:
+            return None
+        
+        # Pick closest to attacker
+        return min(candidates, key=lambda p: attacker.position.distance_to(p))
+
+    def _move(self, unit: Unit, target_pos: Position):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
-            print(f"Invalid move for {unit.name} to {target_pos}")
-            return False
+            raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
         
         del self.grid[unit.position]
         unit.position = target_pos
         self.grid[target_pos] = unit.uid
         print(f"{unit.name} moved to {target_pos}")
-        return True
 
-    def attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
+    def _attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
         dist = attacker.position.distance_to(target.position)
         if dist > 1:
-            print(f"Target out of range for attack (dist: {dist})")
-            return False
+            raise ValueError(f"Target out of range for attack (dist: {dist})")
         
         roll = random.randint(1, 20)
         hit_chance = roll + attacker.unit_type.wc - penalty_wc
@@ -178,13 +238,11 @@ class GameState:
                 del self.grid[target.position]
         else:
             print("Miss!")
-        return True
 
-    def charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
+    def _charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
         if not self.is_valid_move(attacker, move_target_pos, attacker.unit_type.speed):
-             print(f"Invalid charge move for {attacker.name} to {move_target_pos}")
-             return False
+             raise ValueError(f"Invalid charge move for {attacker.name} to {move_target_pos}")
         
         # Execute move
         del self.grid[attacker.position]
@@ -193,12 +251,11 @@ class GameState:
         print(f"{attacker.name} charged to {move_target_pos}")
         
         # Execute attack
-        return self.attack(attacker, attack_target, penalty_wc=4)
+        self._attack(attacker, attack_target, penalty_wc=4)
 
-    def cast_spell(self, attacker: Unit, spell_name: str, target: Unit):
+    def _cast_spell(self, attacker: Unit, spell_name: str, target: Unit):
         if spell_name not in attacker.unit_type.spells:
-            print(f"{attacker.name} does not know spell {spell_name}")
-            return False
+            raise ValueError(f"{attacker.name} does not know spell {spell_name}")
         
         spell = self.instance.config.spells[spell_name]
         dist = attacker.position.distance_to(target.position)
@@ -216,7 +273,6 @@ class GameState:
                 del self.grid[target.position]
         else:
             print("Spell failed!")
-        return True
 
     def check_game_over(self):
         p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
@@ -262,17 +318,8 @@ class GameEngine:
     def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
         return self.state.is_valid_move(unit, target_pos, max_dist)
 
-    def move(self, unit: Unit, target_pos: Position):
-        return self.state.move(unit, target_pos)
-
-    def attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
-        return self.state.attack(attacker, target, penalty_wc)
-
-    def charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
-        return self.state.charge(attacker, move_target_pos, attack_target)
-
-    def cast_spell(self, attacker: Unit, spell_name: str, target: Unit):
-        return self.state.cast_spell(attacker, spell_name, target)
+    def execute_move(self, move: GameMove):
+        self.state.execute_move(move)
 
     def check_game_over(self):
         return self.state.check_game_over()
@@ -308,26 +355,32 @@ if __name__ == "__main__":
         print(f"\n--- Turn: {current_unit.name} (P{current_unit.player_id}) ---")
         
         # Try to cast spell if available and in range
-        if current_unit.unit_type.spells:
-            spell_name = current_unit.unit_type.spells[0]
-            game.cast_spell(current_unit, spell_name, target)
-        # Else if adjacent, attack
-        elif dist == 1:
-            game.attack(current_unit, target)
-        # Else move towards target
-        else:
-            # Simple move logic: move 1 step closer in x or y
-            dx = target.position.x - current_unit.position.x
-            dy = target.position.y - current_unit.position.y
-            
-            step_x = 1 if dx > 0 else -1 if dx < 0 else 0
-            step_y = 1 if dy > 0 else -1 if dy < 0 else 0
-            
-            new_pos = Position(current_unit.position.x + step_x, current_unit.position.y + step_y)
-            if game.is_valid_move(current_unit, new_pos, current_unit.unit_type.speed):
-                game.move(current_unit, new_pos)
+        try:
+            if current_unit.unit_type.spells:
+                spell_name = current_unit.unit_type.spells[0]
+                move = GameMove(MoveType.CAST_SPELL, target_pos=target.position, spell_name=spell_name)
+                game.execute_move(move)
+            # Else if adjacent, attack
+            elif dist == 1:
+                move = GameMove(MoveType.ATTACK, target_pos=target.position)
+                game.execute_move(move)
+            # Else move towards target
             else:
-                print("Blocked or out of moves.")
+                # Simple move logic: move 1 step closer in x or y
+                dx = target.position.x - current_unit.position.x
+                dy = target.position.y - current_unit.position.y
+                
+                step_x = 1 if dx > 0 else -1 if dx < 0 else 0
+                step_y = 1 if dy > 0 else -1 if dy < 0 else 0
+                
+                new_pos = Position(current_unit.position.x + step_x, current_unit.position.y + step_y)
+                if game.is_valid_move(current_unit, new_pos, current_unit.unit_type.speed):
+                    move = GameMove(MoveType.MOVE, target_pos=new_pos)
+                    game.execute_move(move)
+                else:
+                    print("Blocked or out of moves.")
+        except ValueError as e:
+            print(f"Move failed: {e}")
 
         if game.check_game_over():
             break
