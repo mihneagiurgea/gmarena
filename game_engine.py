@@ -37,20 +37,43 @@ class UnitType:
     spells: List[str]
 
 @dataclass
-class Unit:
+class UnitInstance:
     uid: int
     unit_type: UnitType
-    player_id: int
-    position: Position
-    current_health: int
+    
+    @property
+    def player_id(self):
+        return 1 if self.uid % 2 != 0 else 2
     
     @property
     def name(self):
         return self.unit_type.name
+
+@dataclass
+class UnitState:
+    unit_instance: UnitInstance
+    position: Position
+    current_health: int
     
     @property
     def is_alive(self):
         return self.current_health > 0
+
+    @property
+    def uid(self):
+        return self.unit_instance.uid
+        
+    @property
+    def player_id(self):
+        return self.unit_instance.player_id
+        
+    @property
+    def unit_type(self):
+        return self.unit_instance.unit_type
+        
+    @property
+    def name(self):
+        return self.unit_instance.name
 
 class MoveType(Enum):
     MOVE = auto()
@@ -93,25 +116,30 @@ class GameInstance:
     def __init__(self, config: GameConfig):
         self.config = config
         self.turn_order: List[int] = []
-        self.units: Dict[int, Unit] = {}
+        self.units: Dict[int, UnitInstance] = {}
         self.grid: Dict[Position, int] = {} # Position -> unit_uid
-        self.next_uid = 1
+        self.next_p1_uid = 1
+        self.next_p2_uid = 2
 
     def _add_unit(self, type_name: str, player_id: int, position: Position):
         if position in self.grid:
             raise ValueError(f"Position {position} is already occupied.")
         
         u_type = self.config.unit_types[type_name]
-        unit = Unit(
-            uid=self.next_uid,
-            unit_type=u_type,
-            player_id=player_id,
-            position=position,
-            current_health=u_type.health
+        
+        if player_id == 1:
+            uid = self.next_p1_uid
+            self.next_p1_uid += 2
+        else:
+            uid = self.next_p2_uid
+            self.next_p2_uid += 2
+
+        unit = UnitInstance(
+            uid=uid,
+            unit_type=u_type
         )
         self.units[unit.uid] = unit
         self.grid[position] = unit.uid
-        self.next_uid += 1
 
     def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
         # Player 1 (Top)
@@ -142,17 +170,16 @@ class GameInstance:
 class GameState:
     def __init__(self, instance: GameInstance):
         self.instance = instance
-        # Create a shallow copy of the initial state from the instance
-        # Note: Units are mutable, so modifications in GameState will affect GameInstance's references
-        # unless we deep copy. For now, we share the references as per typical game loop patterns
-        # where GameInstance might just be the container.
-        # However, to support "restart", we might want deep copy. 
-        # Let's stick to shallow copy of the structure for now.
-        self.units: Dict[int, Unit] = instance.units.copy()
         self.grid: Dict[Position, int] = instance.grid.copy()
+        self.units: Dict[int, UnitState] = {}
+        
+        for pos, uid in self.grid.items():
+            u_inst = instance.units[uid]
+            self.units[uid] = UnitState(u_inst, pos, u_inst.unit_type.health)
+            
         self.current_turn_index = 0
 
-    def get_current_unit(self) -> Optional[Unit]:
+    def get_current_unit(self) -> Optional[UnitState]:
         if not self.instance.turn_order:
             return None
         uid = self.instance.turn_order[self.current_turn_index]
@@ -171,7 +198,7 @@ class GameState:
                 break
         print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
-    def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
+    def is_valid_move(self, unit: UnitState, target_pos: Position, max_dist: int) -> bool:
         if not (0 <= target_pos.x < self.instance.config.grid_width and 0 <= target_pos.y < self.instance.config.grid_height):
             return False
         if target_pos in self.grid and self.grid[target_pos] != unit.uid:
@@ -214,7 +241,7 @@ class GameState:
         else:
             raise ValueError("Unhandled move_type: " + move)
 
-    def _find_charge_pos(self, attacker: Unit, target: Unit) -> Optional[Position]:
+    def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Position]:
         # Find valid move position adjacent to target
         candidates = []
         for dx in [-1, 0, 1]:
@@ -230,7 +257,7 @@ class GameState:
         # Pick closest to attacker
         return min(candidates, key=lambda p: attacker.position.distance_to(p))
 
-    def _move(self, unit: Unit, target_pos: Position):
+    def _move(self, unit: UnitState, target_pos: Position):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
             raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
         
@@ -239,7 +266,7 @@ class GameState:
         self.grid[target_pos] = unit.uid
         print(f"{unit.name} moved to {target_pos}")
 
-    def _attack(self, attacker: Unit, target: Unit, penalty_wc: int = 0):
+    def _attack(self, attacker: UnitState, target: UnitState, penalty_wc: int = 0):
         dist = attacker.position.distance_to(target.position)
         if dist > 1:
             raise ValueError(f"Target out of range for attack (dist: {dist})")
@@ -258,7 +285,7 @@ class GameState:
         else:
             print("Miss!")
 
-    def _charge(self, attacker: Unit, move_target_pos: Position, attack_target: Unit):
+    def _charge(self, attacker: UnitState, move_target_pos: Position, attack_target: UnitState):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
         if not self.is_valid_move(attacker, move_target_pos, attacker.unit_type.speed):
              raise ValueError(f"Invalid charge move for {attacker.name} to {move_target_pos}")
@@ -272,7 +299,7 @@ class GameState:
         # Execute attack
         self._attack(attacker, attack_target, penalty_wc=4)
 
-    def _cast_spell(self, attacker: Unit, spell_name: str, target: Unit):
+    def _cast_spell(self, attacker: UnitState, spell_name: str, target: UnitState):
         if spell_name not in attacker.unit_type.spells:
             raise ValueError(f"{attacker.name} does not know spell {spell_name}")
         
@@ -318,13 +345,13 @@ class GameEngine:
         self.state = self.instance.start_game(p1_units, p2_units)
 
     # Delegation methods for backward compatibility / ease of use
-    def get_current_unit(self) -> Optional[Unit]:
+    def get_current_unit(self) -> Optional[UnitState]:
         return self.state.get_current_unit()
 
     def next_turn(self):
         self.state.next_turn()
 
-    def is_valid_move(self, unit: Unit, target_pos: Position, max_dist: int) -> bool:
+    def is_valid_move(self, unit: UnitState, target_pos: Position, max_dist: int) -> bool:
         return self.state.is_valid_move(unit, target_pos, max_dist)
 
     def execute_move(self, move: GameMove):
