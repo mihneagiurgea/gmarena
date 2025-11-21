@@ -110,67 +110,62 @@ class GameConfig:
                 u['attack_damage'], u['speed'], u['spells']
             )
 
-# --- Game State ---
+# --- Game Instance ---
 
 class GameInstance:
     def __init__(self, config: GameConfig):
         self.config = config
         self.turn_order: List[int] = []
-        self.units: Dict[int, UnitInstance] = {}
-        self.grid: Dict[Position, int] = {} # Position -> unit_uid
-        self.next_p1_uid = 1
-        self.next_p2_uid = 2
-
-    def _add_unit(self, type_name: str, player_id: int, position: Position):
-        if position in self.grid:
-            raise ValueError(f"Position {position} is already occupied.")
-        
-        u_type = self.config.unit_types[type_name]
-        
-        if player_id == 1:
-            uid = self.next_p1_uid
-            self.next_p1_uid += 2
-        else:
-            uid = self.next_p2_uid
-            self.next_p2_uid += 2
-
-        unit = UnitInstance(
-            uid=uid,
-            unit_type=u_type
-        )
-        self.units[unit.uid] = unit
-        self.grid[position] = unit.uid
+        self.units: Dict[int, UnitInstance] = {} # unit_uid -> UnitInstance
 
     def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
+        grid: Dict[Position, int] = {} # Position -> unit_uid
+
         # Player 1 (Top)
         gap = 2
         total_width = len(p1_units) + (len(p1_units) - 1) * gap
         start_x = (self.config.grid_width - total_width) // 2
         
-        for i, u_name in enumerate(p1_units):
+        uid = 1
+        for i, type_name in enumerate(p1_units):
             x = start_x + i * (1 + gap)
             pos = Position(x, 0)
-            self._add_unit(u_name, 1, pos)
+
+            self.units[uid] = UnitInstance(
+                uid=uid,
+                unit_type=self.config.unit_types[type_name]
+            )
+            grid[pos] = uid
+
+            uid += 2
 
         # Player 2 (Bottom)
         total_width_p2 = len(p2_units) + (len(p2_units) - 1) * gap
         start_x_p2 = (self.config.grid_width - total_width_p2) // 2
         y_p2 = self.config.grid_height - 1
         
-        for i, u_name in enumerate(p2_units):
+        uid = 2
+        for i, type_name in enumerate(p2_units):
             x = start_x_p2 + i * (1 + gap)
             pos = Position(x, y_p2)
-            self._add_unit(u_name, 2, pos)
+            
+            self.units[uid] = UnitInstance(
+                uid=uid,
+                unit_type=self.config.unit_types[type_name]
+            )
+            grid[pos] = uid
+
+            uid += 2
 
         self.turn_order = list(self.units.keys())
         random.shuffle(self.turn_order)
         print(f"Game Initialized. Turn Order: {self.turn_order}")
-        return GameState(self)
+        return GameState(self, grid)
 
 class GameState:
-    def __init__(self, instance: GameInstance):
+    def __init__(self, instance: GameInstance, grid: Dict[Position, int]):
         self.instance = instance
-        self.grid: Dict[Position, int] = instance.grid.copy()
+        self.grid: Dict[Position, int] = grid # Position -> unit_uid
         self.units: Dict[int, UnitState] = {}
         
         for pos, uid in self.grid.items():
@@ -186,8 +181,7 @@ class GameState:
         return self.units.get(uid)
 
     def clone(self) -> 'GameState':
-        new_state = GameState(self.instance)
-        new_state.grid = self.grid.copy()
+        new_state = GameState(self.instance, self.grid.copy())
         new_state.units = {uid: UnitState(u.unit_instance, u.position, u.current_health) for uid, u in self.units.items()}
         new_state.current_turn_index = self.current_turn_index
         return new_state
