@@ -185,6 +185,67 @@ class GameState:
         uid = self.instance.turn_order[self.current_turn_index]
         return self.units.get(uid)
 
+    def clone(self) -> 'GameState':
+        new_state = GameState(self.instance)
+        new_state.grid = self.grid.copy()
+        new_state.units = {uid: UnitState(u.unit_instance, u.position, u.current_health) for uid, u in self.units.items()}
+        new_state.current_turn_index = self.current_turn_index
+        return new_state
+
+    def get_possible_moves(self, player_id: int) -> List[GameMove]:
+        moves = []
+        # Get all units for the player
+        player_units = [u for u in self.units.values() if u.player_id == player_id and u.is_alive]
+        
+        # If it's a specific unit's turn, we might only want moves for that unit?
+        # The current turn system enforces turn order. 
+        # So we should only generate moves for the current unit if we are strictly following turn order.
+        current_unit = self.get_current_unit()
+        if not current_unit or current_unit.player_id != player_id:
+            return []
+            
+        # Generate moves for current_unit
+        u = current_unit
+        
+        # 1. Move
+        # Optimization: Don't iterate every single pixel, but BFS/flood fill for reachable tiles?
+        # For small grid, iteration is fine.
+        for x in range(self.instance.config.grid_width):
+            for y in range(self.instance.config.grid_height):
+                pos = Position(x, y)
+                if self.is_valid_move(u, pos, u.unit_type.speed * 2):
+                    moves.append(GameMove(MoveType.MOVE, target_pos=pos))
+                    
+        # 2. Attack
+        # Find all enemies in range
+        enemies = [e for e in self.units.values() if e.player_id != player_id and e.is_alive]
+        for e in enemies:
+            dist = u.position.distance_to(e.position)
+            if dist <= 1:
+                moves.append(GameMove(MoveType.ATTACK, target_pos=e.position))
+                
+        # 3. Charge
+        # Move + Attack. Target must be reachable with speed (not 2x) and then adjacent.
+        # We can iterate enemies and check if we can charge them.
+        for e in enemies:
+            charge_pos = self._find_charge_pos(u, e)
+            if charge_pos:
+                moves.append(GameMove(MoveType.CHARGE, target_pos=e.position))
+                
+        # 4. Spells
+        for spell_name in u.unit_type.spells:
+            spell = self.instance.config.spells[spell_name]
+            # Spells usually have range.
+            for e in enemies:
+                dist = u.position.distance_to(e.position)
+                # Check if in range? The cast_spell logic calculates difficulty based on range, 
+                # but doesn't strictly forbid out of range (just harder).
+                # But maybe we should limit to reasonable range?
+                # For now, let's allow all enemies as targets.
+                moves.append(GameMove(MoveType.CAST_SPELL, target_pos=e.position, spell_name=spell_name))
+                
+        return moves
+
     def next_turn(self):
         # Skip dead units
         original_index = self.current_turn_index
