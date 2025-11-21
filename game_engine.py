@@ -97,7 +97,7 @@ class GameInstance:
         self.grid: Dict[Position, int] = {} # Position -> unit_uid
         self.next_uid = 1
 
-    def add_unit(self, type_name: str, player_id: int, position: Position):
+    def _add_unit(self, type_name: str, player_id: int, position: Position):
         if position in self.grid:
             raise ValueError(f"Position {position} is already occupied.")
         
@@ -113,7 +113,27 @@ class GameInstance:
         self.grid[position] = unit.uid
         self.next_uid += 1
 
-    def start_game(self) -> 'GameState':
+    def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
+        # Player 1 (Top)
+        gap = 2
+        total_width = len(p1_units) + (len(p1_units) - 1) * gap
+        start_x = (self.config.grid_width - total_width) // 2
+        
+        for i, u_name in enumerate(p1_units):
+            x = start_x + i * (1 + gap)
+            pos = Position(x, 0)
+            self._add_unit(u_name, 1, pos)
+
+        # Player 2 (Bottom)
+        total_width_p2 = len(p2_units) + (len(p2_units) - 1) * gap
+        start_x_p2 = (self.config.grid_width - total_width_p2) // 2
+        y_p2 = self.config.grid_height - 1
+        
+        for i, u_name in enumerate(p2_units):
+            x = start_x_p2 + i * (1 + gap)
+            pos = Position(x, y_p2)
+            self._add_unit(u_name, 2, pos)
+
         self.turn_order = list(self.units.keys())
         random.shuffle(self.turn_order)
         print(f"Game Initialized. Turn Order: {self.turn_order}")
@@ -130,7 +150,6 @@ class GameState:
         # Let's stick to shallow copy of the structure for now.
         self.units: Dict[int, Unit] = instance.units.copy()
         self.grid: Dict[Position, int] = instance.grid.copy()
-        self.next_uid = instance.next_uid
         self.current_turn_index = 0
 
     def get_current_unit(self) -> Optional[Unit]:
@@ -294,19 +313,9 @@ class GameEngine:
         self.instance = GameInstance(self.config)
 
     def initialize_game(self):
-        # Player 1 (Top)
         p1_units = ["Warrior", "Mage", "Battlemage"]
-        for i, u_name in enumerate(p1_units):
-            pos = Position(2 + i * 4, 2) # Simple initial placement
-            self.instance.add_unit(u_name, 1, pos)
-            
-        # Player 2 (Bottom)
         p2_units = ["Warrior", "Mage", "Battlemage"]
-        for i, u_name in enumerate(p2_units):
-            pos = Position(2 + i * 4, 21) # Simple initial placement
-            self.instance.add_unit(u_name, 2, pos)
-            
-        self.state = self.instance.start_game()
+        self.state = self.instance.start_game(p1_units, p2_units)
 
     # Delegation methods for backward compatibility / ease of use
     def get_current_unit(self) -> Optional[Unit]:
