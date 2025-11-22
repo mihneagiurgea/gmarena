@@ -43,7 +43,7 @@ def run_game():
                 print("AI has no moves.")
         else:
             # Random Player
-            moves = game.get_possible_moves(2)
+            moves = game.get_possible_moves()
             if moves:
                 move = random.choice(moves)
                 print(f"Random chose: {move}")

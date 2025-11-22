@@ -172,11 +172,9 @@ class GameState:
             
         self.current_turn_index = 0
 
-    def get_current_unit(self) -> Optional[UnitState]:
-        if not self.instance.turn_order:
-            return None
+    def get_current_unit(self) -> UnitState:
         uid = self.instance.turn_order[self.current_turn_index]
-        return self.units.get(uid)
+        return self.units[uid]
 
     def clone(self) -> 'GameState':
         new_state = GameState(self.instance, self.grid.copy())
@@ -184,20 +182,16 @@ class GameState:
         new_state.current_turn_index = self.current_turn_index
         return new_state
 
-    def get_possible_moves(self, player_id: int) -> List[GameMove]:
+    def get_possible_moves(self) -> List[GameMove]:
         moves = []
-        # Get all units for the player
-        player_units = [u for u in self.units.values() if u.player_id == player_id and u.is_alive]
         
-        # If it's a specific unit's turn, we might only want moves for that unit?
         # The current turn system enforces turn order. 
         # So we should only generate moves for the current unit if we are strictly following turn order.
         current_unit = self.get_current_unit()
-        if not current_unit or current_unit.player_id != player_id:
-            return []
             
         # Generate moves for current_unit
         u = current_unit
+        player_id = u.player_id
         
         # 1. Move
         # Optimization: Don't iterate every single pixel, but BFS/flood fill for reachable tiles?

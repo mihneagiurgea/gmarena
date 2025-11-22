@@ -15,7 +15,7 @@ class MinimaxAgent:
         beta = math.inf
         
         # Generate possible moves for the current unit (which must be ours)
-        moves = state.get_possible_moves(self.player_id)
+        moves = state.get_possible_moves()
         
         # Optimization: Sort moves?
         # For now, shuffle to add variety if scores are equal
@@ -52,7 +52,7 @@ class MinimaxAgent:
             
         is_maximizing = (current_unit.player_id == self.player_id)
         
-        moves = state.get_possible_moves(current_unit.player_id)
+        moves = state.get_possible_moves()
         if not moves:
             # No moves possible (e.g. blocked), pass turn
             new_state = state.clone()
