@@ -367,17 +367,72 @@ class GameState:
         else:
             print("Spell failed!")
 
-    def check_game_over(self):
+    def check_game_over(self, silent: bool = False) -> bool:
         p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
         p2_alive = any(u.is_alive for u in self.units.values() if u.player_id == 2)
         
         if not p1_alive:
-            print("Player 2 Wins!")
+            if not silent:
+                print("Player 2 Wins!")
             return True
         if not p2_alive:
-            print("Player 1 Wins!")
+            if not silent:
+                print("Player 1 Wins!")
             return True
         return False
+
+    # --- Minimax Protocol Implementation ---
+
+    def is_over(self) -> bool:
+        return self.check_game_over(silent=True)
+
+    def apply(self, move: GameMove) -> 'GameState':
+        new_state = self.clone()
+        new_state.execute_move(move)
+        return new_state
+
+    def __hash__(self) -> int:
+        # Hash based on unit states and turn index
+        unit_data = []
+        for uid in sorted(self.units.keys()):
+            u = self.units[uid]
+            unit_data.append((uid, u.position.x, u.position.y, u.current_health))
+        return hash((self.current_turn_index, tuple(unit_data)))
+
+def heuristic_evaluate(state: GameState) -> int:
+    """
+    Evaluates the game state for the Minimax algorithm.
+    Returns: Score of Player 1 - Score of Player 2.
+    Score = Sum(Unit Health * Threat Score)
+    Threat Score = Max(Attack Damage, Max Spell Damage)
+    """
+    p1_score = 0
+    p2_score = 0
+    
+    for u in state.units.values():
+        if not u.is_alive:
+            continue
+            
+        # Calculate threat score
+        max_spell_dmg = 0
+        if u.unit_type.spells:
+            for s_name in u.unit_type.spells:
+                # Access spell details from config
+                # Note: state.instance.config is available
+                if s_name in state.instance.config.spells:
+                    s = state.instance.config.spells[s_name]
+                    if s.damage > max_spell_dmg:
+                        max_spell_dmg = s.damage
+        
+        threat = max(u.unit_type.attack_damage, max_spell_dmg)
+        unit_score = u.current_health * threat
+        
+        if u.player_id == 1:
+            p1_score += unit_score
+        else:
+            p2_score += unit_score
+            
+    return p1_score - p2_score
 
 # --- Verification Block ---
 if __name__ == "__main__":

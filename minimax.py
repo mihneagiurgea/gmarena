@@ -11,7 +11,7 @@ class GameState(Protocol):
         """Returns True if the game is over, False otherwise."""
         ...
 
-    def possible_moves(self) -> List[GameMove]:
+    def get_possible_moves(self) -> List[GameMove]:
         """Returns a list of possible moves for the current player."""
         ...
 
@@ -85,7 +85,7 @@ class MinimaxSolver:
 
         if is_maximizing:
             max_eval = -1_000_001
-            for move in state.possible_moves():
+            for move in state.get_possible_moves():
                 new_state = state.apply(move)
                 eval_score, _ = self._minimax(new_state, depth - 1, alpha, beta, False)
                 
@@ -101,7 +101,7 @@ class MinimaxSolver:
             return max_eval, best_move
         else:
             min_eval = 1_000_001
-            for move in state.possible_moves():
+            for move in state.get_possible_moves():
                 new_state = state.apply(move)
                 eval_score, _ = self._minimax(new_state, depth - 1, alpha, beta, True)
                 
