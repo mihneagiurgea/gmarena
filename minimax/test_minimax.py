@@ -19,8 +19,9 @@ class NimState:
             moves.append(2)
         return moves
 
-    def apply(self, move: int) -> 'NimState':
-        return NimState(self.tokens - move, not self.is_max_player_turn)
+    def apply(self, move: int) -> List[Tuple['NimState', float]]:
+        # Deterministic game: return single outcome with probability 1.0
+        return [(NimState(self.tokens - move, not self.is_max_player_turn), 1.0)]
 
 def nim_heuristic(state: GameState) -> int:
     if not isinstance(state, NimState):
@@ -78,6 +79,58 @@ class TestMinimax(unittest.TestCase):
         # Second run: Should return poisoned value
         score2, _ = self.solver.solve(start_state, depth=10, is_maximizing=True)
         self.assertEqual(score2, 999999, "Should return value from transposition table")
+
+@dataclass(frozen=True)
+class CoinFlipState:
+    """A simple non-deterministic game where moves have probabilistic outcomes."""
+    score: int
+    moves_left: int
+    
+    def is_over(self) -> bool:
+        return self.moves_left == 0
+    
+    def get_possible_moves(self) -> List[str]:
+        if self.moves_left > 0:
+            return ["flip"]
+        return []
+    
+    def apply(self, move: str) -> List[Tuple['CoinFlipState', float]]:
+        """Flip a coin: 50% chance of +10, 50% chance of -5"""
+        if move == "flip":
+            return [
+                (CoinFlipState(self.score + 10, self.moves_left - 1), 0.5),
+                (CoinFlipState(self.score - 5, self.moves_left - 1), 0.5)
+            ]
+        return [(self, 1.0)]
+
+def coin_flip_heuristic(state: GameState) -> int:
+    if isinstance(state, CoinFlipState):
+        return state.score
+    return 0
+
+class TestExpectimax(unittest.TestCase):
+    def test_coin_flip_expected_value(self):
+        """Test that Expectimax correctly calculates expected values."""
+        solver = MinimaxSolver(coin_flip_heuristic)
+        
+        # Start with score 0, 1 flip left
+        # Expected value: 0.5 * 10 + 0.5 * (-5) = 5 - 2.5 = 2.5
+        start_state = CoinFlipState(score=0, moves_left=1)
+        score, move = solver.solve(start_state, depth=10, is_maximizing=True)
+        
+        self.assertEqual(move, "flip")
+        self.assertAlmostEqual(score, 2.5, places=5)
+    
+    def test_coin_flip_multiple_flips(self):
+        """Test with multiple flips."""
+        solver = MinimaxSolver(coin_flip_heuristic)
+        
+        # 2 flips: Expected value = 2.5 + 2.5 = 5.0
+        start_state = CoinFlipState(score=0, moves_left=2)
+        score, move = solver.solve(start_state, depth=10, is_maximizing=True)
+        
+        self.assertEqual(move, "flip")
+        self.assertAlmostEqual(score, 5.0, places=5)
 
 if __name__ == '__main__':
     unittest.main()

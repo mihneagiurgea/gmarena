@@ -395,11 +395,12 @@ class GameState:
     def is_over(self) -> bool:
         return self.check_game_over(silent=True)
 
-    def apply(self, move: GameMove) -> 'GameState':
+    def apply(self, move: GameMove) -> List[Tuple['GameState', float]]:
         new_state = self.clone()
         new_state.execute_move(move, silent=True)
         new_state.next_turn(silent=True)
-        return new_state
+        # Deterministic game: return single outcome with probability 1.0
+        return [(new_state, 1.0)]
 
     def __hash__(self) -> int:
         # Hash based on unit states and turn index
