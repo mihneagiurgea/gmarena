@@ -13,12 +13,12 @@ class TestHexGrid(unittest.TestCase):
 
     def test_set_get_item(self):
         p = Pt(1, 1)
-        obj = "Unit"
+        obj = 1
         self.grid[p] = obj
         self.assertEqual(self.grid[p], obj)
         
         # Test overwrite
-        obj2 = "Unit2"
+        obj2 = 2
         self.grid[p] = obj2
         self.assertEqual(self.grid[p], obj2)
 
@@ -32,7 +32,7 @@ class TestHexGrid(unittest.TestCase):
     def test_out_of_bounds_assignment(self):
         p_out = Pt(10, 10)
         with self.assertRaises(IndexError):
-            self.grid[p_out] = "Fail"
+            self.grid[p_out] = 1
 
     def test_distance_neighbors_even_row(self):
         # (2, 2) is in an even row (row 2)
@@ -141,7 +141,7 @@ class TestHexGrid(unittest.TestCase):
         # (1,0) neighbors: (0,0), (2,0), (1,1), (0,1)[Blocked], ...
         # Path: (0,0) -> (1,0) -> (1,1) -> (1,2) -> (0,2)
         # Length 5 (5 nodes).
-        self.grid[Pt(0, 1)] = "Obstacle"
+        self.grid[Pt(0, 1)] = 99
         path = self.grid.find_path(start, goal)
         self.assertIsNotNone(path)
         self.assertEqual(len(path), 5)
@@ -150,7 +150,8 @@ class TestHexGrid(unittest.TestCase):
         self.assertNotIn(Pt(0, 1), path)
         
         # No path (surrounded)
-        self.grid[Pt(1, 0)] = "Obstacle"
+        self.grid[Pt(0, 1)] = 101
+        self.grid[Pt(1, 0)] = 102
         # (0,0) only has neighbors (1,0) and (0,1), both blocked.
         path = self.grid.find_path(start, goal)
         self.assertIsNone(path)
@@ -160,9 +161,60 @@ class TestHexGrid(unittest.TestCase):
         self.assertEqual(path, [start])
         
         # Goal occupied
-        self.grid[goal] = "Unit"
+        self.grid[goal] = 100
         path = self.grid.find_path(start, goal)
         self.assertIsNone(path)
+
+    def test_get_pt(self):
+        p = Pt(1, 1)
+        obj = 1
+        self.grid[p] = obj
+        
+        # Test lookup
+        self.assertEqual(self.grid.get_pt(obj), p)
+        
+        # Test missing
+        with self.assertRaises(ValueError):
+            self.grid.get_pt(999)
+            
+        # Test move (implicit via setitem)
+        p2 = Pt(2, 2)
+        self.grid[p2] = obj
+        # obj should move from p to p2
+        self.assertEqual(self.grid.get_pt(obj), p2)
+        self.assertIsNone(self.grid[p]) # Old position should be empty
+        self.assertEqual(self.grid[p2], obj)
+        
+        # Test overwrite
+        obj2 = 2
+        self.grid[p2] = obj2
+        # obj should be removed from grid
+        self.assertEqual(self.grid.get_pt(obj2), p2)
+        with self.assertRaises(ValueError):
+            self.grid.get_pt(obj)
+            
+        # Test explicit delete
+        del self.grid[p2]
+        self.assertIsNone(self.grid[p2])
+        with self.assertRaises(ValueError):
+            self.grid.get_pt(obj2)
+            
+    def test_type_error(self):
+        p = Pt(0, 0)
+        with self.assertRaises(TypeError):
+            self.grid[p] = "Not an int"
+
+class TestPt(unittest.TestCase):
+    def test_add(self):
+        p1 = Pt(1, 2)
+        p2 = Pt(3, 4)
+        result = p1.add(p2)
+        self.assertEqual(result, Pt(4, 6))
+        
+        # Test negative
+        p3 = Pt(-1, -1)
+        result = p1.add(p3)
+        self.assertEqual(result, Pt(0, 1))
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,9 @@ class Pt:
     x: int
     y: int
 
+    def add(self, other: 'Pt') -> 'Pt':
+        return Pt(self.x + other.x, self.y + other.y)
+
 class SquareGrid:
     def __init__(self, width: int, height: int):
         self.width = width
@@ -27,7 +30,11 @@ class HexGrid:
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
-        self._grid: Dict[Pt, Any] = {}
+        self._grid: Dict[Pt, int] = {}
+        self._reverse_grid: Dict[int, Pt] = {}
+
+    _EVEN_ROW_OFFSETS = [Pt(-1, 0), Pt(1, 0), Pt(-1, -1), Pt(0, -1), Pt(-1, 1), Pt(0, 1)]
+    _ODD_ROW_OFFSETS = [Pt(-1, 0), Pt(1, 0), Pt(0, -1), Pt(1, -1), Pt(0, 1), Pt(1, 1)]
 
     def _to_cube(self, p: Pt) -> Tuple[int, int, int]:
         # Convert odd-r offset coordinates to cube coordinates
@@ -44,29 +51,53 @@ class HexGrid:
         q2, r2, s2 = self._to_cube(p2)
         return (abs(q1 - q2) + abs(r1 - r2) + abs(s1 - s2)) // 2
 
-    def __setitem__(self, pos: Pt, obj: Any):
-        if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
-            raise IndexError(f"Position {pos} is out of bounds (Width: {self.width}, Height: {self.height})")
-        self._grid[pos] = obj
-
-    def __getitem__(self, pos: Pt) -> Optional[Any]:
-        if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
-            return None
-        return self._grid.get(pos)
-
-    def get_neighbors(self, pos: Pt) -> List[Pt]:
-        neighbors = []
-        x, y = pos.x, pos.y
+    def __setitem__(self, pt: Pt, oid: int):
+        if not isinstance(oid, int):
+            raise TypeError(f"HexGrid only accepts int objects, got {type(oid)}")
+        if not (0 <= pt.x < self.width and 0 <= pt.y < self.height):
+            raise IndexError(f"Position {pt} is out of bounds (Width: {self.width}, Height: {self.height})")
         
-        if y % 2 == 0:
-            offsets = [(-1, 0), (1, 0), (-1, -1), (0, -1), (-1, 1), (0, 1)]
-        else:
-            offsets = [(-1, 0), (1, 0), (0, -1), (1, -1), (0, 1), (1, 1)]
+        # If position is occupied, remove the old object from reverse grid
+        if pt in self._grid:
+            del self[pt]
+        
+        # If object is already elsewhere, remove it from the old position in grid
+        # This enforces 1-to-1 mapping for the object (an object can only be in one place)
+        if oid in self._reverse_grid:
+            old_pt = self._reverse_grid[oid]
+            if old_pt in self._grid:
+                del self[old_pt]
+
+        self._grid[pt] = oid
+        self._reverse_grid[oid] = pt
+
+    def __delitem__(self, pt: Pt):
+        if pt not in self._grid:
+            raise KeyError(f"Position {pt} is empty")
+        
+        oid = self._grid[pt]
+        del self._reverse_grid[oid]
+        del self._grid[pt]
+
+    def __getitem__(self, pt: Pt) -> Optional[int]:
+        if not (0 <= pt.x < self.width and 0 <= pt.y < self.height):
+            return None
+        return self._grid.get(pt)
+
+    def get_pt(self, oid: int) -> Pt:
+        if oid not in self._reverse_grid:
+            raise ValueError(f"Object {oid} not found in grid")
+        return self._reverse_grid[oid]
+
+    def get_neighbors(self, pt: Pt) -> List[Pt]:
+        neighbors = []
+        
+        offsets = self._EVEN_ROW_OFFSETS if pt.y % 2 == 0 else self._ODD_ROW_OFFSETS
             
-        for dx, dy in offsets:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < self.width and 0 <= ny < self.height:
-                neighbors.append(Pt(nx, ny))
+        for offset in offsets:
+            neighbor = pt.add(offset)
+            if 0 <= neighbor.x < self.width and 0 <= neighbor.y < self.height:
+                neighbors.append(neighbor)
                 
         return neighbors
 
