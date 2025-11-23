@@ -7,7 +7,7 @@ from enum import Enum, auto
 
 # --- Data Classes ---
 
-from hex import Pt, SquareGrid
+from hex import Pt, HexGrid
 
 @dataclass
 class Spell:
@@ -27,13 +27,15 @@ class UnitType:
 
 @dataclass
 class UnitState:
-    instance: 'GameInstance'  # Reference to game instance
+    state: 'GameState'  # Reference to game state
     uid: int
-    position: Pt
     current_health: int
 
     def __repr__(self):
-        return f"{self.unit_type.name} (P{self.player_id} ID:{self.uid}): {self.current_health}/{self.unit_type.health}"
+        if not self.is_alive:
+            return f"{self.unit_type.name} (P{self.player_id} ID:{self.uid}): DEAD"
+        pos = self.state.grid.get_pt(self.uid)
+        return f"{self.unit_type.name} (P{self.player_id} ID:{self.uid}) at {pos}: {self.current_health}/{self.unit_type.health}"
     
     @property
     def is_alive(self):
@@ -45,11 +47,16 @@ class UnitState:
         
     @property
     def unit_type(self) -> UnitType:
-        return self.instance.unit_types[self.uid]
+        return self.state.instance.units[self.uid]
         
     @property
     def name(self):
         return self.unit_type.name
+    
+    @property
+    def position(self) -> Pt:
+        """Get position from the grid using reverse lookup"""
+        return self.state.grid.get_pt(self.uid)
 
 class MoveType(Enum):
     MOVE = auto()
@@ -90,10 +97,10 @@ class GameInstance:
     def __init__(self, config: GameConfig):
         self.config = config
         self.turn_order: List[int] = []
-        self.unit_types: Dict[int, UnitType] = {} # unit_uid -> UnitType
+        self.units: Dict[int, UnitType] = {} # unit_uid -> UnitType
 
     def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
-        grid: Dict[Pt, int] = {} # Position -> unit_uid
+        grid = HexGrid(self.config.grid_width, self.config.grid_height)
 
         # Player 1 (Top)
         gap = 2
@@ -105,7 +112,7 @@ class GameInstance:
             x = start_x + i * (1 + gap)
             pos = Pt(x, 0)
 
-            self.unit_types[uid] = self.config.unit_types[type_name]
+            self.units[uid] = self.config.unit_types[type_name]
             grid[pos] = uid
 
             uid += 2
@@ -120,26 +127,26 @@ class GameInstance:
             x = start_x_p2 + i * (1 + gap)
             pos = Pt(x, y_p2)
             
-            self.unit_types[uid] = self.config.unit_types[type_name]
+            self.units[uid] = self.config.unit_types[type_name]
             grid[pos] = uid
 
             uid += 2
 
-        self.turn_order = list(self.unit_types.keys())
+        self.turn_order = list(self.units.keys())
         random.shuffle(self.turn_order)
         print(f"Game Initialized. Turn Order: {self.turn_order}")
         return GameState(self, grid)
 
 class GameState:
-    def __init__(self, instance: GameInstance, grid: Dict[Pt, int]):
+    def __init__(self, instance: GameInstance, grid: HexGrid):
         self.instance = instance
-        self.grid: Dict[Pt, int] = grid # Position -> unit_uid
+        self.grid: HexGrid = grid
         self.units: Dict[int, UnitState] = {}
-        self.square_grid = SquareGrid(instance.config.grid_width, instance.config.grid_height)
         
-        for pos, uid in self.grid.items():
-            unit_type = instance.unit_types[uid]
-            self.units[uid] = UnitState(instance, uid, pos, unit_type.health)
+        # Create UnitState for each unit in the grid
+        for pos, uid in grid._grid.items():
+            unit_type = instance.units[uid]
+            self.units[uid] = UnitState(self, uid, unit_type.health)
             
         self.current_turn_index = 0
 
@@ -155,9 +162,11 @@ class GameState:
     def clone(self) -> 'GameState':
         new_state = GameState.__new__(GameState)
         new_state.instance = self.instance
-        new_state.grid = self.grid.copy()
-        new_state.square_grid = self.square_grid
-        new_state.units = {uid: UnitState(self.instance, uid, u.position, u.current_health) for uid, u in self.units.items()}
+        # Clone the HexGrid
+        new_state.grid = HexGrid(self.grid.width, self.grid.height)
+        for pos, uid in self.grid._grid.items():
+            new_state.grid[pos] = uid
+        new_state.units = {uid: UnitState(new_state, uid, u.current_health) for uid, u in self.units.items()}
         new_state.current_turn_index = self.current_turn_index
         return new_state
 
@@ -185,7 +194,7 @@ class GameState:
         # Find all enemies in range
         enemies = [e for e in self.units.values() if e.player_id != player_id and e.is_alive]
         for e in enemies:
-            dist = self.square_grid.distance(u.position, e.position)
+            dist = self.grid.distance(u.position, e.position)
             if dist <= 1:
                 moves.append(GameMove(MoveType.ATTACK, target_pos=e.position))
                 
@@ -202,7 +211,7 @@ class GameState:
             spell = self.instance.config.spells[spell_name]
             # Spells usually have range.
             for e in enemies:
-                dist = self.square_grid.distance(u.position, e.position)
+                dist = self.grid.distance(u.position, e.position)
                 # Check if in range? The cast_spell logic calculates difficulty based on range, 
                 # but doesn't strictly forbid out of range (just harder).
                 # But maybe we should limit to reasonable range?
@@ -224,12 +233,13 @@ class GameState:
                 break
 
     def is_valid_move(self, unit: UnitState, target_pos: Pt, max_dist: int) -> bool:
-        if not (0 <= target_pos.x < self.instance.config.grid_width and 0 <= target_pos.y < self.instance.config.grid_height):
+        if not (0 <= target_pos.x < self.grid.width and 0 <= target_pos.y < self.grid.height):
             return False
-        if target_pos in self.grid and self.grid[target_pos] != unit.uid:
-            return False # Occupied
+        target_uid = self.grid[target_pos]
+        if target_uid is not None and target_uid != unit.uid:
+            return False  # Occupied by another unit
         
-        dist = self.square_grid.distance(unit.position, target_pos)
+        dist = self.grid.distance(unit.position, target_pos)
         return dist <= max_dist
 
     def execute_move(self, move: GameMove):
@@ -241,16 +251,16 @@ class GameState:
             self._move(attacker, move.target_pos)
         elif move.move_type == MoveType.ATTACK:
             # For other moves, target_pos must contain a unit
-            if move.target_pos not in self.grid:
-                raise ValueError(f"No unit at target position {move.target_pos}")
             target_uid = self.grid[move.target_pos]
+            if target_uid is None:
+                raise ValueError(f"No unit at target position {move.target_pos}")
             target = self.units[target_uid]
             self._attack(attacker, target)
         elif move.move_type == MoveType.CHARGE:
             # For other moves, target_pos must contain a unit
-            if move.target_pos not in self.grid:
-                raise ValueError(f"No unit at target position {move.target_pos}")
             target_uid = self.grid[move.target_pos]
+            if target_uid is None:
+                raise ValueError(f"No unit at target position {move.target_pos}")
             target = self.units[target_uid]
             # Find best charge position
             best_pos = self._find_charge_pos(attacker, target)
@@ -259,9 +269,9 @@ class GameState:
             self._charge(attacker, best_pos, target)
         elif move.move_type == MoveType.CAST_SPELL:
             # For other moves, target_pos must contain a unit
-            if move.target_pos not in self.grid:
-                raise ValueError(f"No unit at target position {move.target_pos}")
             target_uid = self.grid[move.target_pos]
+            if target_uid is None:
+                raise ValueError(f"No unit at target position {move.target_pos}")
             target = self.units[target_uid]
             if not move.spell_name:
                 raise ValueError("Spell name required for CAST_SPELL move.")
@@ -273,31 +283,28 @@ class GameState:
         self._next_turn()
 
     def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Pt]:
-        # Find valid move position adjacent to target
+        # Find valid move position adjacent to target - use hex neighbors instead of square grid
         candidates = []
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                if dx == 0 and dy == 0: continue
-                pos = Pt(target.position.x + dx, target.position.y + dy)
-                if self.is_valid_move(attacker, pos, attacker.unit_type.speed):
-                    candidates.append(pos)
+        for neighbor in self.grid.get_neighbors(target.position):
+            if self.is_valid_move(attacker, neighbor, attacker.unit_type.speed):
+                candidates.append(neighbor)
         
         if not candidates:
             return None
         
         # Pick closest to attacker
-        return min(candidates, key=lambda p: self.square_grid.distance(attacker.position, p))
+        return min(candidates, key=lambda p: self.grid.distance(attacker.position, p))
 
     def _move(self, unit: UnitState, target_pos: Pt):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
             raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
         
-        del self.grid[unit.position]
-        unit.position = target_pos
+        old_pos = self.grid.get_pt(unit.uid)
+        del self.grid[old_pos]
         self.grid[target_pos] = unit.uid
 
     def _attack(self, attacker: UnitState, target: UnitState, penalty_wc: int = 0):
-        dist = self.square_grid.distance(attacker.position, target.position)
+        dist = self.grid.distance(attacker.position, target.position)
         if dist > 1:
             raise ValueError(f"Target out of range for attack (dist: {dist})")
         
@@ -308,7 +315,8 @@ class GameState:
             dmg = attacker.unit_type.attack_damage
             target.current_health -= dmg
             if not target.is_alive:
-                del self.grid[target.position]
+                target_pos = self.grid.get_pt(target.uid)
+                del self.grid[target_pos]
 
     def _charge(self, attacker: UnitState, move_target_pos: Pt, attack_target: UnitState):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
@@ -316,8 +324,8 @@ class GameState:
              raise ValueError(f"Invalid charge move for {attacker.name} to {move_target_pos}")
         
         # Execute move
-        del self.grid[attacker.position]
-        attacker.position = move_target_pos
+        old_pos = self.grid.get_pt(attacker.uid)
+        del self.grid[old_pos]
         self.grid[move_target_pos] = attacker.uid
         
         # Execute attack
@@ -328,7 +336,7 @@ class GameState:
             raise ValueError(f"{attacker.name} does not know spell {spell_name}")
         
         spell = self.instance.config.spells[spell_name]
-        dist = self.square_grid.distance(attacker.position, target.position)
+        dist = self.grid.distance(attacker.position, target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
         roll = random.randint(1, 20)
@@ -336,7 +344,8 @@ class GameState:
         if roll >= difficulty:
             target.current_health -= spell.damage
             if not target.is_alive:
-                del self.grid[target.position]
+                target_pos = self.grid.get_pt(target.uid)
+                del self.grid[target_pos]
 
     def check_game_over(self) -> bool:
         p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
@@ -361,10 +370,13 @@ class GameState:
 
     def __hash__(self) -> int:
         # Hash based on unit states and turn index
-        unit_data = []
+        unit_data: List[Tuple] = []
         for uid in sorted(self.units.keys()):
             u = self.units[uid]
-            unit_data.append((uid, u.position.x, u.position.y, u.current_health))
+            if u.is_alive:
+                unit_data.append((uid, u.position.x, u.position.y, u.current_health))
+            else:
+                unit_data.append((uid, "DEAD"))
         return hash((self.current_turn_index, tuple(unit_data)))
 
 def heuristic_evaluate(state: GameState) -> float:
@@ -422,8 +434,8 @@ if __name__ == "__main__":
         if not enemies:
             break
             
-        target = min(enemies, key=lambda u: game.square_grid.distance(current_unit.position, u.position))
-        dist = game.square_grid.distance(current_unit.position, target.position)
+        target = min(enemies, key=lambda u: game.grid.distance(current_unit.position, u.position))
+        dist = game.grid.distance(current_unit.position, target.position)
         
         print(f"\n--- Turn: {current_unit.name} (P{current_unit.player_id}) ---")
         

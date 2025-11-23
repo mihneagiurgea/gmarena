@@ -1,6 +1,6 @@
 import unittest
 from game_engine import GameInstance, GameConfig, GameState, UnitType, Spell, heuristic_evaluate
-from hex import Pt
+from hex import Pt, HexGrid
 
 class TestHeuristic(unittest.TestCase):
     def setUp(self):
@@ -28,10 +28,9 @@ class TestHeuristic(unittest.TestCase):
         self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
-        grid = {
-            Pt(0, 0): 1,
-            Pt(10, 10): 2
-        }
+        grid = HexGrid(self.config.grid_width, self.config.grid_height)
+        grid[Pt(0, 0)] = 1
+        grid[Pt(8, 10)] = 2
         
         state = GameState(self.instance, grid)
         
@@ -46,10 +45,9 @@ class TestHeuristic(unittest.TestCase):
         self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
-        grid = {
-            Pt(0, 0): 1,
-            Pt(10, 10): 2
-        }
+        grid = HexGrid(self.config.grid_width, self.config.grid_height)
+        grid[Pt(0, 0)] = 1
+        grid[Pt(8, 10)] = 2
         
         state = GameState(self.instance, grid)
         # Manually set health in state
@@ -66,10 +64,9 @@ class TestHeuristic(unittest.TestCase):
         self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
-        grid = {
-            Pt(0, 0): 1,
-            Pt(10, 10): 2
-        }
+        grid = HexGrid(self.config.grid_width, self.config.grid_height)
+        grid[Pt(0, 0)] = 1
+        grid[Pt(8, 10)] = 2
         
         state = GameState(self.instance, grid)
         state.units[1].current_health = 10
@@ -84,10 +81,9 @@ class TestHeuristic(unittest.TestCase):
         self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
-        grid = {
-            Pt(0, 0): 1,
-            Pt(0, 1): 2 # Adjacent, so they can attack
-        }
+        grid = HexGrid(self.config.grid_width, self.config.grid_height)
+        grid[Pt(0, 0)] = 1
+        grid[Pt(0, 1)] = 2 # Adjacent, so they can attack
         
         state = GameState(self.instance, grid)
         
