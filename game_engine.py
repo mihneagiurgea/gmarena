@@ -230,7 +230,7 @@ class GameState:
                 
         return moves
 
-    def next_turn(self, silent: bool = False):
+    def next_turn(self):
         # Skip dead units
         original_index = self.current_turn_index
         while True:
@@ -241,8 +241,6 @@ class GameState:
             if self.current_turn_index == original_index:
                 # All units dead? Should be handled by game over check
                 break
-        if not silent:
-            print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
     def is_valid_move(self, unit: UnitState, target_pos: Pt, max_dist: int) -> bool:
         if not (0 <= target_pos.x < self.instance.config.grid_width and 0 <= target_pos.y < self.instance.config.grid_height):
@@ -253,36 +251,33 @@ class GameState:
         dist = self.square_grid.distance(unit.position, target_pos)
         return dist <= max_dist
 
-    def execute_move(self, move: GameMove, silent: bool = False):
+    def execute_move(self, move: GameMove):
         attacker = self.get_current_unit()
         if not attacker:
             raise ValueError("No active unit for turn.")
 
         if move.move_type == MoveType.MOVE:
-            self._move(attacker, move.target_pos, silent=silent)
+            self._move(attacker, move.target_pos)
             return
         
         # For other moves, target_pos must contain a unit
-        target_uid = self.grid.get(move.target_pos)
-        if target_uid is None:
-            raise ValueError(f"No target unit at {move.target_pos}")
-        
+        if move.target_pos not in self.grid:
+            raise ValueError(f"No unit at target position {move.target_pos}")
+        target_uid = self.grid[move.target_pos]
         target = self.units[target_uid]
 
         if move.move_type == MoveType.ATTACK:
-            self._attack(attacker, target, silent=silent)
-            
+            self._attack(attacker, target)
         elif move.move_type == MoveType.CHARGE:
-            # Infer move position: adjacent to target, closest to attacker
+            # Find best charge position
             best_pos = self._find_charge_pos(attacker, target)
             if not best_pos:
-                raise ValueError(f"No valid charge position near {target.name}")
-            self._charge(attacker, best_pos, target, silent=silent)
-            
+                raise ValueError("No valid charge position found.")
+            self._charge(attacker, best_pos, target)
         elif move.move_type == MoveType.CAST_SPELL:
-            if move.spell_name is None:
-                raise ValueError("Spell name required for CAST_SPELL")
-            self._cast_spell(attacker, move.spell_name, target, silent=silent)
+            if not move.spell_name:
+                raise ValueError("Spell name required for CAST_SPELL move.")
+            self._cast_spell(attacker, move.spell_name, target)
 
         else:
             raise ValueError("Unhandled move_type: " + move)
@@ -303,40 +298,29 @@ class GameState:
         # Pick closest to attacker
         return min(candidates, key=lambda p: self.square_grid.distance(attacker.position, p))
 
-    def _move(self, unit: UnitState, target_pos: Pt, silent: bool = False):
+    def _move(self, unit: UnitState, target_pos: Pt):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
             raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
         
         del self.grid[unit.position]
         unit.position = target_pos
         self.grid[target_pos] = unit.uid
-        if not silent:
-            print(f"{unit.name} moved to {target_pos}")
 
-    def _attack(self, attacker: UnitState, target: UnitState, penalty_wc: int = 0, silent: bool = False):
+    def _attack(self, attacker: UnitState, target: UnitState, penalty_wc: int = 0):
         dist = self.square_grid.distance(attacker.position, target.position)
         if dist > 1:
             raise ValueError(f"Target out of range for attack (dist: {dist})")
         
         roll = random.randint(1, 20)
         hit_chance = roll + attacker.unit_type.wc - penalty_wc
-        if not silent:
-            print(f"{attacker.name} attacks {target.name}. Roll: {roll} + WC {attacker.unit_type.wc} - Pen {penalty_wc} = {hit_chance} vs AC {target.unit_type.ac}")
         
         if hit_chance >= target.unit_type.ac:
             dmg = attacker.unit_type.attack_damage
             target.current_health -= dmg
-            if not silent:
-                print(f"Hit! Dealt {dmg} damage. {target.name} HP: {target.current_health}")
             if not target.is_alive:
-                if not silent:
-                    print(f"{target.name} has been defeated!")
                 del self.grid[target.position]
-        else:
-            if not silent:
-                print("Miss!")
 
-    def _charge(self, attacker: UnitState, move_target_pos: Pt, attack_target: UnitState, silent: bool = False):
+    def _charge(self, attacker: UnitState, move_target_pos: Pt, attack_target: UnitState):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
         if not self.is_valid_move(attacker, move_target_pos, attacker.unit_type.speed):
              raise ValueError(f"Invalid charge move for {attacker.name} to {move_target_pos}")
@@ -345,13 +329,11 @@ class GameState:
         del self.grid[attacker.position]
         attacker.position = move_target_pos
         self.grid[move_target_pos] = attacker.uid
-        if not silent:
-            print(f"{attacker.name} charged to {move_target_pos}")
         
         # Execute attack
-        self._attack(attacker, attack_target, penalty_wc=4, silent=silent)
+        self._attack(attacker, attack_target, penalty_wc=4)
 
-    def _cast_spell(self, attacker: UnitState, spell_name: str, target: UnitState, silent: bool = False):
+    def _cast_spell(self, attacker: UnitState, spell_name: str, target: UnitState):
         if spell_name not in attacker.unit_type.spells:
             raise ValueError(f"{attacker.name} does not know spell {spell_name}")
         
@@ -361,44 +343,30 @@ class GameState:
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
         roll = random.randint(1, 20)
         
-        if not silent:
-            print(f"{attacker.name} casts {spell_name} on {target.name}. Dist: {dist}, Diff: {difficulty}. Roll: {roll}")
-        
         if roll >= difficulty:
             target.current_health -= spell.damage
-            if not silent:
-                print(f"Spell hit! Dealt {spell.damage} damage. {target.name} HP: {target.current_health}")
             if not target.is_alive:
-                if not silent:
-                    print(f"{target.name} has been defeated!")
                 del self.grid[target.position]
-        else:
-            if not silent:
-                print("Spell failed!")
 
-    def check_game_over(self, silent: bool = False) -> bool:
+    def check_game_over(self) -> bool:
         p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
         p2_alive = any(u.is_alive for u in self.units.values() if u.player_id == 2)
         
         if not p1_alive:
-            if not silent:
-                print("Player 2 Wins!")
             return True
         if not p2_alive:
-            if not silent:
-                print("Player 1 Wins!")
             return True
         return False
 
     # --- Minimax Protocol Implementation ---
 
     def is_over(self) -> bool:
-        return self.check_game_over(silent=True)
+        return self.check_game_over()
 
     def apply(self, move: GameMove) -> List[Tuple['GameState', float]]:
         new_state = self.clone()
-        new_state.execute_move(move, silent=True)
-        new_state.next_turn(silent=True)
+        new_state.execute_move(move)
+        new_state.next_turn()
         # Deterministic game: return single outcome with probability 1.0
         return [(new_state, 1.0)]
 
