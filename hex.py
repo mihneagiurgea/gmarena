@@ -36,11 +36,25 @@ class HexGrid:
         self._grid: Dict[Pt, int] = {}
         self._reverse_grid: Dict[int, Pt] = {}
 
+    def clone(self) -> 'HexGrid':
+        new_grid = HexGrid(self.width, self.height)
+        new_grid._grid = self._grid.copy()
+        new_grid._reverse_grid = self._reverse_grid.copy()
+        return new_grid
+
+    def items(self):
+        """Returns a list of (Pt, oid) tuples, similar to dict.items()."""
+        return self._grid.items()
+
+    def is_in_bounds(self, pt: Pt) -> bool:
+        """Returns True if the point is within the grid boundaries."""
+        return 0 <= pt.x < self.width and 0 <= pt.y < self.height
+
     def __repr__(self) -> str:
         if not self._grid:
             return "HexGrid({})"
         # Sort by (y, x) for row-major order
-        sorted_items = sorted(self._grid.items(), key=lambda item: (item[0].y, item[0].x))
+        sorted_items = sorted(self.items(), key=lambda item: (item[0].y, item[0].x))
         items_str = ", ".join(f"{str(pt)}: {oid}" for pt, oid in sorted_items)
         return f"HexGrid({{{items_str}}})"
 
@@ -65,7 +79,7 @@ class HexGrid:
     def __setitem__(self, pt: Pt, oid: int):
         if not isinstance(oid, int):
             raise TypeError(f"HexGrid only accepts int objects, got {type(oid)}")
-        if not (0 <= pt.x < self.width and 0 <= pt.y < self.height):
+        if not self.is_in_bounds(pt):
             raise IndexError(f"Position {pt} is out of bounds (Width: {self.width}, Height: {self.height})")
         
         # If position is occupied, remove the old object from reverse grid
@@ -91,7 +105,7 @@ class HexGrid:
         del self._grid[pt]
 
     def __getitem__(self, pt: Pt) -> Optional[int]:
-        if not (0 <= pt.x < self.width and 0 <= pt.y < self.height):
+        if not self.is_in_bounds(pt):
             return None
         return self._grid.get(pt)
 
@@ -107,7 +121,7 @@ class HexGrid:
             
         for offset in offsets:
             neighbor = pt.add(offset)
-            if 0 <= neighbor.x < self.width and 0 <= neighbor.y < self.height:
+            if self.is_in_bounds(neighbor):
                 neighbors.append(neighbor)
                 
         return neighbors

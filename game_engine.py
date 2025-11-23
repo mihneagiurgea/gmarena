@@ -144,7 +144,7 @@ class GameState:
         self.units: Dict[int, UnitState] = {}
         
         # Create UnitState for each unit in the grid
-        for pos, uid in grid._grid.items():
+        for pos, uid in grid.items():
             unit_type = instance.units[uid]
             self.units[uid] = UnitState(self, uid, unit_type.health)
             
@@ -163,9 +163,7 @@ class GameState:
         new_state = GameState.__new__(GameState)
         new_state.instance = self.instance
         # Clone the HexGrid
-        new_state.grid = HexGrid(self.grid.width, self.grid.height)
-        for pos, uid in self.grid._grid.items():
-            new_state.grid[pos] = uid
+        new_state.grid = self.grid.clone()
         new_state.units = {uid: UnitState(new_state, uid, u.current_health) for uid, u in self.units.items()}
         new_state.current_turn_index = self.current_turn_index
         return new_state
@@ -233,7 +231,7 @@ class GameState:
                 break
 
     def is_valid_move(self, unit: UnitState, target_pos: Pt, max_dist: int) -> bool:
-        if not (0 <= target_pos.x < self.grid.width and 0 <= target_pos.y < self.grid.height):
+        if not self.grid.is_in_bounds(target_pos):
             return False
         target_uid = self.grid[target_pos]
         if target_uid is not None and target_uid != unit.uid:
