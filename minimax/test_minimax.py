@@ -23,16 +23,16 @@ class NimState:
         # Deterministic game: return single outcome with probability 1.0
         return [(NimState(self.tokens - move, not self.is_max_player_turn), 1.0)]
 
-def nim_heuristic(state: GameState) -> int:
+def nim_heuristic(state: GameState) -> float:
     if not isinstance(state, NimState):
-        return 0
+        return 0.0
     
     if state.is_over():
         if state.is_max_player_turn:
-            return -1000
+            return -1000.0
         else:
-            return 1000
-    return 0
+            return 1000.0
+    return 0.0
 
 class TestMinimax(unittest.TestCase):
     def setUp(self):
@@ -103,10 +103,10 @@ class CoinFlipState:
             ]
         return [(self, 1.0)]
 
-def coin_flip_heuristic(state: GameState) -> int:
+def coin_flip_heuristic(state: GameState) -> float:
     if isinstance(state, CoinFlipState):
-        return state.score
-    return 0
+        return float(state.score)
+    return 0.0
 
 class TestExpectimax(unittest.TestCase):
     def test_coin_flip_expected_value(self):

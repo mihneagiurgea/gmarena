@@ -34,7 +34,7 @@ class MinimaxSolver:
     A solver for games using Minimax/Expectimax algorithm with Alpha-Beta pruning
     and a Transposition Table. Handles both deterministic and non-deterministic games.
     """
-    def __init__(self, heuristic_evaluate: Callable[[GameState], int]):
+    def __init__(self, heuristic_evaluate: Callable[[GameState], float]):
         """
         Args:
             heuristic_evaluate: A function that evaluates a state (-1M to +1M).

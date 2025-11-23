@@ -410,7 +410,7 @@ class GameState:
             unit_data.append((uid, u.position.x, u.position.y, u.current_health))
         return hash((self.current_turn_index, tuple(unit_data)))
 
-def heuristic_evaluate(state: GameState) -> int:
+def heuristic_evaluate(state: GameState) -> float:
     """
     Evaluates the game state for the Minimax algorithm.
     Returns: Score of Player 1 - Score of Player 2.
@@ -440,7 +440,7 @@ def heuristic_evaluate(state: GameState) -> int:
         else:
             p2_score += unit_score
             
-    return p1_score - p2_score
+    return float(p1_score - p2_score)
 
 # --- Verification Block ---
 if __name__ == "__main__":
