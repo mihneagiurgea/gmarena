@@ -10,6 +10,22 @@ class TestHexGrid(unittest.TestCase):
         self.assertEqual(self.grid.width, 5)
         self.assertEqual(self.grid.height, 5)
         self.assertIsNone(self.grid[Pt(0, 0)])
+    
+    def test_repr(self):
+        # Empty grid
+        empty_grid = HexGrid(3, 3)
+        self.assertEqual(repr(empty_grid), "HexGrid({})")
+        
+        # Grid with items - should be sorted by (y, x)
+        self.grid[Pt(2, 1)] = 10
+        self.grid[Pt(0, 0)] = 1
+        self.grid[Pt(1, 0)] = 2
+        self.grid[Pt(0, 1)] = 3
+        
+        repr_str = repr(self.grid)
+        # Should be sorted: (0,0), (1,0), (0,1), (2,1)
+        expected = "HexGrid({(0, 0): 1, (1, 0): 2, (0, 1): 3, (2, 1): 10})"
+        self.assertEqual(repr_str, expected)
 
     def test_set_get_item(self):
         p = Pt(1, 1)
@@ -364,6 +380,13 @@ class TestPt(unittest.TestCase):
         p3 = Pt(-1, -1)
         result = p1.add(p3)
         self.assertEqual(result, Pt(0, 1))
+    
+    def test_str(self):
+        p = Pt(3, 5)
+        self.assertEqual(str(p), "(3, 5)")
+        
+        p2 = Pt(-1, 0)
+        self.assertEqual(str(p2), "(-1, 0)")
 
 if __name__ == '__main__':
     unittest.main()

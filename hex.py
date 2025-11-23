@@ -9,6 +9,9 @@ class Pt:
 
     def add(self, other: 'Pt') -> 'Pt':
         return Pt(self.x + other.x, self.y + other.y)
+    
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
 
 class SquareGrid:
     def __init__(self, width: int, height: int):
@@ -32,6 +35,14 @@ class HexGrid:
         self.height = height
         self._grid: Dict[Pt, int] = {}
         self._reverse_grid: Dict[int, Pt] = {}
+
+    def __repr__(self) -> str:
+        if not self._grid:
+            return "HexGrid({})"
+        # Sort by (y, x) for row-major order
+        sorted_items = sorted(self._grid.items(), key=lambda item: (item[0].y, item[0].x))
+        items_str = ", ".join(f"{str(pt)}: {oid}" for pt, oid in sorted_items)
+        return f"HexGrid({{{items_str}}})"
 
     _EVEN_ROW_OFFSETS = [Pt(-1, 0), Pt(1, 0), Pt(-1, -1), Pt(0, -1), Pt(-1, 1), Pt(0, 1)]
     _ODD_ROW_OFFSETS = [Pt(-1, 0), Pt(1, 0), Pt(0, -1), Pt(1, -1), Pt(0, 1), Pt(1, 1)]
