@@ -26,21 +26,9 @@ class UnitType:
     spells: List[str]
 
 @dataclass
-class UnitInstance:
-    uid: int
-    unit_type: UnitType
-    
-    @property
-    def player_id(self):
-        return 1 if self.uid % 2 != 0 else 2
-    
-    @property
-    def name(self):
-        return self.unit_type.name
-
-@dataclass
 class UnitState:
-    unit_instance: UnitInstance
+    instance: 'GameInstance'  # Reference to game instance
+    uid: int
     position: Pt
     current_health: int
 
@@ -50,22 +38,18 @@ class UnitState:
     @property
     def is_alive(self):
         return self.current_health > 0
-
-    @property
-    def uid(self):
-        return self.unit_instance.uid
         
     @property
     def player_id(self):
-        return self.unit_instance.player_id
+        return 1 if self.uid % 2 != 0 else 2
         
     @property
-    def unit_type(self):
-        return self.unit_instance.unit_type
+    def unit_type(self) -> UnitType:
+        return self.instance.unit_types[self.uid]
         
     @property
     def name(self):
-        return self.unit_instance.name
+        return self.unit_type.name
 
 class MoveType(Enum):
     MOVE = auto()
@@ -106,7 +90,7 @@ class GameInstance:
     def __init__(self, config: GameConfig):
         self.config = config
         self.turn_order: List[int] = []
-        self.units: Dict[int, UnitInstance] = {} # unit_uid -> UnitInstance
+        self.unit_types: Dict[int, UnitType] = {} # unit_uid -> UnitType
 
     def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
         grid: Dict[Pt, int] = {} # Position -> unit_uid
@@ -121,10 +105,7 @@ class GameInstance:
             x = start_x + i * (1 + gap)
             pos = Pt(x, 0)
 
-            self.units[uid] = UnitInstance(
-                uid=uid,
-                unit_type=self.config.unit_types[type_name]
-            )
+            self.unit_types[uid] = self.config.unit_types[type_name]
             grid[pos] = uid
 
             uid += 2
@@ -139,15 +120,12 @@ class GameInstance:
             x = start_x_p2 + i * (1 + gap)
             pos = Pt(x, y_p2)
             
-            self.units[uid] = UnitInstance(
-                uid=uid,
-                unit_type=self.config.unit_types[type_name]
-            )
+            self.unit_types[uid] = self.config.unit_types[type_name]
             grid[pos] = uid
 
             uid += 2
 
-        self.turn_order = list(self.units.keys())
+        self.turn_order = list(self.unit_types.keys())
         random.shuffle(self.turn_order)
         print(f"Game Initialized. Turn Order: {self.turn_order}")
         return GameState(self, grid)
@@ -160,8 +138,8 @@ class GameState:
         self.square_grid = SquareGrid(instance.config.grid_width, instance.config.grid_height)
         
         for pos, uid in self.grid.items():
-            u_inst = instance.units[uid]
-            self.units[uid] = UnitState(u_inst, pos, u_inst.unit_type.health)
+            unit_type = instance.unit_types[uid]
+            self.units[uid] = UnitState(instance, uid, pos, unit_type.health)
             
         self.current_turn_index = 0
 
@@ -175,8 +153,11 @@ class GameState:
         return self.units[uid]
 
     def clone(self) -> 'GameState':
-        new_state = GameState(self.instance, self.grid.copy())
-        new_state.units = {uid: UnitState(u.unit_instance, u.position, u.current_health) for uid, u in self.units.items()}
+        new_state = GameState.__new__(GameState)
+        new_state.instance = self.instance
+        new_state.grid = self.grid.copy()
+        new_state.square_grid = self.square_grid
+        new_state.units = {uid: UnitState(self.instance, uid, u.position, u.current_health) for uid, u in self.units.items()}
         new_state.current_turn_index = self.current_turn_index
         return new_state
 

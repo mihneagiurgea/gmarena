@@ -1,5 +1,5 @@
 import unittest
-from game_engine import GameInstance, GameConfig, GameState, UnitInstance, UnitType, Spell, heuristic_evaluate
+from game_engine import GameInstance, GameConfig, GameState, UnitType, Spell, heuristic_evaluate
 from hex import Pt
 
 class TestHeuristic(unittest.TestCase):
@@ -25,10 +25,7 @@ class TestHeuristic(unittest.TestCase):
         # P2: Mage (50 HP, Max(5, 20) Dmg) -> Score = 50 * 20 = 1000
         # Result should be 1000 - 1000 = 0
         
-        u1 = UnitInstance(uid=1, unit_type=self.config.unit_types["Warrior"])
-        u2 = UnitInstance(uid=2, unit_type=self.config.unit_types["Mage"])
-        
-        self.instance.units = {1: u1, 2: u2}
+        self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
         grid = {
@@ -46,10 +43,7 @@ class TestHeuristic(unittest.TestCase):
         # P2: Mage (10 HP) -> 10 * 20 = 200
         # Result: 1000 - 200 = 800
         
-        u1 = UnitInstance(uid=1, unit_type=self.config.unit_types["Warrior"])
-        u2 = UnitInstance(uid=2, unit_type=self.config.unit_types["Mage"])
-        
-        self.instance.units = {1: u1, 2: u2}
+        self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
         grid = {
@@ -65,14 +59,11 @@ class TestHeuristic(unittest.TestCase):
         self.assertEqual(score, 800)
 
     def test_heuristic_p2_advantage(self):
-        # P1: Warrior (10 HP) -> 100
-        # P2: Mage (50 HP) -> 1000
+        # P1: Warrior (10 HP) -> 10 * 10 = 100
+        # P2: Mage (50 HP) -> 50 * 20 = 1000
         # Result: 100 - 1000 = -900
         
-        u1 = UnitInstance(uid=1, unit_type=self.config.unit_types["Warrior"])
-        u2 = UnitInstance(uid=2, unit_type=self.config.unit_types["Mage"])
-        
-        self.instance.units = {1: u1, 2: u2}
+        self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
         grid = {
@@ -90,10 +81,7 @@ class TestHeuristic(unittest.TestCase):
         from minimax.minimax import MinimaxSolver
         from unittest.mock import patch
         
-        u1 = UnitInstance(uid=1, unit_type=self.config.unit_types["Warrior"])
-        u2 = UnitInstance(uid=2, unit_type=self.config.unit_types["Mage"])
-        
-        self.instance.units = {1: u1, 2: u2}
+        self.instance.units = {1: self.config.unit_types["Warrior"], 2: self.config.unit_types["Mage"]}
         self.instance.turn_order = [1, 2]
         
         grid = {
