@@ -249,6 +249,108 @@ class TestHexGrid(unittest.TestCase):
         # Test with invalid oid
         with self.assertRaises(ValueError):
             self.grid.move(999, Pt(1, 1), 1)
+    
+    def test_find_path_adj(self):
+        # Test finding path to adjacent cell when goal is occupied
+        self.grid[Pt(0, 0)] = 1
+        self.grid[Pt(2, 2)] = 2  # Occupied goal
+        
+        path = self.grid.find_path_adj(Pt(0, 0), Pt(2, 2))
+        self.assertIsNotNone(path)
+        # Last position should be adjacent to goal
+        last_pos = path[-1]
+        self.assertIn(Pt(2, 2), self.grid.get_neighbors(last_pos))
+        
+        # Test when already adjacent
+        self.grid[Pt(1, 1)] = 3
+        path = self.grid.find_path_adj(Pt(1, 1), Pt(2, 2))
+        self.assertEqual(path, [Pt(1, 1)])
+        
+        # Test when start == goal
+        path = self.grid.find_path_adj(Pt(2, 2), Pt(2, 2))
+        self.assertEqual(path, [Pt(2, 2)])
+        
+        # Test with obstacles blocking some adjacent cells
+        self.grid[Pt(3, 3)] = 10  # Goal
+        # Block some neighbors
+        neighbors = self.grid.get_neighbors(Pt(3, 3))
+        self.grid[neighbors[0]] = 20
+        self.grid[neighbors[1]] = 21
+        
+        path = self.grid.find_path_adj(Pt(0, 0), Pt(3, 3))
+        self.assertIsNotNone(path)
+        # Should find path to one of the unblocked neighbors
+        last_pos = path[-1]
+        self.assertIn(Pt(3, 3), self.grid.get_neighbors(last_pos))
+        
+        # Test no path (goal completely surrounded and unreachable)
+        grid2 = HexGrid(5, 5)
+        grid2[Pt(2, 2)] = 99  # Goal
+        # Surround goal and its neighbors
+        obstacle_id = 100
+        for neighbor in grid2.get_neighbors(Pt(2, 2)):
+            grid2[neighbor] = obstacle_id
+            obstacle_id += 1
+            # Also surround each neighbor
+            for n2 in grid2.get_neighbors(neighbor):
+                if n2 not in grid2._grid:
+                    grid2[n2] = obstacle_id
+                    obstacle_id += 1
+        
+        grid2[Pt(0, 0)] = 1
+        path = grid2.find_path_adj(Pt(0, 0), Pt(2, 2))
+        self.assertIsNone(path)
+    
+    def test_move_adj(self):
+        # Test moving towards an occupied goal
+        self.grid[Pt(0, 0)] = 1
+        self.grid[Pt(3, 3)] = 2  # Occupied goal
+        
+        # Move 2 cells towards goal
+        result = self.grid.move_adj(1, Pt(3, 3), 2)
+        self.assertTrue(result)
+        new_pos = self.grid.get_pt(1)
+        self.assertNotEqual(new_pos, Pt(0, 0))  # Moved
+        
+        # Continue moving until adjacent
+        for _ in range(10):  # Max iterations to prevent infinite loop
+            pos_before = self.grid.get_pt(1)
+            result = self.grid.move_adj(1, Pt(3, 3), 2)
+            if not result:
+                break
+            pos_after = self.grid.get_pt(1)
+            if pos_before == pos_after:
+                break
+        
+        # Should now be adjacent to goal
+        final_pos = self.grid.get_pt(1)
+        self.assertIn(Pt(3, 3), self.grid.get_neighbors(final_pos))
+        
+        # Try to move again - should return False (already adjacent)
+        result = self.grid.move_adj(1, Pt(3, 3), 5)
+        self.assertFalse(result)
+        
+        # Test moving towards unoccupied position
+        self.grid[Pt(4, 4)] = 3
+        result = self.grid.move_adj(3, Pt(0, 0), 3)
+        self.assertTrue(result)
+        
+        # Test with obstacles
+        grid2 = HexGrid(7, 7)
+        grid2[Pt(0, 0)] = 10
+        grid2[Pt(3, 3)] = 99  # Goal
+        # Add some obstacles
+        grid2[Pt(1, 1)] = 20
+        grid2[Pt(2, 2)] = 21
+        
+        result = grid2.move_adj(10, Pt(3, 3), 2)
+        self.assertTrue(result)
+        # Should have moved around obstacles
+        self.assertNotEqual(grid2.get_pt(10), Pt(0, 0))
+        
+        # Test with invalid oid
+        with self.assertRaises(ValueError):
+            self.grid.move_adj(999, Pt(1, 1), 1)
 
 
 class TestPt(unittest.TestCase):

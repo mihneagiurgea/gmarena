@@ -102,21 +102,55 @@ class HexGrid:
         return neighbors
 
     def find_path(self, start: Pt, goal: Pt) -> Optional[List[Pt]]:
+        """Find the shortest path from start to goal.
+        
+        Returns a list of points from start to goal (inclusive), or None if no path exists.
+        The goal must be unoccupied.
+        """
         if start == goal:
             return [start]
         
-        # If goal is occupied or out of bounds (handled by get_neighbors logic implicitly, but good to check), return None
+        # Goal must be unoccupied
         if goal in self._grid:
             return None
+        
+        return self._find_path_internal(start, lambda pt: pt == goal)
+    
+    def find_path_adj(self, start: Pt, goal: Pt) -> Optional[List[Pt]]:
+        """Find the shortest path from start to a cell adjacent to goal.
+        
+        Returns a list of points from start to an adjacent cell of goal (inclusive),
+        or None if no path exists. The goal itself may be occupied.
+        """
+        if start == goal:
+            return [start]
+        
+        goal_neighbors = set(self.get_neighbors(goal))
+
+        # Check if start is already adjacent to goal
+        if start in goal_neighbors:
+            return [start]
+        
+        # Find path to any neighbor of goal
+        return self._find_path_internal(start, lambda pt: pt in goal_neighbors)
+    
+    def _find_path_internal(self, start: Pt, is_goal) -> Optional[List[Pt]]:
+        """Internal A* pathfinding implementation.
+        
+        Args:
+            start: Starting position
+            is_goal: Function that returns True if a position satisfies the goal condition
             
+        Returns:
+            List of points from start to goal, or None if no path exists
+        """
         # Priority queue for A*: (f_score, count, current_node)
-        # We use a counter to break ties so Position doesn't need to be comparable
+        # We use a counter to break ties so Pt doesn't need to be comparable
         count = 0
         open_set = [(0, count, start)]
         came_from: Dict[Pt, Pt] = {}
         
         g_score: Dict[Pt, int] = {start: 0}
-        f_score: Dict[Pt, int] = {start: self.distance(start, goal)}
         
         open_set_hash = {start} # To check membership in O(1)
         
@@ -124,13 +158,13 @@ class HexGrid:
             current = heapq.heappop(open_set)[2]
             open_set_hash.discard(current)
             
-            if current == goal:
+            if is_goal(current):
                 return self._reconstruct_path(came_from, current)
             
             for neighbor in self.get_neighbors(current):
                 # Check if neighbor is occupied (obstacle)
-                # We treat all objects in grid as obstacles
-                if neighbor in self._grid and neighbor != goal:
+                # We allow moving through the goal if it satisfies is_goal
+                if neighbor in self._grid and not is_goal(neighbor):
                     continue
                 
                 tentative_g_score = g_score[current] + 1 # cost is always 1
@@ -138,8 +172,9 @@ class HexGrid:
                 if tentative_g_score < g_score.get(neighbor, float('inf')):
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g_score
-                    f = tentative_g_score + self.distance(neighbor, goal)
-                    f_score[neighbor] = f
+                    # For heuristic, we can't use a single goal point, so use 0
+                    # This makes it Dijkstra's algorithm instead of A*
+                    f = tentative_g_score
                     
                     if neighbor not in open_set_hash:
                         count += 1
@@ -158,12 +193,65 @@ class HexGrid:
     def move(self, oid: int, goal: Pt, dist: int) -> bool:
         """Move object oid towards goal, up to dist cells.
         
-        Returns True if the object moved, False if no valid path exists.
+        Uses find_path to find a path to the goal. The goal must be unoccupied.
+        
+        Args:
+            oid: Object ID to move
+            goal: Target position (must be unoccupied)
+            dist: Maximum number of cells to move
+        
+        Returns:
+            True if the object moved, False if no valid path exists.
         """
-        start = self.get_pt(oid)
+        if oid not in self._reverse_grid:
+            raise ValueError(f"Object {oid} not found in grid")
+        
+        start = self._reverse_grid[oid]
         
         # Find path to goal
         path = self.find_path(start, goal)
+        
+        if not path:
+            return False
+        
+        # Path includes start position, so we need to move dist steps forward
+        # path[0] is start, path[1] is first step, etc.
+        # We want to move up to dist cells, so target index is min(dist, len(path) - 1)
+        target_index = min(dist, len(path) - 1)
+        
+        if target_index == 0:
+            # Already at start, no movement
+            return False
+        
+        new_pos = path[target_index]
+        
+        # Move the object
+        del self[start]
+        self[new_pos] = oid
+        
+        return True
+
+    def move_adj(self, oid: int, goal: Pt, dist: int) -> bool:
+        """Move object oid towards a position adjacent to goal, up to dist cells.
+        
+        Uses find_path_adj to find a path to a cell adjacent to the goal.
+        The goal itself may be occupied.
+        
+        Args:
+            oid: Object ID to move
+            goal: Target position (may be occupied)
+            dist: Maximum number of cells to move
+        
+        Returns:
+            True if the object moved, False if no valid path exists.
+        """
+        if oid not in self._reverse_grid:
+            raise ValueError(f"Object {oid} not found in grid")
+        
+        start = self._reverse_grid[oid]
+        
+        # Find path to adjacent cell of goal
+        path = self.find_path_adj(start, goal)
         
         if not path:
             return False
