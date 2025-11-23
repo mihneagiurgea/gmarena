@@ -154,3 +154,33 @@ class HexGrid:
             current = came_from[current]
             total_path.append(current)
         return total_path[::-1]
+
+    def move(self, oid: int, goal: Pt, dist: int) -> bool:
+        """Move object oid towards goal, up to dist cells.
+        
+        Returns True if the object moved, False if no valid path exists.
+        """
+        start = self.get_pt(oid)
+        
+        # Find path to goal
+        path = self.find_path(start, goal)
+        
+        if not path:
+            return False
+        
+        # Path includes start position, so we need to move dist steps forward
+        # path[0] is start, path[1] is first step, etc.
+        # We want to move up to dist cells, so target index is min(dist, len(path) - 1)
+        target_index = min(dist, len(path) - 1)
+        
+        if target_index == 0:
+            # Already at start, no movement
+            return False
+        
+        new_pos = path[target_index]
+        
+        # Move the object
+        del self[start]
+        self[new_pos] = oid
+        
+        return True

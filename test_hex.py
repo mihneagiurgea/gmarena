@@ -203,6 +203,53 @@ class TestHexGrid(unittest.TestCase):
         p = Pt(0, 0)
         with self.assertRaises(TypeError):
             self.grid[p] = "Not an int"
+            
+    def test_move(self):
+        # Place object at (0, 0)
+        oid = 1
+        start = Pt(0, 0)
+        goal = Pt(0, 4)
+        self.grid[start] = oid
+        
+        # Move 2 cells towards goal
+        result = self.grid.move(oid, goal, 2)
+        self.assertTrue(result)
+        self.assertEqual(self.grid.get_pt(oid), Pt(0, 2))
+        self.assertIsNone(self.grid[start])
+        
+        # Move remaining distance
+        result = self.grid.move(oid, goal, 10)  # More than needed
+        self.assertTrue(result)
+        self.assertEqual(self.grid.get_pt(oid), goal)
+        
+        # Try to move when already at goal
+        result = self.grid.move(oid, goal, 5)
+        self.assertFalse(result)
+        self.assertEqual(self.grid.get_pt(oid), goal)
+        
+        # Test with obstacle blocking path
+        self.grid[Pt(1, 1)] = 2
+        self.grid[Pt(2, 2)] = 3
+        result = self.grid.move(oid, Pt(3, 3), 5)
+        # Should find a path around obstacles
+        self.assertTrue(result)
+        
+        # Test with no valid path (surrounded)
+        grid2 = HexGrid(5, 5)
+        grid2[Pt(2, 2)] = 10
+        # Surround it completely with unique obstacles
+        obstacle_id = 100
+        for neighbor in grid2.get_neighbors(Pt(2, 2)):
+            grid2[neighbor] = obstacle_id
+            obstacle_id += 1
+        result = grid2.move(10, Pt(0, 0), 5)
+        self.assertFalse(result)
+        self.assertEqual(grid2.get_pt(10), Pt(2, 2))  # Didn't move
+        
+        # Test with invalid oid
+        with self.assertRaises(ValueError):
+            self.grid.move(999, Pt(1, 1), 1)
+
 
 class TestPt(unittest.TestCase):
     def test_add(self):
