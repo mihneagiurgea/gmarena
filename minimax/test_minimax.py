@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Tuple
-from minimax import GameState, MinimaxSolver
+from minimax.minimax import GameState, MinimaxSolver
 
 @dataclass(frozen=True)
 class NimState:

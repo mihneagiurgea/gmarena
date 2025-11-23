@@ -1,5 +1,5 @@
 import game_engine
-from minimax import MinimaxSolver
+from minimax.minimax import MinimaxSolver
 from typing import List, Optional
 
 class Runner:

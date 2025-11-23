@@ -87,7 +87,7 @@ class TestHeuristic(unittest.TestCase):
         self.assertEqual(score, -900)
 
     def test_solver_integration(self):
-        from minimax import MinimaxSolver
+        from minimax.minimax import MinimaxSolver
         from unittest.mock import patch
         
         u1 = UnitInstance(uid=1, unit_type=self.config.unit_types["Warrior"])
