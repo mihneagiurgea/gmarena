@@ -1,5 +1,6 @@
 import unittest
-from game_engine import GameInstance, GameConfig, GameState, UnitInstance, UnitType, Position, heuristic_evaluate, Spell
+from game_engine import GameInstance, GameConfig, GameState, UnitInstance, UnitType, Spell, heuristic_evaluate
+from hex import Pt
 
 class TestHeuristic(unittest.TestCase):
     def setUp(self):
@@ -31,8 +32,8 @@ class TestHeuristic(unittest.TestCase):
         self.instance.turn_order = [1, 2]
         
         grid = {
-            Position(0, 0): 1,
-            Position(10, 10): 2
+            Pt(0, 0): 1,
+            Pt(10, 10): 2
         }
         
         state = GameState(self.instance, grid)
@@ -52,8 +53,8 @@ class TestHeuristic(unittest.TestCase):
         self.instance.turn_order = [1, 2]
         
         grid = {
-            Position(0, 0): 1,
-            Position(10, 10): 2
+            Pt(0, 0): 1,
+            Pt(10, 10): 2
         }
         
         state = GameState(self.instance, grid)
@@ -75,8 +76,8 @@ class TestHeuristic(unittest.TestCase):
         self.instance.turn_order = [1, 2]
         
         grid = {
-            Position(0, 0): 1,
-            Position(10, 10): 2
+            Pt(0, 0): 1,
+            Pt(10, 10): 2
         }
         
         state = GameState(self.instance, grid)
@@ -96,8 +97,8 @@ class TestHeuristic(unittest.TestCase):
         self.instance.turn_order = [1, 2]
         
         grid = {
-            Position(0, 0): 1,
-            Position(0, 1): 2 # Adjacent, so they can attack
+            Pt(0, 0): 1,
+            Pt(0, 1): 2 # Adjacent, so they can attack
         }
         
         state = GameState(self.instance, grid)

@@ -1,18 +1,35 @@
-from game_engine import Position
+from dataclasses import dataclass, field
 from typing import Optional, Any, Dict, Tuple, List
 import heapq
+
+@dataclass(frozen=True)
+class Pt:
+    x: int
+    y: int
+
+class SquareGrid:
+    def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
+
+    def distance(self, p1: Pt, p2: Pt) -> int:
+        dx = abs(p1.x - p2.x)
+        dy = abs(p1.y - p2.y)
+        diag = min(dx, dy)
+        straight = max(dx, dy) - diag
+        # 1 for straight, 1.5 for diagonal (floor(1.5 * diag) = diag + diag//2)
+        return straight + diag + (diag // 2)
 
 class HexGrid:
     """Hex grid for game board, using odd-r offset coordinates, as per 
     https://www.redblobgames.com/grids/hexagons/
     """
-
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
-        self._grid: Dict[Position, Any] = {}
+        self._grid: Dict[Pt, Any] = {}
 
-    def _to_cube(self, p: Position) -> Tuple[int, int, int]:
+    def _to_cube(self, p: Pt) -> Tuple[int, int, int]:
         # Convert odd-r offset coordinates to cube coordinates
         # q = x - (y - (y&1)) / 2
         # r = y
@@ -22,22 +39,22 @@ class HexGrid:
         s = -q - r
         return (q, r, s)
 
-    def distance(self, p1: Position, p2: Position) -> int:
+    def distance(self, p1: Pt, p2: Pt) -> int:
         q1, r1, s1 = self._to_cube(p1)
         q2, r2, s2 = self._to_cube(p2)
         return (abs(q1 - q2) + abs(r1 - r2) + abs(s1 - s2)) // 2
 
-    def __setitem__(self, pos: Position, obj: Any):
+    def __setitem__(self, pos: Pt, obj: Any):
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             raise IndexError(f"Position {pos} is out of bounds (Width: {self.width}, Height: {self.height})")
         self._grid[pos] = obj
 
-    def __getitem__(self, pos: Position) -> Optional[Any]:
+    def __getitem__(self, pos: Pt) -> Optional[Any]:
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             return None
         return self._grid.get(pos)
 
-    def get_neighbors(self, pos: Position) -> List[Position]:
+    def get_neighbors(self, pos: Pt) -> List[Pt]:
         neighbors = []
         x, y = pos.x, pos.y
         
@@ -49,11 +66,11 @@ class HexGrid:
         for dx, dy in offsets:
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.width and 0 <= ny < self.height:
-                neighbors.append(Position(nx, ny))
+                neighbors.append(Pt(nx, ny))
                 
         return neighbors
 
-    def find_path(self, start: Position, goal: Position) -> Optional[List[Position]]:
+    def find_path(self, start: Pt, goal: Pt) -> Optional[List[Pt]]:
         if start == goal:
             return [start]
         
@@ -65,10 +82,10 @@ class HexGrid:
         # We use a counter to break ties so Position doesn't need to be comparable
         count = 0
         open_set = [(0, count, start)]
-        came_from: Dict[Position, Position] = {}
+        came_from: Dict[Pt, Pt] = {}
         
-        g_score: Dict[Position, int] = {start: 0}
-        f_score: Dict[Position, int] = {start: self.distance(start, goal)}
+        g_score: Dict[Pt, int] = {start: 0}
+        f_score: Dict[Pt, int] = {start: self.distance(start, goal)}
         
         open_set_hash = {start} # To check membership in O(1)
         
@@ -100,7 +117,7 @@ class HexGrid:
                         
         return None
 
-    def _reconstruct_path(self, came_from: Dict[Position, Position], current: Position) -> List[Position]:
+    def _reconstruct_path(self, came_from: Dict[Pt, Pt], current: Pt) -> List[Pt]:
         total_path = [current]
         while current in came_from:
             current = came_from[current]

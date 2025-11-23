@@ -11,7 +11,7 @@ class NimState:
     def is_over(self) -> bool:
         return self.tokens == 0
 
-    def possible_moves(self) -> List[int]:
+    def get_possible_moves(self) -> List[int]:
         moves = []
         if self.tokens >= 1:
             moves.append(1)

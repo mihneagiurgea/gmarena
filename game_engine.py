@@ -7,18 +7,7 @@ from enum import Enum, auto
 
 # --- Data Classes ---
 
-@dataclass(frozen=True)
-class Position:
-    x: int
-    y: int
-
-    def distance_to(self, other: 'Position') -> int:
-        dx = abs(self.x - other.x)
-        dy = abs(self.y - other.y)
-        diag = min(dx, dy)
-        straight = max(dx, dy) - diag
-        # 1 for straight, 1.5 for diagonal (floor(1.5 * diag) = diag + diag//2)
-        return straight + diag + (diag // 2)
+from hex import Pt, SquareGrid
 
 @dataclass
 class Spell:
@@ -52,7 +41,7 @@ class UnitInstance:
 @dataclass
 class UnitState:
     unit_instance: UnitInstance
-    position: Position
+    position: Pt
     current_health: int
 
     def __repr__(self):
@@ -87,7 +76,7 @@ class MoveType(Enum):
 @dataclass
 class GameMove:
     move_type: MoveType
-    target_pos: Position
+    target_pos: Pt
     spell_name: Optional[str] = None
 
 # --- Game Configuration ---
@@ -120,7 +109,7 @@ class GameInstance:
         self.units: Dict[int, UnitInstance] = {} # unit_uid -> UnitInstance
 
     def start_game(self, p1_units: List[str], p2_units: List[str]) -> 'GameState':
-        grid: Dict[Position, int] = {} # Position -> unit_uid
+        grid: Dict[Pt, int] = {} # Position -> unit_uid
 
         # Player 1 (Top)
         gap = 2
@@ -130,7 +119,7 @@ class GameInstance:
         uid = 1
         for i, type_name in enumerate(p1_units):
             x = start_x + i * (1 + gap)
-            pos = Position(x, 0)
+            pos = Pt(x, 0)
 
             self.units[uid] = UnitInstance(
                 uid=uid,
@@ -148,7 +137,7 @@ class GameInstance:
         uid = 2
         for i, type_name in enumerate(p2_units):
             x = start_x_p2 + i * (1 + gap)
-            pos = Position(x, y_p2)
+            pos = Pt(x, y_p2)
             
             self.units[uid] = UnitInstance(
                 uid=uid,
@@ -164,10 +153,11 @@ class GameInstance:
         return GameState(self, grid)
 
 class GameState:
-    def __init__(self, instance: GameInstance, grid: Dict[Position, int]):
+    def __init__(self, instance: GameInstance, grid: Dict[Pt, int]):
         self.instance = instance
-        self.grid: Dict[Position, int] = grid # Position -> unit_uid
+        self.grid: Dict[Pt, int] = grid # Position -> unit_uid
         self.units: Dict[int, UnitState] = {}
+        self.square_grid = SquareGrid(instance.config.grid_width, instance.config.grid_height)
         
         for pos, uid in self.grid.items():
             u_inst = instance.units[uid]
@@ -206,7 +196,7 @@ class GameState:
         # For small grid, iteration is fine.
         for x in range(self.instance.config.grid_width):
             for y in range(self.instance.config.grid_height):
-                pos = Position(x, y)
+                pos = Pt(x, y)
                 if self.is_valid_move(u, pos, u.unit_type.speed * 2):
                     moves.append(GameMove(MoveType.MOVE, target_pos=pos))
                     
@@ -214,7 +204,7 @@ class GameState:
         # Find all enemies in range
         enemies = [e for e in self.units.values() if e.player_id != player_id and e.is_alive]
         for e in enemies:
-            dist = u.position.distance_to(e.position)
+            dist = self.square_grid.distance(u.position, e.position)
             if dist <= 1:
                 moves.append(GameMove(MoveType.ATTACK, target_pos=e.position))
                 
@@ -231,7 +221,7 @@ class GameState:
             spell = self.instance.config.spells[spell_name]
             # Spells usually have range.
             for e in enemies:
-                dist = u.position.distance_to(e.position)
+                dist = self.square_grid.distance(u.position, e.position)
                 # Check if in range? The cast_spell logic calculates difficulty based on range, 
                 # but doesn't strictly forbid out of range (just harder).
                 # But maybe we should limit to reasonable range?
@@ -254,13 +244,13 @@ class GameState:
         if not silent:
             print(f"Next turn: {self.get_current_unit().name} (ID: {self.get_current_unit().uid})")
 
-    def is_valid_move(self, unit: UnitState, target_pos: Position, max_dist: int) -> bool:
+    def is_valid_move(self, unit: UnitState, target_pos: Pt, max_dist: int) -> bool:
         if not (0 <= target_pos.x < self.instance.config.grid_width and 0 <= target_pos.y < self.instance.config.grid_height):
             return False
         if target_pos in self.grid and self.grid[target_pos] != unit.uid:
             return False # Occupied
         
-        dist = unit.position.distance_to(target_pos)
+        dist = self.square_grid.distance(unit.position, target_pos)
         return dist <= max_dist
 
     def execute_move(self, move: GameMove, silent: bool = False):
@@ -297,13 +287,13 @@ class GameState:
         else:
             raise ValueError("Unhandled move_type: " + move)
 
-    def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Position]:
+    def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Pt]:
         # Find valid move position adjacent to target
         candidates = []
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 if dx == 0 and dy == 0: continue
-                pos = Position(target.position.x + dx, target.position.y + dy)
+                pos = Pt(target.position.x + dx, target.position.y + dy)
                 if self.is_valid_move(attacker, pos, attacker.unit_type.speed):
                     candidates.append(pos)
         
@@ -311,9 +301,9 @@ class GameState:
             return None
         
         # Pick closest to attacker
-        return min(candidates, key=lambda p: attacker.position.distance_to(p))
+        return min(candidates, key=lambda p: self.square_grid.distance(attacker.position, p))
 
-    def _move(self, unit: UnitState, target_pos: Position, silent: bool = False):
+    def _move(self, unit: UnitState, target_pos: Pt, silent: bool = False):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
             raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
         
@@ -324,7 +314,7 @@ class GameState:
             print(f"{unit.name} moved to {target_pos}")
 
     def _attack(self, attacker: UnitState, target: UnitState, penalty_wc: int = 0, silent: bool = False):
-        dist = attacker.position.distance_to(target.position)
+        dist = self.square_grid.distance(attacker.position, target.position)
         if dist > 1:
             raise ValueError(f"Target out of range for attack (dist: {dist})")
         
@@ -346,7 +336,7 @@ class GameState:
             if not silent:
                 print("Miss!")
 
-    def _charge(self, attacker: UnitState, move_target_pos: Position, attack_target: UnitState, silent: bool = False):
+    def _charge(self, attacker: UnitState, move_target_pos: Pt, attack_target: UnitState, silent: bool = False):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
         if not self.is_valid_move(attacker, move_target_pos, attacker.unit_type.speed):
              raise ValueError(f"Invalid charge move for {attacker.name} to {move_target_pos}")
@@ -366,7 +356,7 @@ class GameState:
             raise ValueError(f"{attacker.name} does not know spell {spell_name}")
         
         spell = self.instance.config.spells[spell_name]
-        dist = attacker.position.distance_to(target.position)
+        dist = self.square_grid.distance(attacker.position, target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
         roll = random.randint(1, 20)
@@ -475,8 +465,8 @@ if __name__ == "__main__":
         if not enemies:
             break
             
-        target = min(enemies, key=lambda u: current_unit.position.distance_to(u.position))
-        dist = current_unit.position.distance_to(target.position)
+        target = min(enemies, key=lambda u: game.square_grid.distance(current_unit.position, u.position))
+        dist = game.square_grid.distance(current_unit.position, target.position)
         
         print(f"\n--- Turn: {current_unit.name} (P{current_unit.player_id}) ---")
         
@@ -499,7 +489,7 @@ if __name__ == "__main__":
                 step_x = 1 if dx > 0 else -1 if dx < 0 else 0
                 step_y = 1 if dy > 0 else -1 if dy < 0 else 0
                 
-                new_pos = Position(current_unit.position.x + step_x, current_unit.position.y + step_y)
+                new_pos = Pt(current_unit.position.x + step_x, current_unit.position.y + step_y)
                 if game.is_valid_move(current_unit, new_pos, current_unit.unit_type.speed):
                     move = GameMove(MoveType.MOVE, target_pos=new_pos)
                     game.execute_move(move)

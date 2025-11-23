@@ -1,6 +1,6 @@
 import unittest
-from game_engine import Position
-from hex import HexGrid
+import unittest
+from hex import HexGrid, Pt
 
 class TestHexGrid(unittest.TestCase):
     def setUp(self):
@@ -9,10 +9,10 @@ class TestHexGrid(unittest.TestCase):
     def test_initialization(self):
         self.assertEqual(self.grid.width, 5)
         self.assertEqual(self.grid.height, 5)
-        self.assertIsNone(self.grid[Position(0, 0)])
+        self.assertIsNone(self.grid[Pt(0, 0)])
 
     def test_set_get_item(self):
-        p = Position(1, 1)
+        p = Pt(1, 1)
         obj = "Unit"
         self.grid[p] = obj
         self.assertEqual(self.grid[p], obj)
@@ -23,14 +23,14 @@ class TestHexGrid(unittest.TestCase):
         self.assertEqual(self.grid[p], obj2)
 
     def test_out_of_bounds_access(self):
-        p_out = Position(10, 10)
+        p_out = Pt(10, 10)
         self.assertIsNone(self.grid[p_out])
         
-        p_neg = Position(-1, 0)
+        p_neg = Pt(-1, 0)
         self.assertIsNone(self.grid[p_neg])
 
     def test_out_of_bounds_assignment(self):
-        p_out = Position(10, 10)
+        p_out = Pt(10, 10)
         with self.assertRaises(IndexError):
             self.grid[p_out] = "Fail"
 
@@ -41,11 +41,11 @@ class TestHexGrid(unittest.TestCase):
         # SE: (2, 3), SW: (1, 3)
         # NE: (2, 1), NW: (1, 1)
         
-        center = Position(2, 2)
+        center = Pt(2, 2)
         neighbors = [
-            Position(3, 2), Position(1, 2),
-            Position(2, 3), Position(1, 3),
-            Position(2, 1), Position(1, 1)
+            Pt(3, 2), Pt(1, 2),
+            Pt(2, 3), Pt(1, 3),
+            Pt(2, 1), Pt(1, 1)
         ]
         
         for n in neighbors:
@@ -58,11 +58,11 @@ class TestHexGrid(unittest.TestCase):
         # SE: (3, 4), SW: (2, 4)
         # NE: (3, 2), NW: (2, 2)
         
-        center = Position(2, 3)
+        center = Pt(2, 3)
         neighbors = [
-            Position(3, 3), Position(1, 3),
-            Position(3, 4), Position(2, 4),
-            Position(3, 2), Position(2, 2)
+            Pt(3, 3), Pt(1, 3),
+            Pt(3, 4), Pt(2, 4),
+            Pt(3, 2), Pt(2, 2)
         ]
         
         for n in neighbors:
@@ -74,45 +74,45 @@ class TestHexGrid(unittest.TestCase):
         # (0,0) neighbors: (0,1) [SE], (-1,1) [SW - invalid x], etc.
         # (0,1) neighbors: (0,2) [SW].
         # So dist should be 2.
-        p1 = Position(0, 0)
-        p2 = Position(0, 2)
+        p1 = Pt(0, 0)
+        p2 = Pt(0, 2)
         self.assertEqual(self.grid.distance(p1, p2), 2)
         
         # (0, 0) to (1, 1)
         # (0,0) -> (0,1) -> (1,1) [E from 0,1]
         # Dist should be 2.
-        p3 = Position(1, 1)
+        p3 = Pt(1, 1)
         self.assertEqual(self.grid.distance(p1, p3), 2)
 
-        self.assertEqual(self.grid.distance(Position(6, 0), Position(0, 6)), 9)
-        self.assertEqual(self.grid.distance(Position(6, 0), Position(6, 6)), 6)
-        self.assertEqual(self.grid.distance(Position(0, 6), Position(6, 6)), 6)
-        self.assertEqual(self.grid.distance(Position(0, 0), Position(6, 6)), 9)
+        self.assertEqual(self.grid.distance(Pt(6, 0), Pt(0, 6)), 9)
+        self.assertEqual(self.grid.distance(Pt(6, 0), Pt(6, 6)), 6)
+        self.assertEqual(self.grid.distance(Pt(0, 6), Pt(6, 6)), 6)
+        self.assertEqual(self.grid.distance(Pt(0, 0), Pt(6, 6)), 9)
 
     def test_distance_same_point(self):
-        p = Position(3, 3)
+        p = Pt(3, 3)
         self.assertEqual(self.grid.distance(p, p), 0)
 
     def test_get_neighbors(self):
         # Even row (2, 2)
         # Expected: (1, 2), (3, 2), (1, 1), (2, 1), (1, 3), (2, 3)
-        p = Position(2, 2)
+        p = Pt(2, 2)
         neighbors = self.grid.get_neighbors(p)
         expected = {
-            Position(1, 2), Position(3, 2),
-            Position(1, 1), Position(2, 1),
-            Position(1, 3), Position(2, 3)
+            Pt(1, 2), Pt(3, 2),
+            Pt(1, 1), Pt(2, 1),
+            Pt(1, 3), Pt(2, 3)
         }
         self.assertEqual(set(neighbors), expected)
         
         # Odd row (2, 3)
         # Expected: (1, 3), (3, 3), (2, 2), (3, 2), (2, 4), (3, 4)
-        p = Position(2, 3)
+        p = Pt(2, 3)
         neighbors = self.grid.get_neighbors(p)
         expected = {
-            Position(1, 3), Position(3, 3),
-            Position(2, 2), Position(3, 2),
-            Position(2, 4), Position(3, 4)
+            Pt(1, 3), Pt(3, 3),
+            Pt(2, 2), Pt(3, 2),
+            Pt(2, 4), Pt(3, 4)
         }
         self.assertEqual(set(neighbors), expected)
         
@@ -120,20 +120,20 @@ class TestHexGrid(unittest.TestCase):
         # Even row.
         # Offsets: (-1, 0) [X], (1, 0), (-1, -1) [X], (0, -1) [X], (-1, 1) [X], (0, 1)
         # Expected: (1, 0), (0, 1)
-        p = Position(0, 0)
+        p = Pt(0, 0)
         neighbors = self.grid.get_neighbors(p)
-        expected = {Position(1, 0), Position(0, 1)}
+        expected = {Pt(1, 0), Pt(0, 1)}
         self.assertEqual(set(neighbors), expected)
 
     def test_find_path(self):
         # Clear path
         # (0,0) -> (0,2)
         # Path: (0,0) -> (0,1) -> (0,2)
-        start = Position(0, 0)
-        goal = Position(0, 2)
+        start = Pt(0, 0)
+        goal = Pt(0, 2)
         path = self.grid.find_path(start, goal)
         self.assertIsNotNone(path)
-        self.assertEqual(path, [Position(0, 0), Position(0, 1), Position(0, 2)])
+        self.assertEqual(path, [Pt(0, 0), Pt(0, 1), Pt(0, 2)])
         
         # Obstacle
         # Block (0,1). Path should go around.
@@ -141,16 +141,16 @@ class TestHexGrid(unittest.TestCase):
         # (1,0) neighbors: (0,0), (2,0), (1,1), (0,1)[Blocked], ...
         # Path: (0,0) -> (1,0) -> (1,1) -> (1,2) -> (0,2)
         # Length 5 (5 nodes).
-        self.grid[Position(0, 1)] = "Obstacle"
+        self.grid[Pt(0, 1)] = "Obstacle"
         path = self.grid.find_path(start, goal)
         self.assertIsNotNone(path)
         self.assertEqual(len(path), 5)
         self.assertEqual(path[0], start)
         self.assertEqual(path[-1], goal)
-        self.assertNotIn(Position(0, 1), path)
+        self.assertNotIn(Pt(0, 1), path)
         
         # No path (surrounded)
-        self.grid[Position(1, 0)] = "Obstacle"
+        self.grid[Pt(1, 0)] = "Obstacle"
         # (0,0) only has neighbors (1,0) and (0,1), both blocked.
         path = self.grid.find_path(start, goal)
         self.assertIsNone(path)
