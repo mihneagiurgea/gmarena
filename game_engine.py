@@ -230,7 +230,7 @@ class GameState:
                 
         return moves
 
-    def next_turn(self):
+    def _next_turn(self):
         # Skip dead units
         original_index = self.current_turn_index
         while True:
@@ -258,29 +258,38 @@ class GameState:
 
         if move.move_type == MoveType.MOVE:
             self._move(attacker, move.target_pos)
-            return
-        
-        # For other moves, target_pos must contain a unit
-        if move.target_pos not in self.grid:
-            raise ValueError(f"No unit at target position {move.target_pos}")
-        target_uid = self.grid[move.target_pos]
-        target = self.units[target_uid]
-
-        if move.move_type == MoveType.ATTACK:
+        elif move.move_type == MoveType.ATTACK:
+            # For other moves, target_pos must contain a unit
+            if move.target_pos not in self.grid:
+                raise ValueError(f"No unit at target position {move.target_pos}")
+            target_uid = self.grid[move.target_pos]
+            target = self.units[target_uid]
             self._attack(attacker, target)
         elif move.move_type == MoveType.CHARGE:
+            # For other moves, target_pos must contain a unit
+            if move.target_pos not in self.grid:
+                raise ValueError(f"No unit at target position {move.target_pos}")
+            target_uid = self.grid[move.target_pos]
+            target = self.units[target_uid]
             # Find best charge position
             best_pos = self._find_charge_pos(attacker, target)
             if not best_pos:
                 raise ValueError("No valid charge position found.")
             self._charge(attacker, best_pos, target)
         elif move.move_type == MoveType.CAST_SPELL:
+            # For other moves, target_pos must contain a unit
+            if move.target_pos not in self.grid:
+                raise ValueError(f"No unit at target position {move.target_pos}")
+            target_uid = self.grid[move.target_pos]
+            target = self.units[target_uid]
             if not move.spell_name:
                 raise ValueError("Spell name required for CAST_SPELL move.")
             self._cast_spell(attacker, move.spell_name, target)
-
         else:
-            raise ValueError("Unhandled move_type: " + move)
+            raise ValueError("Unhandled move_type: " + str(move.move_type))
+        
+        # Advance to next turn after executing move
+        self._next_turn()
 
     def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Pt]:
         # Find valid move position adjacent to target
@@ -365,8 +374,7 @@ class GameState:
 
     def apply(self, move: GameMove) -> List[Tuple['GameState', float]]:
         new_state = self.clone()
-        new_state.execute_move(move)
-        new_state.next_turn()
+        new_state.execute_move(move)  # This now includes turn advancement
         # Deterministic game: return single outcome with probability 1.0
         return [(new_state, 1.0)]
 
@@ -426,7 +434,6 @@ if __name__ == "__main__":
     for _ in range(5):
         current_unit = game.get_current_unit()
         if not current_unit or not current_unit.is_alive:
-            game.next_turn()
             continue
             
         # Simple AI: Find nearest enemy
@@ -469,5 +476,3 @@ if __name__ == "__main__":
 
         if game.check_game_over():
             break
-            
-        game.next_turn()

@@ -36,8 +36,7 @@ class Runner:
             
             if self.game.check_game_over():
                 break
-                
-            self.game.next_turn()
+            
             turn += 1
 
 if __name__ == "__main__":
