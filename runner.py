@@ -31,7 +31,7 @@ class Runner:
             assert move is not None, "No valid moves found."
 
             print(f"Action: {move}")
-            self.game.execute_move(move)
+            self.game.execute_move(move, game_engine.Roll())
             self.game.print()
             
             if self.game.check_game_over():
