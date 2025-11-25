@@ -64,6 +64,11 @@ class MoveType(Enum):
     CHARGE = auto()
     CAST_SPELL = auto()
 
+class RollResult(Enum):
+    MISS = auto()
+    HIT = auto()
+    CRIT = auto()
+
 @dataclass
 class GameMove:
     move_type: MoveType
@@ -92,8 +97,58 @@ class GameConfig:
             )
 
 class Roll:
-    def next(self) -> int:
-        return random.randint(1, 20)
+
+    def roll(self, bonus: int, difficulty: int) -> RollResult:
+        r = random.randint(1, 20)
+        
+        threshold = difficulty - bonus
+        if r == 20:
+            # Natural 20 is always a hit.
+            res = RollResult.CRIT
+        elif r == 1:
+            # Natural 1 is always a miss.
+            res = RollResult.MISS
+        else:
+            if r >= threshold:
+                res = RollResult.HIT
+            else:
+                res = RollResult.MISS
+        
+        self.last_probability = self._calculate_probability(res, threshold)
+        return res
+
+    def _calculate_probability(self, result: RollResult, threshold: int) -> float:
+        # P(Crit) = 0.05
+        if result == RollResult.CRIT:
+            return 0.05
+            
+        # Count hits in 2..19
+        # r >= threshold
+        # Valid r in [2, 19]
+        # Hits are r in [max(2, threshold), 19]
+        lower = max(2, threshold)
+        upper = 19
+        
+        hits = 0
+        if lower <= upper:
+            hits = upper - lower + 1
+            
+        p_hit = hits / 20.0
+        
+        if result == RollResult.HIT:
+            return p_hit
+            
+        # P(Miss) = 1.0 - P(Crit) - P(Hit)
+        return (19 - hits) / 20.0
+
+class FixedRoll(Roll):
+    def __init__(self, result: RollResult):
+        super().__init__()
+        self.fixed_result = result
+        
+    def roll(self, bonus: int, difficulty: int) -> RollResult:
+        self.last_probability = self._calculate_probability(self.fixed_result, difficulty - bonus)
+        return self.fixed_result
 
 # --- Game Instance ---
 
@@ -310,10 +365,17 @@ class GameState:
         if dist > 1:
             raise ValueError(f"Target out of range for attack (dist: {dist})")
         
-        roll_val = roll.next()
-        hit_chance = roll_val + attacker.unit_type.wc - penalty_wc
+        bonus = attacker.unit_type.wc - penalty_wc
+        difficulty = target.unit_type.ac
+        res = roll.roll(bonus, difficulty)
         
-        if hit_chance >= target.unit_type.ac:
+        if res == RollResult.CRIT:
+            dmg = attacker.unit_type.attack_damage * 2
+            target.current_health -= dmg
+            if not target.is_alive:
+                target_pos = self.grid.get_pt(target.uid)
+                del self.grid[target_pos]
+        elif res == RollResult.HIT:
             dmg = attacker.unit_type.attack_damage
             target.current_health -= dmg
             if not target.is_alive:
@@ -341,10 +403,17 @@ class GameState:
         dist = self.grid.distance(attacker.position, target.position)
         
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
-        roll_val = roll.next()
+        res = roll.roll(0, difficulty)
         
-        if roll_val >= difficulty:
-            target.current_health -= spell.damage
+        if res == RollResult.CRIT:
+            dmg = spell.damage * 2
+            target.current_health -= dmg
+            if not target.is_alive:
+                target_pos = self.grid.get_pt(target.uid)
+                del self.grid[target_pos]
+        elif res == RollResult.HIT:
+            dmg = spell.damage
+            target.current_health -= dmg
             if not target.is_alive:
                 target_pos = self.grid.get_pt(target.uid)
                 del self.grid[target_pos]
@@ -365,10 +434,24 @@ class GameState:
         return self.check_game_over()
 
     def apply(self, move: GameMove) -> List[Tuple['GameState', float]]:
-        new_state = self.clone()
-        new_state.execute_move(move, Roll())  # This now includes turn advancement
-        # Deterministic game: return single outcome with probability 1.0
-        return [(new_state, 1.0)]
+        if move.move_type == MoveType.MOVE:
+            new_state = self.clone()
+            new_state.execute_move(move, FixedRoll(RollResult.HIT))
+            return [(new_state, 1.0)]
+            
+        outcomes = []
+        for res in RollResult:
+            fr = FixedRoll(res)
+            new_state = self.clone()
+            try:
+                new_state.execute_move(move, fr)
+                prob = fr.last_probability
+                if prob > 0:
+                    outcomes.append((new_state, prob))
+            except ValueError:
+                pass
+        assert sum(prob for _, prob in outcomes) == 1.0, "Probabilities do not sum to 1."
+        return outcomes
 
     def __hash__(self) -> int:
         # Hash based on unit states and turn index
