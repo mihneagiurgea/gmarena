@@ -3,7 +3,7 @@ from minimax.minimax import MinimaxSolver
 from typing import List, Optional
 
 class Runner:
-    def __init__(self, p1_units: List[str], p2_units: List[str], heuristic_func=None, depth: int = 3):
+    def __init__(self, p1_units: List[str], p2_units: List[str], heuristic_func=None, depth: int = 2):
         self.p1_units = p1_units
         self.p2_units = p2_units
         self.heuristic_func = heuristic_func if heuristic_func else game_engine.heuristic_evaluate
@@ -20,6 +20,8 @@ class Runner:
             current_unit = self.game.get_current_unit()
             
             print(f"\n--- Turn {turn}: {current_unit.name} (P{current_unit.player_id} ID:{current_unit.uid}) ---")
+            print(f"\n Game State:\n")
+            self.game.print()
             
             # Determine maximizing player. 
             # Heuristic returns (P1 score - P2 score).

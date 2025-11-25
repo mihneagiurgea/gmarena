@@ -32,10 +32,11 @@ class UnitState:
     current_health: int
 
     def __repr__(self):
+        symbol = "♔" if self.player_id == 1 else "♚"
         if not self.is_alive:
-            return f"{self.unit_type.name} (P{self.player_id} ID:{self.uid}): DEAD"
+            return f"{self.unit_type.name} ({symbol} ID:{self.uid}): DEAD"
         pos = self.state.grid.get_pt(self.uid)
-        return f"{self.unit_type.name} (P{self.player_id} ID:{self.uid}) at {pos}: {self.current_health}/{self.unit_type.health}"
+        return f"{self.unit_type.name} ({symbol} ID:{self.uid}) at {pos}: {self.current_health}/{self.unit_type.health}"
     
     @property
     def is_alive(self):
@@ -74,6 +75,17 @@ class GameMove:
     move_type: MoveType
     target_pos: Pt
     spell_name: Optional[str] = None
+    
+    def __str__(self):
+        if self.move_type == MoveType.MOVE:
+            return f"Move to {self.target_pos}"
+        elif self.move_type == MoveType.ATTACK:
+            return f"Attack {self.target_pos}"
+        elif self.move_type == MoveType.CHARGE:
+            return f"Charge {self.target_pos}"
+        elif self.move_type == MoveType.CAST_SPELL:
+            return f"Cast {self.spell_name} at {self.target_pos}"
+        return f"{self.move_type.name} {self.target_pos}"
 
 # --- Game Configuration ---
 
@@ -210,7 +222,8 @@ class GameState:
         self.current_turn_index = 0
 
     def print(self):
-        sorted_units = sorted(self.units.values(), key=lambda u: (u.position.y, u.position.x))
+        alive_units = [u for u in self.units.values() if u.is_alive]
+        sorted_units = sorted(alive_units, key=lambda u: (u.position.y, u.position.x))
         for unit in sorted_units:
             print(unit)
 
@@ -238,14 +251,24 @@ class GameState:
         u = current_unit
         player_id = u.player_id
         
-        # 1. Move
-        # Optimization: Don't iterate every single pixel, but BFS/flood fill for reachable tiles?
-        # For small grid, iteration is fine.
-        for x in range(self.instance.config.grid_width):
-            for y in range(self.instance.config.grid_height):
-                pos = Pt(x, y)
-                if self.is_valid_move(u, pos, u.unit_type.speed * 2):
-                    moves.append(GameMove(MoveType.MOVE, target_pos=pos))
+        # 1. Move - only towards enemies that are not already adjacent
+        enemies = [e for e in self.units.values() if e.player_id != player_id and e.is_alive]
+        
+        for enemy in enemies:
+            # Skip if already adjacent (can attack instead)
+            if self.grid.distance(u.position, enemy.position) <= 1:
+                continue
+                
+            # Find path to adjacent cell of enemy
+            path = self.grid.find_path_adj(u.position, enemy.position)
+            
+            if path and len(path) > 1:  # path includes start position
+                # Generate moves along the path up to speed * 2
+                max_dist = u.unit_type.speed * 2
+                # path[0] is start, so we want path[min(max_dist, len(path) - 1)]
+                target_index = min(max_dist, len(path) - 1)
+                target_pos = path[target_index]
+                moves.append(GameMove(MoveType.MOVE, target_pos=target_pos))
                     
         # 2. Attack
         # Find all enemies in range
@@ -352,9 +375,19 @@ class GameState:
         # Pick closest to attacker
         return min(candidates, key=lambda p: self.grid.distance(attacker.position, p))
 
+    def _apply_damage_from_roll(self, target: UnitState, base_damage: int, roll_result: RollResult):
+        """Apply damage based on roll result (CRIT doubles damage, HIT uses base damage, MISS does nothing)."""
+        if roll_result == RollResult.CRIT:
+            target.current_health -= base_damage * 2
+        elif roll_result == RollResult.HIT:
+            target.current_health -= base_damage
+        if not target.is_alive:
+            target_pos = self.grid.get_pt(target.uid)
+            del self.grid[target_pos]
+
     def _move(self, unit: UnitState, target_pos: Pt):
         if not self.is_valid_move(unit, target_pos, unit.unit_type.speed * 2):
-            raise ValueError(f"Invalid move for {unit.name} to {target_pos}")
+            raise ValueError(f"Invalid move for {unit} to {target_pos}")
         
         old_pos = self.grid.get_pt(unit.uid)
         del self.grid[old_pos]

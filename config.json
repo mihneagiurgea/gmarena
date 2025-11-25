@@ -1,7 +1,7 @@
 {
     "grid": {
-        "width": 9,
-        "height": 13
+        "width": 8,
+        "height": 8
     },
     "spells": [
         {
@@ -22,7 +22,7 @@
             "AC": 18,
             "WC": 9,
             "attack_damage": 20,
-            "speed": 5,
+            "speed": 1,
             "spells": []
         },
         {
@@ -31,7 +31,7 @@
             "AC": 12,
             "WC": 3,
             "attack_damage": 5,
-            "speed": 5,
+            "speed": 1,
             "spells": [
                 "Fireball",
                 "Lightning Bolt"
@@ -43,7 +43,7 @@
             "AC": 15,
             "WC": 6,
             "attack_damage": 15,
-            "speed": 5,
+            "speed": 1,
             "spells": [
                 "Lightning Bolt"
             ]
