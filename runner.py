@@ -15,13 +15,12 @@ class Runner:
         self.solver = MinimaxSolver(self.heuristic_func)
 
     def simulate(self):
-        turn = 1
+        self.game.print()
+
+        turn = 0
         while not self.game.is_over():
+            turn += 1
             current_unit = self.game.get_current_unit()
-            
-            print(f"\n--- Turn {turn}: {current_unit.name} (P{current_unit.player_id} ID:{current_unit.uid}) ---")
-            print(f"\n Game State:\n")
-            self.game.print()
             
             # Determine maximizing player. 
             # Heuristic returns (P1 score - P2 score).
@@ -29,18 +28,13 @@ class Runner:
             is_maximizing = (current_unit.player_id == 1)
             
             score, move = self.solver.solve(self.game, self.depth, is_maximizing)
-            
             assert move is not None, "No valid moves found."
 
+            print(f"\n--- Turn {turn}: {current_unit} ---")
             print(f"Action: {move}")
             self.game.execute_move(move, game_engine.Roll())
             self.game.print()
             
-            if self.game.check_game_over():
-                break
-            
-            turn += 1
-
 if __name__ == "__main__":
     # Example usage
     runner = Runner(

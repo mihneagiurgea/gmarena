@@ -33,10 +33,11 @@ class UnitState:
 
     def __repr__(self):
         symbol = "♔" if self.player_id == 1 else "♚"
+        name_with_id = f"{self.unit_type.name}#{self.uid} {symbol}"
         if not self.is_alive:
-            return f"{self.unit_type.name} ({symbol} ID:{self.uid}): DEAD"
+            return f"{name_with_id:12} {symbol}: DEAD"
         pos = self.state.grid.get_pt(self.uid)
-        return f"{self.unit_type.name} ({symbol} ID:{self.uid}) at {pos}: {self.current_health}/{self.unit_type.health}"
+        return f"{name_with_id:12} at {pos}: {self.current_health}/{self.unit_type.health}hp"
     
     @property
     def is_alive(self):
@@ -375,12 +376,13 @@ class GameState:
         # Pick closest to attacker
         return min(candidates, key=lambda p: self.grid.distance(attacker.position, p))
 
-    def _apply_damage_from_roll(self, target: UnitState, base_damage: int, roll_result: RollResult):
-        """Apply damage based on roll result (CRIT doubles damage, HIT uses base damage, MISS does nothing)."""
-        if roll_result == RollResult.CRIT:
+    def _apply_damage(self, base_damage: int, target: UnitState, rr: RollResult):
+        """Apply damage based on roll result and remove unit if dead."""
+        if rr == RollResult.CRIT:
             target.current_health -= base_damage * 2
-        elif roll_result == RollResult.HIT:
+        elif rr == RollResult.HIT:
             target.current_health -= base_damage
+        
         if not target.is_alive:
             target_pos = self.grid.get_pt(target.uid)
             del self.grid[target_pos]
@@ -392,28 +394,6 @@ class GameState:
         old_pos = self.grid.get_pt(unit.uid)
         del self.grid[old_pos]
         self.grid[target_pos] = unit.uid
-
-    def _attack(self, attacker: UnitState, target: UnitState, roll: 'Roll', penalty_wc: int = 0):
-        dist = self.grid.distance(attacker.position, target.position)
-        if dist > 1:
-            raise ValueError(f"Target out of range for attack (dist: {dist})")
-        
-        bonus = attacker.unit_type.wc - penalty_wc
-        difficulty = target.unit_type.ac
-        res = roll.roll(bonus, difficulty)
-        
-        if res == RollResult.CRIT:
-            dmg = attacker.unit_type.attack_damage * 2
-            target.current_health -= dmg
-            if not target.is_alive:
-                target_pos = self.grid.get_pt(target.uid)
-                del self.grid[target_pos]
-        elif res == RollResult.HIT:
-            dmg = attacker.unit_type.attack_damage
-            target.current_health -= dmg
-            if not target.is_alive:
-                target_pos = self.grid.get_pt(target.uid)
-                del self.grid[target_pos]
 
     def _charge(self, attacker: UnitState, move_target_pos: Pt, attack_target: UnitState, roll: 'Roll'):
         # Charge: Move up to Speed (not 2x Speed) then Attack with -4 WC
@@ -428,6 +408,17 @@ class GameState:
         # Execute attack
         self._attack(attacker, attack_target, roll, penalty_wc=4)
 
+    def _attack(self, attacker: UnitState, target: UnitState, roll: 'Roll', penalty_wc: int = 0):
+        dist = self.grid.distance(attacker.position, target.position)
+        if dist > 1:
+            raise ValueError(f"Target out of range for attack (dist: {dist})")
+        
+        bonus = attacker.unit_type.wc - penalty_wc
+        difficulty = target.unit_type.ac
+        res = roll.roll(bonus, difficulty)
+        
+        self._apply_damage(attacker.unit_type.attack_damage, target, res)
+
     def _cast_spell(self, attacker: UnitState, spell_name: str, target: UnitState, roll: 'Roll'):
         if spell_name not in attacker.unit_type.spells:
             raise ValueError(f"{attacker.name} does not know spell {spell_name}")
@@ -438,33 +429,14 @@ class GameState:
         difficulty = dist if dist <= spell.range else dist + (dist - spell.range) * 4
         res = roll.roll(0, difficulty)
         
-        if res == RollResult.CRIT:
-            dmg = spell.damage * 2
-            target.current_health -= dmg
-            if not target.is_alive:
-                target_pos = self.grid.get_pt(target.uid)
-                del self.grid[target_pos]
-        elif res == RollResult.HIT:
-            dmg = spell.damage
-            target.current_health -= dmg
-            if not target.is_alive:
-                target_pos = self.grid.get_pt(target.uid)
-                del self.grid[target_pos]
-
-    def check_game_over(self) -> bool:
-        p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
-        p2_alive = any(u.is_alive for u in self.units.values() if u.player_id == 2)
-        
-        if not p1_alive:
-            return True
-        if not p2_alive:
-            return True
-        return False
+        self._apply_damage(spell.damage, target, res)
 
     # --- Minimax Protocol Implementation ---
 
     def is_over(self) -> bool:
-        return self.check_game_over()
+        p1_alive = any(u.is_alive for u in self.units.values() if u.player_id == 1)
+        p2_alive = any(u.is_alive for u in self.units.values() if u.player_id == 2)
+        return not p1_alive or not p2_alive
 
     def apply(self, move: GameMove) -> List[Tuple['GameState', float]]:
         if move.move_type == MoveType.MOVE:
