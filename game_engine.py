@@ -269,7 +269,9 @@ class GameState:
                 # path[0] is start, so we want path[min(max_dist, len(path) - 1)]
                 target_index = min(max_dist, len(path) - 1)
                 target_pos = path[target_index]
-                moves.append(GameMove(MoveType.MOVE, target_pos=target_pos))
+                # Only add move if target position is not occupied by another unit
+                if self.grid[target_pos] is None or self.grid[target_pos] == u.uid:
+                    moves.append(GameMove(MoveType.MOVE, target_pos=target_pos))
                     
         # 2. Attack
         # Find all enemies in range
@@ -283,9 +285,14 @@ class GameState:
         # Move + Attack. Target must be reachable with speed (not 2x) and then adjacent.
         # We can iterate enemies and check if we can charge them.
         for e in enemies:
-            charge_pos = self._find_charge_pos(u, e)
-            if charge_pos:
-                moves.append(GameMove(MoveType.CHARGE, target_pos=e.position))
+            path = self.grid.find_path_adj(u.position, e.position)
+            # path includes start position, so len(path)-1 is the number of steps
+            if path and len(path) > 1 and len(path) - 1 <= u.unit_type.speed:
+                # Use the last position in the path (adjacent to enemy)
+                charge_pos = path[-1]
+                # Verify the charge position is adjacent to enemy
+                if self.grid.distance(charge_pos, e.position) == 1:
+                    moves.append(GameMove(MoveType.CHARGE, target_pos=e.position))
                 
         # 4. Spells
         for spell_name in u.unit_type.spells:
@@ -343,10 +350,15 @@ class GameState:
             if target_uid is None:
                 raise ValueError(f"No unit at target position {move.target_pos}")
             target = self.units[target_uid]
-            # Find best charge position
-            best_pos = self._find_charge_pos(attacker, target)
-            if not best_pos:
+            # Find best charge position using pathfinding
+            path = self.grid.find_path_adj(attacker.position, target.position)
+            # path includes start position, so len(path)-1 is the number of steps
+            if not path or len(path) <= 1:
                 raise ValueError("No valid charge position found.")
+            if len(path) - 1 > attacker.unit_type.speed:
+                raise ValueError(f"Target too far for charge (distance: {len(path)-1}, speed: {attacker.unit_type.speed})")
+            # Use the last position in the path (adjacent to target)
+            best_pos = path[-1]
             self._charge(attacker, best_pos, target, roll)
         elif move.move_type == MoveType.CAST_SPELL:
             # For other moves, target_pos must contain a unit
@@ -363,18 +375,7 @@ class GameState:
         # Advance to next turn after executing move
         self._next_turn()
 
-    def _find_charge_pos(self, attacker: UnitState, target: UnitState) -> Optional[Pt]:
-        # Find valid move position adjacent to target - use hex neighbors instead of square grid
-        candidates = []
-        for neighbor in self.grid.get_neighbors(target.position):
-            if self.is_valid_move(attacker, neighbor, attacker.unit_type.speed):
-                candidates.append(neighbor)
-        
-        if not candidates:
-            return None
-        
-        # Pick closest to attacker
-        return min(candidates, key=lambda p: self.grid.distance(attacker.position, p))
+
 
     def _apply_damage(self, base_damage: int, target: UnitState, rr: RollResult):
         """Apply damage based on roll result and remove unit if dead."""
