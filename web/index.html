@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Arena</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="left-section">
+      <div class="arena" id="arena">
+        <div class="entity player" id="player">
+          <span>P</span>
+        </div>
+        <div class="entity opponent" id="opponent">
+          <span>O</span>
+        </div>
+      </div>
+      <div class="options" id="options">
+        <div class="option">
+          <span class="option-key">1</span>
+          <span class="option-text">Do nothing</span>
+        </div>
+      </div>
+    </div>
+    <div class="log" id="log">
+      <div class="log-header">Action Log</div>
+      <div class="log-entries" id="log-entries">
+        <div class="log-entry">Game started.</div>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
