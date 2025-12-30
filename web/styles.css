@@ -49,36 +49,95 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 120px;
 }
 
-.entity {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+/* Grid system */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 120px);
+  grid-template-rows: repeat(3, 140px);
+  gap: 4px;
+  padding: 20px;
+}
+
+.cell {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.cell.highlight {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  box-shadow: inset 0 0 20px rgba(74, 158, 255, 0.1);
+}
+
+.cell.move-option {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+  cursor: pointer;
+}
+
+.cell.move-option:hover {
+  background: rgba(251, 191, 36, 0.35);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+}
+
+.cell-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  background: #fbbf24;
+  color: var(--bg-primary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Entity styling */
+.entity {
+  width: 100px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
 }
 
 .entity:hover {
   transform: scale(1.05);
 }
 
+.unit-svg {
+  width: 100%;
+  height: 100%;
+}
+
 .player {
-  background: linear-gradient(135deg, var(--player-color), #22c55e);
-  color: var(--bg-primary);
-  border: 3px solid rgba(255, 255, 255, 0.2);
+  filter: drop-shadow(0 2px 8px rgba(74, 222, 128, 0.3));
+}
+
+.player:hover {
+  filter: drop-shadow(0 0 15px var(--player-color));
 }
 
 .opponent {
-  background: linear-gradient(135deg, var(--opponent-color), #ef4444);
-  color: var(--bg-primary);
-  border: 3px solid rgba(255, 255, 255, 0.2);
+  filter: drop-shadow(0 2px 8px rgba(248, 113, 113, 0.3));
+}
+
+.opponent:hover {
+  filter: drop-shadow(0 0 15px var(--opponent-color));
 }
 
 .options {
@@ -88,9 +147,20 @@ html, body {
   border-right: 1px solid var(--border-color);
   padding: 20px 30px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
   gap: 10px;
+}
+
+.options-header {
+  width: 100%;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
 }
 
 .option {
