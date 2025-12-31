@@ -328,7 +328,7 @@ function rollD20() {
 /**
  * Show roll result popup
  */
-function showRollResult(roll, hit, critical) {
+function showRollResult(roll, hit, critical, damage = 0) {
   // Remove any existing popup
   const existing = document.querySelector('.roll-result');
   if (existing) existing.remove();
@@ -352,15 +352,22 @@ function showRollResult(roll, hit, critical) {
   }
 
   popup.classList.add(resultType);
+
+  let damageHtml = '';
+  if (hit && damage > 0) {
+    damageHtml = `<span class="roll-damage">${damage} damage</span>`;
+  }
+
   popup.innerHTML = `
     <span class="roll-number">${roll}</span>
     <span class="roll-text">${resultText}</span>
+    ${damageHtml}
   `;
 
   document.body.appendChild(popup);
 
   // Remove after animation
-  setTimeout(() => popup.remove(), 1500);
+  setTimeout(() => popup.remove(), 1600);
 }
 
 /**
@@ -760,7 +767,7 @@ function renderOptions() {
 
     html += `<div class="option" data-action="wait">
       <span class="option-key">${keyIndex}</span>
-      <span class="option-text">Wait</span>
+      <span class="option-text">Skip turn</span>
     </div>`;
 
     optionsEl.innerHTML = html;
@@ -972,7 +979,7 @@ function executeAttack(index) {
   }
 
   // Show roll result popup
-  showRollResult(result.roll, result.hit, result.critical);
+  showRollResult(result.roll, result.hit, result.critical, result.damage);
 
   addLogEntry(result.message, currentUnit.team);
 
@@ -1042,7 +1049,7 @@ function runOpponentAI() {
     const result = performMeleeAttack(currentUnit, target);
 
     // Show roll result popup
-    showRollResult(result.roll, result.hit, result.critical);
+    showRollResult(result.roll, result.hit, result.critical, result.damage);
 
     addLogEntry(result.message, 'opponent');
 

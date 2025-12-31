@@ -497,7 +497,7 @@ html, body {
   font-weight: 700;
   text-align: center;
   z-index: 1000;
-  animation: roll-popup 1.5s ease-out forwards;
+  animation: roll-popup 1.6s ease-out forwards;
   pointer-events: none;
 }
 
@@ -511,6 +511,13 @@ html, body {
   font-size: 18px;
   text-transform: uppercase;
   letter-spacing: 2px;
+}
+
+.roll-result .roll-damage {
+  display: block;
+  font-size: 16px;
+  margin-top: 8px;
+  color: #fbbf24;
 }
 
 .roll-result.miss {
@@ -532,7 +539,7 @@ html, body {
   border: 3px solid #f97316;
   color: #fbbf24;
   box-shadow: 0 0 40px rgba(251, 191, 36, 0.6);
-  animation: roll-popup 1.5s ease-out forwards, critical-glow 0.3s ease-in-out infinite;
+  animation: roll-popup 1.6s ease-out forwards, critical-glow 0.3s ease-in-out infinite;
 }
 
 @keyframes roll-popup {
