@@ -1,7 +1,7 @@
 /**
  * Grid-based Game Arena
  * 3 rows x 5 columns
- * Multiple units per team
+ * Multiple units per team with combat
  */
 
 const GRID_ROWS = 3;
@@ -46,42 +46,26 @@ const UNIT_SVGS = {
   mage: `
 <svg viewBox="0 0 100 100" class="unit-svg">
   <ellipse cx="50" cy="95" rx="18" ry="5" fill="rgba(0,0,0,0.3)"/>
-  <!-- Robe bottom -->
   <path d="M35 55 L30 92 L70 92 L65 55 Z" fill="#4a3080" stroke="#2a1860" stroke-width="1"/>
-  <!-- Robe folds -->
   <line x1="42" y1="60" x2="38" y2="90" stroke="#3a2070" stroke-width="1"/>
   <line x1="50" y1="58" x2="50" y2="90" stroke="#3a2070" stroke-width="1"/>
   <line x1="58" y1="60" x2="62" y2="90" stroke="#3a2070" stroke-width="1"/>
-  <!-- Robe top -->
   <path d="M38 40 L35 58 L65 58 L62 40 Z" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
-  <!-- Belt/sash -->
   <path d="M36 54 L64 54 L63 58 L37 58 Z" fill="#ffd700" stroke="#b8960b" stroke-width="1"/>
-  <!-- Left arm (holding staff) -->
   <path d="M35 42 L22 55 L26 58 L38 46" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
-  <!-- Hand -->
   <circle cx="24" cy="56" r="4" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
-  <!-- Staff -->
   <rect x="20" y="10" width="3" height="75" rx="1" fill="#5a4030" stroke="#3a2a20" stroke-width="1"/>
-  <!-- Staff orb -->
   <circle cx="21.5" cy="10" r="8" fill="#7070ff" stroke="#4040cc" stroke-width="1"/>
-  <!-- Staff orb glow -->
   <circle cx="21.5" cy="10" r="5" fill="#a0a0ff" opacity="0.6"/>
   <circle cx="19" cy="8" r="2" fill="#ffffff" opacity="0.8"/>
-  <!-- Right arm -->
   <path d="M65 42 L72 52 L68 55 L62 46" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
-  <!-- Shoulders -->
   <ellipse cx="38" cy="42" rx="6" ry="4" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
   <ellipse cx="62" cy="42" rx="6" ry="4" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
-  <!-- Hood -->
   <path d="M36 18 Q36 8 50 6 Q64 8 64 18 L64 38 L36 38 Z" fill="#4a3080" stroke="#2a1860" stroke-width="1"/>
-  <!-- Face (inside hood) -->
   <ellipse cx="50" cy="28" rx="10" ry="12" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
-  <!-- Eyes -->
   <ellipse cx="46" cy="26" rx="2" ry="1.5" fill="#2a2a4a"/>
   <ellipse cx="54" cy="26" rx="2" ry="1.5" fill="#2a2a4a"/>
-  <!-- Nose -->
   <path d="M49 28 L50 32 L51 28" fill="none" stroke="#c0a080" stroke-width="1"/>
-  <!-- Beard -->
   <path d="M44 34 Q50 42 56 34" fill="#888888" stroke="#666666" stroke-width="1"/>
   <path d="M48 36 L50 48 L52 36" fill="#888888" stroke="#666666" stroke-width="0.5"/>
 </svg>`,
@@ -89,55 +73,36 @@ const UNIT_SVGS = {
   archer: `
 <svg viewBox="0 0 100 100" class="unit-svg">
   <ellipse cx="50" cy="95" rx="18" ry="5" fill="rgba(0,0,0,0.3)"/>
-  <!-- Legs -->
   <path d="M44 65 L42 88 L46 88 L47 68" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
   <path d="M56 65 L58 88 L54 88 L53 68" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
-  <!-- Boots -->
   <path d="M40 86 L48 86 L48 92 L38 92 Z" fill="#3a3a3a" stroke="#2a2a2a" stroke-width="1"/>
   <path d="M52 86 L60 86 L62 92 L52 92 Z" fill="#3a3a3a" stroke="#2a2a2a" stroke-width="1"/>
-  <!-- Leather tunic -->
   <path d="M40 42 L38 68 L62 68 L60 42 Z" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
-  <!-- Tunic details -->
   <line x1="50" y1="44" x2="50" y2="66" stroke="#5a4a3a" stroke-width="1"/>
   <path d="M42 46 L50 50 L58 46" fill="none" stroke="#5a4a3a" stroke-width="1"/>
-  <!-- Belt with quiver strap -->
   <rect x="38" y="58" width="24" height="4" fill="#4a3a2a" stroke="#2a1a0a" stroke-width="1"/>
   <line x1="55" y1="42" x2="62" y2="62" stroke="#4a3a2a" stroke-width="3"/>
-  <!-- Quiver on back -->
   <rect x="62" y="35" width="8" height="30" rx="2" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
-  <!-- Arrows in quiver -->
   <line x1="64" y1="32" x2="64" y2="38" stroke="#8a7a6a" stroke-width="1"/>
   <line x1="66" y1="30" x2="66" y2="38" stroke="#8a7a6a" stroke-width="1"/>
   <line x1="68" y1="33" x2="68" y2="38" stroke="#8a7a6a" stroke-width="1"/>
-  <!-- Arrow feathers -->
   <path d="M63 32 L64 30 L65 32" fill="#cc3333" stroke="none"/>
   <path d="M65 30 L66 28 L67 30" fill="#cc3333" stroke="none"/>
   <path d="M67 33 L68 31 L69 33" fill="#cc3333" stroke="none"/>
-  <!-- Left arm (holding bow) -->
   <path d="M32 44 L20 52 L24 56 L36 48" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
-  <!-- Bow -->
   <path d="M12 30 Q8 50 12 70" fill="none" stroke="#5a4030" stroke-width="3"/>
   <path d="M12 30 Q16 50 12 70" fill="none" stroke="#3a2a20" stroke-width="1"/>
-  <!-- Bowstring -->
   <line x1="12" y1="30" x2="12" y2="70" stroke="#aaa" stroke-width="1"/>
-  <!-- Right arm (drawing) -->
   <path d="M68 44 L76 38 L72 34 L64 40" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
-  <!-- Shoulders -->
   <ellipse cx="38" cy="44" rx="6" ry="4" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
   <ellipse cx="62" cy="44" rx="6" ry="4" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
-  <!-- Hood/cowl -->
   <path d="M38 20 Q38 10 50 10 Q62 10 62 20 L62 40 L38 40 Z" fill="#5a5a4a" stroke="#3a3a2a" stroke-width="1"/>
-  <!-- Face -->
   <ellipse cx="50" cy="28" rx="9" ry="11" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
-  <!-- Eyes -->
   <ellipse cx="46" cy="26" rx="2" ry="1.5" fill="#2a4a2a"/>
   <ellipse cx="54" cy="26" rx="2" ry="1.5" fill="#2a4a2a"/>
-  <!-- Eyebrows -->
   <path d="M44 24 L48 23" stroke="#5a4a3a" stroke-width="1" fill="none"/>
   <path d="M52 23 L56 24" stroke="#5a4a3a" stroke-width="1" fill="none"/>
-  <!-- Nose -->
   <path d="M49 27 L50 31 L51 27" fill="none" stroke="#c0a080" stroke-width="1"/>
-  <!-- Slight smirk -->
   <path d="M47 33 Q50 35 53 33" fill="none" stroke="#a08060" stroke-width="1"/>
 </svg>`,
 
@@ -189,6 +154,57 @@ const UNIT_SVGS = {
 };
 
 // ============================================================================
+// UNIT STATS DEFINITIONS
+// ============================================================================
+
+const UNIT_STATS = {
+  warrior: {
+    maxHp: 90,
+    ac: 18,
+    sr: 3,
+    wc: 9,
+    meleeDamage: 20,
+    rangedDamage: null,
+    spells: []
+  },
+  archer: {
+    maxHp: 70,
+    ac: 15,
+    sr: 6,
+    wc: 6,
+    meleeDamage: null,
+    rangedDamage: 15,
+    spells: []
+  },
+  mage: {
+    maxHp: 50,
+    ac: 12,
+    sr: 9,
+    wc: 0,
+    meleeDamage: null,
+    rangedDamage: null,
+    spells: ['fireball']
+  },
+  orc: {
+    maxHp: 110,
+    ac: 16,
+    sr: 0,
+    wc: 11,
+    meleeDamage: 25,
+    rangedDamage: null,
+    spells: []
+  }
+};
+
+const SPELLS = {
+  fireball: {
+    name: 'Fireball',
+    damage: 20,
+    type: 'offensive'
+  }
+};
+
+// ============================================================================
 // UNIT DEFINITIONS
 // ============================================================================
 
@@ -199,6 +215,14 @@ const UNIT_SVGS = {
  * @property {string} type
  * @property {'player' | 'opponent'} team
  * @property {{row: number, col: number}} position
+ * @property {number} hp
+ * @property {number} maxHp
+ * @property {number} ac
+ * @property {number} sr
+ * @property {number} wc
+ * @property {number|null} meleeDamage
+ * @property {number|null} rangedDamage
+ * @property {string[]} spells
  */
 
 /**
@@ -207,17 +231,16 @@ const UNIT_SVGS = {
  */
 function createInitialUnits() {
   const playerUnits = [
-    { id: 'warrior', name: 'Warrior', type: 'warrior', team: 'player' },
-    { id: 'mage', name: 'Mage', type: 'mage', team: 'player' },
-    { id: 'archer', name: 'Archer', type: 'archer', team: 'player' }
+    createUnit('warrior', 'Warrior', 'warrior', 'player'),
+    createUnit('mage', 'Mage', 'mage', 'player'),
+    createUnit('archer', 'Archer', 'archer', 'player')
   ];
 
   const opponentUnits = [
-    { id: 'orc1', name: 'Orc #1', type: 'orc', team: 'opponent' },
-    { id: 'orc2', name: 'Orc #2', type: 'orc', team: 'opponent' }
+    createUnit('orc1', 'Orc #1', 'orc', 'opponent'),
+    createUnit('orc2', 'Orc #2', 'orc', 'opponent')
   ];
 
-  // Place units
   placeUnitsInColumn(playerUnits, 0);
   placeUnitsInColumn(opponentUnits, GRID_COLS - 1);
 
@@ -225,13 +248,32 @@ function createInitialUnits() {
 }
 
 /**
+ * Create a unit with stats
+ */
+function createUnit(id, name, type, team) {
+  const stats = UNIT_STATS[type];
+  return {
+    id,
+    name,
+    type,
+    team,
+    position: null,
+    hp: stats.maxHp,
+    maxHp: stats.maxHp,
+    ac: stats.ac,
+    sr: stats.sr,
+    wc: stats.wc,
+    meleeDamage: stats.meleeDamage,
+    rangedDamage: stats.rangedDamage,
+    spells: [...stats.spells]
+  };
+}
+
+/**
  * Place units in a column based on count
- * @param {Unit[]} units
- * @param {number} col
  */
 function placeUnitsInColumn(units, col) {
   const count = units.length;
-
   if (count === 1) {
     units[0].position = { row: 1, col };
   } else if (count === 2) {
@@ -246,8 +288,6 @@ function placeUnitsInColumn(units, col) {
 
 /**
  * Shuffle array randomly (Fisher-Yates)
- * @param {any[]} array
- * @returns {any[]}
  */
 function shuffleArray(array) {
   const arr = [...array];
@@ -262,84 +302,228 @@ function shuffleArray(array) {
 // GAME STATE
 // ============================================================================
 
-/**
- * @typedef {Object} GameState
- * @property {number} turn
- * @property {Unit[]} units
- * @property {string[]} turnOrder - Array of unit IDs in turn order
- * @property {number} currentUnitIndex
- * @property {'main' | 'move'} menuState
- * @property {{row: number, col: number}[]} validMoves
- */
-
-/** @type {GameState} */
+/** @type {Object} */
 const gameState = {
   turn: 1,
   units: [],
   turnOrder: [],
   currentUnitIndex: 0,
-  menuState: 'main',
-  validMoves: []
+  menuState: 'main', // 'main', 'move', 'melee', 'ranged', 'spell'
+  validMoves: [],
+  validTargets: [],
+  selectedSpell: null
 };
+
+// ============================================================================
+// COMBAT SYSTEM
+// ============================================================================
+
+/**
+ * Roll a d20
+ */
+function rollD20() {
+  return Math.floor(Math.random() * 20) + 1;
+}
+
+/**
+ * Show roll result popup
+ */
+function showRollResult(roll, hit, critical) {
+  // Remove any existing popup
+  const existing = document.querySelector('.roll-result');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.className = 'roll-result';
+
+  let resultType, resultText;
+  if (roll === 1) {
+    resultType = 'miss';
+    resultText = 'Critical Miss!';
+  } else if (roll === 20 || critical) {
+    resultType = 'critical';
+    resultText = 'Critical Hit!';
+  } else if (hit) {
+    resultType = 'hit';
+    resultText = 'Hit!';
+  } else {
+    resultType = 'miss';
+    resultText = 'Miss!';
+  }
+
+  popup.classList.add(resultType);
+  popup.innerHTML = `
+    <span class="roll-number">${roll}</span>
+    <span class="roll-text">${resultText}</span>
+  `;
+
+  document.body.appendChild(popup);
+
+  // Remove after animation
+  setTimeout(() => popup.remove(), 1500);
+}
+
+/**
+ * Perform a melee attack
+ */
+function performMeleeAttack(attacker, defender) {
+  const roll = rollD20();
+  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
+
+  if (roll === 1) {
+    result.message = `${attacker.name} rolls ${roll} - Critical Miss!`;
+  } else if (roll === 20) {
+    result.hit = true;
+    result.critical = true;
+    result.damage = Math.floor(attacker.meleeDamage * 1.5);
+    result.message = `${attacker.name} rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${defender.name}!`;
+  } else {
+    const attackValue = attacker.wc + roll;
+    if (attackValue >= defender.ac) {
+      result.hit = true;
+      result.damage = attacker.meleeDamage;
+      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Hit! Deals ${result.damage} damage to ${defender.name}.`;
+    } else {
+      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Miss!`;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Perform a ranged attack
+ */
+function performRangedAttack(attacker, defender) {
+  const roll = rollD20();
+  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
+
+  if (roll === 1) {
+    result.message = `${attacker.name} rolls ${roll} - Critical Miss!`;
+  } else if (roll === 20) {
+    result.hit = true;
+    result.critical = true;
+    result.damage = Math.floor(attacker.rangedDamage * 1.5);
+    result.message = `${attacker.name} rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${defender.name}!`;
+  } else {
+    const attackValue = attacker.wc + roll;
+    if (attackValue >= defender.ac) {
+      result.hit = true;
+      result.damage = attacker.rangedDamage;
+      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Hit! Deals ${result.damage} damage to ${defender.name}.`;
+    } else {
+      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Miss!`;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Cast a spell
+ */
+function castSpell(caster, target, spellId) {
+  const spell = SPELLS[spellId];
+  const roll = rollD20();
+  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
+
+  // Offensive spell against enemy
+  if (spell.type === 'offensive' && caster.team !== target.team) {
+    if (roll === 1) {
+      result.message = `${caster.name} casts ${spell.name}, rolls ${roll} - Critical Miss!`;
+    } else if (roll === 20) {
+      result.hit = true;
+      result.critical = true;
+      result.damage = Math.floor(spell.damage * 1.5);
+      result.message = `${caster.name} casts ${spell.name}, rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${target.name}!`;
+    } else {
+      if (roll >= target.sr) {
+        result.hit = true;
+        result.damage = spell.damage;
+        result.message = `${caster.name} casts ${spell.name}, rolls ${roll} (vs SR ${target.sr}) - Hit! Deals ${result.damage} damage to ${target.name}.`;
+      } else {
+        result.message = `${caster.name} casts ${spell.name}, rolls ${roll} (vs SR ${target.sr}) - Resisted!`;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Apply damage to a unit
+ */
+function applyDamage(unit, damage) {
+  unit.hp -= damage;
+  if (unit.hp <= 0) {
+    unit.hp = 0;
+    return true; // Unit died
+  }
+  return false;
+}
+
+/**
+ * Remove dead units from game
+ */
+function removeDeadUnits() {
+  const deadUnits = gameState.units.filter(u => u.hp <= 0);
+  deadUnits.forEach(unit => {
+    addLogEntry(`${unit.name} has fallen!`, unit.team);
+    // Remove from turn order
+    gameState.turnOrder = gameState.turnOrder.filter(id => id !== unit.id);
+    // Adjust current index if needed
+    const deadIndex = gameState.turnOrder.indexOf(unit.id);
+    if (deadIndex !== -1 && deadIndex < gameState.currentUnitIndex) {
+      gameState.currentUnitIndex--;
+    }
+  });
+  gameState.units = gameState.units.filter(u => u.hp > 0);
+}
+
+/**
+ * Check if game is over
+ */
+function checkGameOver() {
+  const playerAlive = gameState.units.some(u => u.team === 'player');
+  const opponentAlive = gameState.units.some(u => u.team === 'opponent');
+
+  if (!playerAlive) {
+    addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
+    return true;
+  }
+  if (!opponentAlive) {
+    addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
+    return true;
+  }
+  return false;
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Get current active unit
- * @returns {Unit|null}
- */
 function getCurrentUnit() {
+  if (gameState.turnOrder.length === 0) return null;
   const unitId = gameState.turnOrder[gameState.currentUnitIndex];
   return gameState.units.find(u => u.id === unitId) || null;
 }
 
-/**
- * Get unit at position
- * @param {number} row
- * @param {number} col
- * @returns {Unit|null}
- */
 function getUnitAt(row, col) {
   return gameState.units.find(u => u.position.row === row && u.position.col === col) || null;
 }
 
-/**
- * Get cell element at position
- * @param {number} row
- * @param {number} col
- * @returns {HTMLElement|null}
- */
 function getCellAt(row, col) {
   return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
 }
 
-/**
- * Check if position is valid
- * @param {number} row
- * @param {number} col
- * @returns {boolean}
- */
 function isValidPosition(row, col) {
   return row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS;
 }
 
-/**
- * Check if position is occupied
- * @param {number} row
- * @param {number} col
- * @returns {boolean}
- */
 function isOccupied(row, col) {
   return getUnitAt(row, col) !== null;
 }
 
-/**
- * Get adjacent cells for a position
- * @param {{row: number, col: number}} pos
- * @returns {{row: number, col: number}[]}
- */
 function getAdjacentCells(pos) {
   const directions = [
     [-1, -1], [-1, 0], [-1, 1],
@@ -352,12 +536,22 @@ function getAdjacentCells(pos) {
     .filter(p => isValidPosition(p.row, p.col) && !isOccupied(p.row, p.col));
 }
 
-/**
- * Get direction name
- * @param {{row: number, col: number}} from
- * @param {{row: number, col: number}} to
- * @returns {string}
- */
+function getAdjacentEnemies(unit) {
+  const directions = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],           [0, 1],
+    [1, -1],  [1, 0],  [1, 1]
+  ];
+
+  return directions
+    .map(([dr, dc]) => getUnitAt(unit.position.row + dr, unit.position.col + dc))
+    .filter(u => u !== null && u.team !== unit.team);
+}
+
+function getAllEnemies(unit) {
+  return gameState.units.filter(u => u.team !== unit.team);
+}
+
 function getDirectionName(from, to) {
   const dr = to.row - from.row;
   const dc = to.col - from.col;
@@ -370,9 +564,6 @@ function getDirectionName(from, to) {
 // RENDERING
 // ============================================================================
 
-/**
- * Create the grid
- */
 function createGrid() {
   const gridEl = document.getElementById('grid');
   gridEl.innerHTML = '';
@@ -388,12 +579,9 @@ function createGrid() {
   }
 }
 
-/**
- * Render all units on the grid
- */
 function renderUnits() {
-  // Clear existing units
   document.querySelectorAll('.entity').forEach(el => el.remove());
+  document.querySelectorAll('.hp-bar-container').forEach(el => el.remove());
 
   gameState.units.forEach(unit => {
     const cell = getCellAt(unit.position.row, unit.position.col);
@@ -405,36 +593,51 @@ function renderUnits() {
     el.innerHTML = UNIT_SVGS[unit.type];
     cell.appendChild(el);
 
+    // HP bar
+    const hpContainer = document.createElement('div');
+    hpContainer.className = 'hp-bar-container';
+    const hpBar = document.createElement('div');
+    hpBar.className = 'hp-bar';
+    const hpPercent = (unit.hp / unit.maxHp) * 100;
+    hpBar.style.width = `${hpPercent}%`;
+    if (hpPercent <= 25) hpBar.classList.add('critical');
+    else if (hpPercent <= 50) hpBar.classList.add('low');
+    hpContainer.appendChild(hpBar);
+    cell.appendChild(hpContainer);
+
     el.addEventListener('mouseenter', () => showUnitInfo(unit));
     el.addEventListener('mouseleave', () => showUnitInfo(null));
   });
 }
 
-/**
- * Highlight cells for current unit
- */
 function highlightCells() {
-  // Clear all highlights
   document.querySelectorAll('.cell').forEach(cell => {
-    cell.classList.remove('highlight', 'move-option');
+    cell.classList.remove('highlight', 'move-option', 'attack-target', 'active-unit');
     cell.onclick = null;
     const numEl = cell.querySelector('.cell-number');
     if (numEl) numEl.remove();
   });
 
   const currentUnit = getCurrentUnit();
-  if (!currentUnit || currentUnit.team !== 'player') return;
+  if (!currentUnit) return;
 
-  const adjacent = getAdjacentCells(currentUnit.position);
+  // Highlight current unit's cell
+  const currentCell = getCellAt(currentUnit.position.row, currentUnit.position.col);
+  if (currentCell) {
+    currentCell.classList.add('active-unit');
+  }
+
+  if (currentUnit.team !== 'player') return;
 
   if (gameState.menuState === 'main') {
+    const adjacent = getAdjacentCells(currentUnit.position);
     adjacent.forEach(p => {
       const cell = getCellAt(p.row, p.col);
       if (cell) cell.classList.add('highlight');
     });
   } else if (gameState.menuState === 'move') {
-    gameState.validMoves = adjacent;
-    adjacent.forEach((p, index) => {
+    gameState.validMoves = getAdjacentCells(currentUnit.position);
+    gameState.validMoves.forEach((p, index) => {
       const cell = getCellAt(p.row, p.col);
       if (cell) {
         cell.classList.add('move-option');
@@ -445,12 +648,21 @@ function highlightCells() {
         cell.onclick = () => executeMove(index);
       }
     });
+  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
+    gameState.validTargets.forEach((target, index) => {
+      const cell = getCellAt(target.position.row, target.position.col);
+      if (cell) {
+        cell.classList.add('attack-target');
+        const numEl = document.createElement('div');
+        numEl.className = 'cell-number attack';
+        numEl.textContent = index + 1;
+        cell.appendChild(numEl);
+        cell.onclick = () => executeAttack(index);
+      }
+    });
   }
 }
 
-/**
- * Render turn order in status section
- */
 function renderTurnOrder() {
   const statusContent = document.querySelector('.status-content');
 
@@ -471,20 +683,27 @@ function renderTurnOrder() {
     const isCurrent = index === gameState.currentUnitIndex;
     const teamClass = unit.team;
 
-    html += `<div class="turn-order-item ${teamClass} ${isCurrent ? 'current' : ''}">
+    html += `<div class="turn-order-item ${teamClass} ${isCurrent ? 'current' : ''}" data-unit-id="${unitId}">
       <span class="turn-order-marker">${isCurrent ? '▶' : ''}</span>
       <span class="turn-order-name">${unit.name}</span>
+      <span class="turn-order-hp">${unit.hp}/${unit.maxHp}</span>
     </div>`;
   });
 
   html += '</div>';
-
   statusContent.innerHTML = html;
+
+  // Add hover events for turn order items
+  statusContent.querySelectorAll('.turn-order-item').forEach(item => {
+    const unitId = item.dataset.unitId;
+    const unit = gameState.units.find(u => u.id === unitId);
+    if (unit) {
+      item.addEventListener('mouseenter', () => showUnitInfo(unit));
+      item.addEventListener('mouseleave', () => showUnitInfo(null));
+    }
+  });
 }
 
-/**
- * Render options menu
- */
 function renderOptions() {
   const optionsEl = document.getElementById('options');
   const currentUnit = getCurrentUnit();
@@ -500,25 +719,53 @@ function renderOptions() {
   }
 
   if (gameState.menuState === 'main') {
-    optionsEl.innerHTML = `
-      <div class="options-header">${currentUnit.name} - Actions</div>
-      <div class="option" data-action="move">
-        <span class="option-key">1</span>
-        <span class="option-text">Move</span>
-      </div>
-      <div class="option" data-action="wait">
-        <span class="option-key">2</span>
-        <span class="option-text">Wait</span>
-      </div>
-    `;
+    let html = `<div class="options-header">${currentUnit.name} - Actions</div>`;
+    let keyIndex = 1;
 
-    optionsEl.querySelectorAll('.option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const action = opt.dataset.action;
-        if (action === 'move') enterMoveMode();
-        else if (action === 'wait') executeWait();
-      });
+    html += `<div class="option" data-action="move">
+      <span class="option-key">${keyIndex++}</span>
+      <span class="option-text">Move</span>
+    </div>`;
+
+    // Melee attack option
+    if (currentUnit.meleeDamage !== null) {
+      const adjacentEnemies = getAdjacentEnemies(currentUnit);
+      if (adjacentEnemies.length > 0) {
+        html += `<div class="option" data-action="melee">
+          <span class="option-key">${keyIndex++}</span>
+          <span class="option-text">Melee Attack (${currentUnit.meleeDamage} dmg)</span>
+        </div>`;
+      }
+    }
+
+    // Ranged attack option
+    if (currentUnit.rangedDamage !== null) {
+      const enemies = getAllEnemies(currentUnit);
+      if (enemies.length > 0) {
+        html += `<div class="option" data-action="ranged">
+          <span class="option-key">${keyIndex++}</span>
+          <span class="option-text">Ranged Attack (${currentUnit.rangedDamage} dmg)</span>
+        </div>`;
+      }
+    }
+
+    // Spell options
+    currentUnit.spells.forEach(spellId => {
+      const spell = SPELLS[spellId];
+      html += `<div class="option" data-action="spell-${spellId}">
+        <span class="option-key">${keyIndex++}</span>
+        <span class="option-text">${spell.name} (${spell.damage} dmg)</span>
+      </div>`;
     });
+
+    html += `<div class="option" data-action="wait">
+      <span class="option-key">${keyIndex}</span>
+      <span class="option-text">Wait</span>
+    </div>`;
+
+    optionsEl.innerHTML = html;
+    bindMainMenuEvents();
+
   } else if (gameState.menuState === 'move') {
     let html = `<div class="options-header">${currentUnit.name} - Select destination</div>`;
     html += `<div class="option" data-action="cancel">
@@ -535,24 +782,75 @@ function renderOptions() {
     });
 
     optionsEl.innerHTML = html;
+    bindMoveMenuEvents();
 
-    optionsEl.querySelectorAll('.option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const action = opt.dataset.action;
-        if (action === 'cancel') exitMoveMode();
-        else if (action.startsWith('move-')) {
-          const index = parseInt(action.split('-')[1]);
-          executeMove(index);
-        }
-      });
+  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
+    const actionName = gameState.menuState === 'melee' ? 'Melee Attack' :
+                       gameState.menuState === 'ranged' ? 'Ranged Attack' :
+                       SPELLS[gameState.selectedSpell].name;
+    let html = `<div class="options-header">${currentUnit.name} - ${actionName} Target</div>`;
+    html += `<div class="option" data-action="cancel">
+      <span class="option-key">0</span>
+      <span class="option-text">Cancel</span>
+    </div>`;
+
+    gameState.validTargets.forEach((target, index) => {
+      html += `<div class="option attack-option" data-action="attack-${index}">
+        <span class="option-key">${index + 1}</span>
+        <span class="option-text">${target.name} (${target.hp}/${target.maxHp} HP)</span>
+      </div>`;
     });
+
+    optionsEl.innerHTML = html;
+    bindAttackMenuEvents();
   }
 }
 
-/**
- * Show unit info on hover
- * @param {Unit|null} unit
- */
+function bindMainMenuEvents() {
+  const optionsEl = document.getElementById('options');
+  optionsEl.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const action = opt.dataset.action;
+      if (action === 'move') enterMoveMode();
+      else if (action === 'melee') enterMeleeMode();
+      else if (action === 'ranged') enterRangedMode();
+      else if (action.startsWith('spell-')) {
+        const spellId = action.replace('spell-', '');
+        enterSpellMode(spellId);
+      }
+      else if (action === 'wait') executeWait();
+    });
+  });
+}
+
+function bindMoveMenuEvents() {
+  const optionsEl = document.getElementById('options');
+  optionsEl.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const action = opt.dataset.action;
+      if (action === 'cancel') exitToMainMenu();
+      else if (action.startsWith('move-')) {
+        const index = parseInt(action.split('-')[1]);
+        executeMove(index);
+      }
+    });
+  });
+}
+
+function bindAttackMenuEvents() {
+  const optionsEl = document.getElementById('options');
+  optionsEl.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const action = opt.dataset.action;
+      if (action === 'cancel') exitToMainMenu();
+      else if (action.startsWith('attack-')) {
+        const index = parseInt(action.split('-')[1]);
+        executeAttack(index);
+      }
+    });
+  });
+}
+
 function showUnitInfo(unit) {
   const unitInfo = document.getElementById('unit-info');
 
@@ -561,31 +859,29 @@ function showUnitInfo(unit) {
     return;
   }
 
+  let statsHtml = `HP: ${unit.hp}/${unit.maxHp}<br>`;
+  statsHtml += `AC: ${unit.ac} | SR: ${unit.sr}<br>`;
+  if (unit.meleeDamage !== null) statsHtml += `Melee: WC ${unit.wc}, ${unit.meleeDamage} dmg<br>`;
+  if (unit.rangedDamage !== null) statsHtml += `Ranged: ${unit.rangedDamage} dmg<br>`;
+  if (unit.spells.length > 0) {
+    const spellNames = unit.spells.map(s => SPELLS[s].name).join(', ');
+    statsHtml += `Spells: ${spellNames}`;
+  }
+
   unitInfo.innerHTML = `
     <div class="unit-info-content">
       <div class="unit-info-title ${unit.team}">${unit.name}</div>
-      <div class="unit-info-stats">
-        Type: ${unit.type.charAt(0).toUpperCase() + unit.type.slice(1)}<br>
-        Team: ${unit.team === 'player' ? 'Player' : 'Opponent'}<br>
-        Position: (${unit.position.row}, ${unit.position.col})
-      </div>
+      <div class="unit-info-stats">${statsHtml}</div>
     </div>
   `;
 }
 
-/**
- * Add log entry
- * @param {string} message
- * @param {'neutral' | 'player' | 'opponent'} type
- */
 function addLogEntry(message, type = 'neutral') {
   const logEntries = document.getElementById('log-entries');
   const entry = document.createElement('div');
   entry.className = 'log-entry';
-
   if (type === 'player') entry.classList.add('player-action');
   else if (type === 'opponent') entry.classList.add('opponent-action');
-
   entry.textContent = message;
   logEntries.appendChild(entry);
   logEntries.scrollTop = logEntries.scrollHeight;
@@ -598,23 +894,52 @@ function addLogEntry(message, type = 'neutral') {
 function enterMoveMode() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
-
   gameState.menuState = 'move';
   gameState.validMoves = getAdjacentCells(currentUnit.position);
   highlightCells();
   renderOptions();
 }
 
-function exitMoveMode() {
+function enterMeleeMode() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+  gameState.menuState = 'melee';
+  gameState.validTargets = getAdjacentEnemies(currentUnit);
+  highlightCells();
+  renderOptions();
+}
+
+function enterRangedMode() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+  gameState.menuState = 'ranged';
+  gameState.validTargets = getAllEnemies(currentUnit);
+  highlightCells();
+  renderOptions();
+}
+
+function enterSpellMode(spellId) {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+  gameState.menuState = 'spell';
+  gameState.selectedSpell = spellId;
+  // For offensive spells, target enemies
+  gameState.validTargets = getAllEnemies(currentUnit);
+  highlightCells();
+  renderOptions();
+}
+
+function exitToMainMenu() {
   gameState.menuState = 'main';
   gameState.validMoves = [];
+  gameState.validTargets = [];
+  gameState.selectedSpell = null;
   highlightCells();
   renderOptions();
 }
 
 function executeMove(index) {
   if (index < 0 || index >= gameState.validMoves.length) return;
-
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
 
@@ -627,14 +952,51 @@ function executeMove(index) {
 
   gameState.menuState = 'main';
   gameState.validMoves = [];
-
   endTurn();
+}
+
+function executeAttack(index) {
+  if (index < 0 || index >= gameState.validTargets.length) return;
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  const target = gameState.validTargets[index];
+  let result;
+
+  if (gameState.menuState === 'melee') {
+    result = performMeleeAttack(currentUnit, target);
+  } else if (gameState.menuState === 'ranged') {
+    result = performRangedAttack(currentUnit, target);
+  } else if (gameState.menuState === 'spell') {
+    result = castSpell(currentUnit, target, gameState.selectedSpell);
+  }
+
+  // Show roll result popup
+  showRollResult(result.roll, result.hit, result.critical);
+
+  addLogEntry(result.message, currentUnit.team);
+
+  if (result.hit) {
+    applyDamage(target, result.damage);
+    removeDeadUnits();
+  }
+
+  gameState.menuState = 'main';
+  gameState.validTargets = [];
+  gameState.selectedSpell = null;
+
+  if (!checkGameOver()) {
+    endTurn();
+  } else {
+    renderUnits();
+    renderTurnOrder();
+    renderOptions();
+  }
 }
 
 function executeWait() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
-
   addLogEntry(`${currentUnit.name} waits.`, currentUnit.team);
   endTurn();
 }
@@ -642,7 +1004,6 @@ function executeWait() {
 function endTurn() {
   gameState.currentUnitIndex++;
 
-  // Check if we've gone through all units
   if (gameState.currentUnitIndex >= gameState.turnOrder.length) {
     gameState.currentUnitIndex = 0;
     gameState.turn++;
@@ -653,54 +1014,78 @@ function endTurn() {
   renderTurnOrder();
   renderOptions();
 
-  // If it's opponent's turn, run AI
   const currentUnit = getCurrentUnit();
   if (currentUnit && currentUnit.team === 'opponent') {
-    setTimeout(() => runOpponentAI(), 500);
+    setTimeout(() => runOpponentAI(), 600);
   }
 }
 
-/**
- * Simple opponent AI
- */
+// ============================================================================
+// OPPONENT AI
+// ============================================================================
+
 function runOpponentAI() {
   const currentUnit = getCurrentUnit();
-  if (!currentUnit || currentUnit.team !== 'player') {
-    // Find closest player unit
-    const playerUnits = gameState.units.filter(u => u.team === 'player');
-    if (playerUnits.length === 0) {
-      addLogEntry(`${currentUnit.name} waits.`, 'opponent');
-      endTurn();
-      return;
-    }
+  if (!currentUnit || currentUnit.team === 'player') return;
 
-    const adjacent = getAdjacentCells(currentUnit.position);
-
-    if (adjacent.length > 0) {
-      // Find cell closest to any player unit
-      let bestMove = adjacent[0];
-      let bestDist = Infinity;
-
-      adjacent.forEach(pos => {
-        playerUnits.forEach(player => {
-          const dist = Math.abs(pos.row - player.position.row) + Math.abs(pos.col - player.position.col);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestMove = pos;
-          }
-        });
-      });
-
-      const oldPos = { ...currentUnit.position };
-      currentUnit.position = bestMove;
-      const dirName = getDirectionName(oldPos, bestMove);
-      addLogEntry(`${currentUnit.name} moves ${dirName}.`, 'opponent');
-    } else {
-      addLogEntry(`${currentUnit.name} waits.`, 'opponent');
-    }
-
-    endTurn();
+  const playerUnits = gameState.units.filter(u => u.team === 'player');
+  if (playerUnits.length === 0) {
+    executeWait();
+    return;
   }
+
+  // Check for adjacent enemies to attack
+  const adjacentEnemies = getAdjacentEnemies(currentUnit);
+  if (adjacentEnemies.length > 0 && currentUnit.meleeDamage !== null) {
+    // Attack the lowest HP enemy
+    const target = adjacentEnemies.reduce((a, b) => a.hp < b.hp ? a : b);
+    const result = performMeleeAttack(currentUnit, target);
+
+    // Show roll result popup
+    showRollResult(result.roll, result.hit, result.critical);
+
+    addLogEntry(result.message, 'opponent');
+
+    if (result.hit) {
+      applyDamage(target, result.damage);
+      removeDeadUnits();
+    }
+
+    if (!checkGameOver()) {
+      endTurn();
+    } else {
+      renderUnits();
+      renderTurnOrder();
+      renderOptions();
+    }
+    return;
+  }
+
+  // Move towards closest player unit
+  const adjacent = getAdjacentCells(currentUnit.position);
+  if (adjacent.length > 0) {
+    let bestMove = adjacent[0];
+    let bestDist = Infinity;
+
+    adjacent.forEach(pos => {
+      playerUnits.forEach(player => {
+        const dist = Math.abs(pos.row - player.position.row) + Math.abs(pos.col - player.position.col);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestMove = pos;
+        }
+      });
+    });
+
+    const oldPos = { ...currentUnit.position };
+    currentUnit.position = bestMove;
+    const dirName = getDirectionName(oldPos, bestMove);
+    addLogEntry(`${currentUnit.name} moves ${dirName}.`, 'opponent');
+  } else {
+    addLogEntry(`${currentUnit.name} waits.`, 'opponent');
+  }
+
+  endTurn();
 }
 
 // ============================================================================
@@ -714,14 +1099,25 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   if (gameState.menuState === 'main') {
-    if (key === '1') enterMoveMode();
-    else if (key === '2') executeWait();
-  } else if (gameState.menuState === 'move') {
-    if (key === '0' || key === 'Escape') exitMoveMode();
-    else {
+    const num = parseInt(key);
+    if (!isNaN(num) && num >= 1) {
+      const options = document.querySelectorAll('#options .option');
+      if (num <= options.length) {
+        options[num - 1].click();
+      }
+    }
+  } else {
+    if (key === '0' || key === 'Escape') {
+      exitToMainMenu();
+    } else {
       const num = parseInt(key);
-      if (num >= 1 && num <= gameState.validMoves.length) {
-        executeMove(num - 1);
+      if (!isNaN(num) && num >= 1) {
+        if (gameState.menuState === 'move' && num <= gameState.validMoves.length) {
+          executeMove(num - 1);
+        } else if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell')
+                   && num <= gameState.validTargets.length) {
+          executeAttack(num - 1);
+        }
       }
     }
   }
@@ -732,30 +1128,25 @@ document.addEventListener('keydown', (event) => {
 // ============================================================================
 
 function initGame() {
-  // Create units
   gameState.units = createInitialUnits();
-
-  // Create random turn order
   const allUnitIds = gameState.units.map(u => u.id);
   gameState.turnOrder = shuffleArray(allUnitIds);
   gameState.currentUnitIndex = 0;
 
-  // Render
   createGrid();
   renderUnits();
   highlightCells();
   renderTurnOrder();
   renderOptions();
 
-  addLogEntry('Game started.');
+  addLogEntry('Game started. Fight!');
 
-  // If first unit is opponent, run AI
   const firstUnit = getCurrentUnit();
   if (firstUnit && firstUnit.team === 'opponent') {
-    setTimeout(() => runOpponentAI(), 500);
+    setTimeout(() => runOpponentAI(), 600);
   }
 
-  console.log('Game Arena initialized');
+  console.log('Game Arena initialized with combat!');
 }
 
 initGame();
