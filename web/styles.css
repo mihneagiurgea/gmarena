@@ -228,6 +228,58 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+}
+
+/* Turn Order Display */
+.turn-order {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.turn-order-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.turn-order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.turn-order-item.player {
+  border-left-color: var(--player-color);
+}
+
+.turn-order-item.opponent {
+  border-left-color: var(--opponent-color);
+}
+
+.turn-order-item.current {
+  background: rgba(74, 158, 255, 0.2);
+  border-left-color: var(--accent);
+}
+
+.turn-order-marker {
+  width: 12px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.turn-order-name {
+  color: var(--text-primary);
 }
 
 .status-row {

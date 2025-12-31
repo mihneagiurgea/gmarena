@@ -1,13 +1,18 @@
 /**
  * Grid-based Game Arena
  * 3 rows x 5 columns
+ * Multiple units per team
  */
 
 const GRID_ROWS = 3;
 const GRID_COLS = 5;
 
-// SVG templates for units
-const PLAYER_SVG = `
+// ============================================================================
+// SVG TEMPLATES
+// ============================================================================
+
+const UNIT_SVGS = {
+  warrior: `
 <svg viewBox="0 0 100 100" class="unit-svg">
   <ellipse cx="50" cy="95" rx="20" ry="5" fill="rgba(0,0,0,0.3)"/>
   <path d="M42 70 L38 90 L42 90 L45 75" fill="#5a6070" stroke="#3a4050" stroke-width="1"/>
@@ -36,9 +41,107 @@ const PLAYER_SVG = `
   <line x1="44" y1="30" x2="56" y2="30" stroke="#1a1a2a" stroke-width="1"/>
   <path d="M50 8 L50 2 L54 6 L50 8" fill="#cc3333" stroke="#aa2222" stroke-width="0.5"/>
   <line x1="50" y1="8" x2="50" y2="20" stroke="#5a6070" stroke-width="2"/>
-</svg>`;
+</svg>`,
 
-const OPPONENT_SVG = `
+  mage: `
+<svg viewBox="0 0 100 100" class="unit-svg">
+  <ellipse cx="50" cy="95" rx="18" ry="5" fill="rgba(0,0,0,0.3)"/>
+  <!-- Robe bottom -->
+  <path d="M35 55 L30 92 L70 92 L65 55 Z" fill="#4a3080" stroke="#2a1860" stroke-width="1"/>
+  <!-- Robe folds -->
+  <line x1="42" y1="60" x2="38" y2="90" stroke="#3a2070" stroke-width="1"/>
+  <line x1="50" y1="58" x2="50" y2="90" stroke="#3a2070" stroke-width="1"/>
+  <line x1="58" y1="60" x2="62" y2="90" stroke="#3a2070" stroke-width="1"/>
+  <!-- Robe top -->
+  <path d="M38 40 L35 58 L65 58 L62 40 Z" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
+  <!-- Belt/sash -->
+  <path d="M36 54 L64 54 L63 58 L37 58 Z" fill="#ffd700" stroke="#b8960b" stroke-width="1"/>
+  <!-- Left arm (holding staff) -->
+  <path d="M35 42 L22 55 L26 58 L38 46" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
+  <!-- Hand -->
+  <circle cx="24" cy="56" r="4" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
+  <!-- Staff -->
+  <rect x="20" y="10" width="3" height="75" rx="1" fill="#5a4030" stroke="#3a2a20" stroke-width="1"/>
+  <!-- Staff orb -->
+  <circle cx="21.5" cy="10" r="8" fill="#7070ff" stroke="#4040cc" stroke-width="1"/>
+  <!-- Staff orb glow -->
+  <circle cx="21.5" cy="10" r="5" fill="#a0a0ff" opacity="0.6"/>
+  <circle cx="19" cy="8" r="2" fill="#ffffff" opacity="0.8"/>
+  <!-- Right arm -->
+  <path d="M65 42 L72 52 L68 55 L62 46" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
+  <!-- Shoulders -->
+  <ellipse cx="38" cy="42" rx="6" ry="4" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
+  <ellipse cx="62" cy="42" rx="6" ry="4" fill="#5a40a0" stroke="#3a2080" stroke-width="1"/>
+  <!-- Hood -->
+  <path d="M36 18 Q36 8 50 6 Q64 8 64 18 L64 38 L36 38 Z" fill="#4a3080" stroke="#2a1860" stroke-width="1"/>
+  <!-- Face (inside hood) -->
+  <ellipse cx="50" cy="28" rx="10" ry="12" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
+  <!-- Eyes -->
+  <ellipse cx="46" cy="26" rx="2" ry="1.5" fill="#2a2a4a"/>
+  <ellipse cx="54" cy="26" rx="2" ry="1.5" fill="#2a2a4a"/>
+  <!-- Nose -->
+  <path d="M49 28 L50 32 L51 28" fill="none" stroke="#c0a080" stroke-width="1"/>
+  <!-- Beard -->
+  <path d="M44 34 Q50 42 56 34" fill="#888888" stroke="#666666" stroke-width="1"/>
+  <path d="M48 36 L50 48 L52 36" fill="#888888" stroke="#666666" stroke-width="0.5"/>
+</svg>`,
+
+  archer: `
+<svg viewBox="0 0 100 100" class="unit-svg">
+  <ellipse cx="50" cy="95" rx="18" ry="5" fill="rgba(0,0,0,0.3)"/>
+  <!-- Legs -->
+  <path d="M44 65 L42 88 L46 88 L47 68" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
+  <path d="M56 65 L58 88 L54 88 L53 68" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
+  <!-- Boots -->
+  <path d="M40 86 L48 86 L48 92 L38 92 Z" fill="#3a3a3a" stroke="#2a2a2a" stroke-width="1"/>
+  <path d="M52 86 L60 86 L62 92 L52 92 Z" fill="#3a3a3a" stroke="#2a2a2a" stroke-width="1"/>
+  <!-- Leather tunic -->
+  <path d="M40 42 L38 68 L62 68 L60 42 Z" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
+  <!-- Tunic details -->
+  <line x1="50" y1="44" x2="50" y2="66" stroke="#5a4a3a" stroke-width="1"/>
+  <path d="M42 46 L50 50 L58 46" fill="none" stroke="#5a4a3a" stroke-width="1"/>
+  <!-- Belt with quiver strap -->
+  <rect x="38" y="58" width="24" height="4" fill="#4a3a2a" stroke="#2a1a0a" stroke-width="1"/>
+  <line x1="55" y1="42" x2="62" y2="62" stroke="#4a3a2a" stroke-width="3"/>
+  <!-- Quiver on back -->
+  <rect x="62" y="35" width="8" height="30" rx="2" fill="#5a4a3a" stroke="#3a2a1a" stroke-width="1"/>
+  <!-- Arrows in quiver -->
+  <line x1="64" y1="32" x2="64" y2="38" stroke="#8a7a6a" stroke-width="1"/>
+  <line x1="66" y1="30" x2="66" y2="38" stroke="#8a7a6a" stroke-width="1"/>
+  <line x1="68" y1="33" x2="68" y2="38" stroke="#8a7a6a" stroke-width="1"/>
+  <!-- Arrow feathers -->
+  <path d="M63 32 L64 30 L65 32" fill="#cc3333" stroke="none"/>
+  <path d="M65 30 L66 28 L67 30" fill="#cc3333" stroke="none"/>
+  <path d="M67 33 L68 31 L69 33" fill="#cc3333" stroke="none"/>
+  <!-- Left arm (holding bow) -->
+  <path d="M32 44 L20 52 L24 56 L36 48" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
+  <!-- Bow -->
+  <path d="M12 30 Q8 50 12 70" fill="none" stroke="#5a4030" stroke-width="3"/>
+  <path d="M12 30 Q16 50 12 70" fill="none" stroke="#3a2a20" stroke-width="1"/>
+  <!-- Bowstring -->
+  <line x1="12" y1="30" x2="12" y2="70" stroke="#aaa" stroke-width="1"/>
+  <!-- Right arm (drawing) -->
+  <path d="M68 44 L76 38 L72 34 L64 40" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
+  <!-- Shoulders -->
+  <ellipse cx="38" cy="44" rx="6" ry="4" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
+  <ellipse cx="62" cy="44" rx="6" ry="4" fill="#6a5a4a" stroke="#4a3a2a" stroke-width="1"/>
+  <!-- Hood/cowl -->
+  <path d="M38 20 Q38 10 50 10 Q62 10 62 20 L62 40 L38 40 Z" fill="#5a5a4a" stroke="#3a3a2a" stroke-width="1"/>
+  <!-- Face -->
+  <ellipse cx="50" cy="28" rx="9" ry="11" fill="#e8c4a0" stroke="#c0a080" stroke-width="1"/>
+  <!-- Eyes -->
+  <ellipse cx="46" cy="26" rx="2" ry="1.5" fill="#2a4a2a"/>
+  <ellipse cx="54" cy="26" rx="2" ry="1.5" fill="#2a4a2a"/>
+  <!-- Eyebrows -->
+  <path d="M44 24 L48 23" stroke="#5a4a3a" stroke-width="1" fill="none"/>
+  <path d="M52 23 L56 24" stroke="#5a4a3a" stroke-width="1" fill="none"/>
+  <!-- Nose -->
+  <path d="M49 27 L50 31 L51 27" fill="none" stroke="#c0a080" stroke-width="1"/>
+  <!-- Slight smirk -->
+  <path d="M47 33 Q50 35 53 33" fill="none" stroke="#a08060" stroke-width="1"/>
+</svg>`,
+
+  orc: `
 <svg viewBox="0 0 100 100" class="unit-svg">
   <ellipse cx="50" cy="95" rx="22" ry="6" fill="rgba(0,0,0,0.3)"/>
   <path d="M40 68 L36 90 L42 90 L46 72" fill="#5a7a4a" stroke="#3a5a2a" stroke-width="1"/>
@@ -82,33 +185,125 @@ const OPPONENT_SVG = `
   <path d="M64 24 L72 18 L66 28" fill="#5a7a4a" stroke="#3a5a2a" stroke-width="1"/>
   <line x1="38" y1="20" x2="42" y2="32" stroke="#8a2020" stroke-width="1.5"/>
   <line x1="62" y1="20" x2="58" y2="32" stroke="#8a2020" stroke-width="1.5"/>
-</svg>`;
+</svg>`
+};
+
+// ============================================================================
+// UNIT DEFINITIONS
+// ============================================================================
 
 /**
- * @typedef {Object} Position
- * @property {number} row
- * @property {number} col
+ * @typedef {Object} Unit
+ * @property {string} id
+ * @property {string} name
+ * @property {string} type
+ * @property {'player' | 'opponent'} team
+ * @property {{row: number, col: number}} position
  */
+
+/**
+ * Create initial units for the game
+ * @returns {Unit[]}
+ */
+function createInitialUnits() {
+  const playerUnits = [
+    { id: 'warrior', name: 'Warrior', type: 'warrior', team: 'player' },
+    { id: 'mage', name: 'Mage', type: 'mage', team: 'player' },
+    { id: 'archer', name: 'Archer', type: 'archer', team: 'player' }
+  ];
+
+  const opponentUnits = [
+    { id: 'orc1', name: 'Orc #1', type: 'orc', team: 'opponent' },
+    { id: 'orc2', name: 'Orc #2', type: 'orc', team: 'opponent' }
+  ];
+
+  // Place units
+  placeUnitsInColumn(playerUnits, 0);
+  placeUnitsInColumn(opponentUnits, GRID_COLS - 1);
+
+  return [...playerUnits, ...opponentUnits];
+}
+
+/**
+ * Place units in a column based on count
+ * @param {Unit[]} units
+ * @param {number} col
+ */
+function placeUnitsInColumn(units, col) {
+  const count = units.length;
+
+  if (count === 1) {
+    units[0].position = { row: 1, col };
+  } else if (count === 2) {
+    units[0].position = { row: 0, col };
+    units[1].position = { row: 2, col };
+  } else if (count === 3) {
+    units[0].position = { row: 0, col };
+    units[1].position = { row: 1, col };
+    units[2].position = { row: 2, col };
+  }
+}
+
+/**
+ * Shuffle array randomly (Fisher-Yates)
+ * @param {any[]} array
+ * @returns {any[]}
+ */
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ============================================================================
+// GAME STATE
+// ============================================================================
 
 /**
  * @typedef {Object} GameState
  * @property {number} turn
- * @property {'player' | 'opponent'} activePlayer
- * @property {Position} playerPosition
- * @property {Position} opponentPosition
+ * @property {Unit[]} units
+ * @property {string[]} turnOrder - Array of unit IDs in turn order
+ * @property {number} currentUnitIndex
  * @property {'main' | 'move'} menuState
- * @property {Position[]} validMoves
+ * @property {{row: number, col: number}[]} validMoves
  */
 
 /** @type {GameState} */
 const gameState = {
   turn: 1,
-  activePlayer: 'player',
-  playerPosition: { row: 1, col: 0 },      // Center-left
-  opponentPosition: { row: 1, col: 4 },    // Center-right
+  units: [],
+  turnOrder: [],
+  currentUnitIndex: 0,
   menuState: 'main',
   validMoves: []
 };
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get current active unit
+ * @returns {Unit|null}
+ */
+function getCurrentUnit() {
+  const unitId = gameState.turnOrder[gameState.currentUnitIndex];
+  return gameState.units.find(u => u.id === unitId) || null;
+}
+
+/**
+ * Get unit at position
+ * @param {number} row
+ * @param {number} col
+ * @returns {Unit|null}
+ */
+function getUnitAt(row, col) {
+  return gameState.units.find(u => u.position.row === row && u.position.col === col) || null;
+}
 
 /**
  * Get cell element at position
@@ -121,7 +316,7 @@ function getCellAt(row, col) {
 }
 
 /**
- * Check if position is valid (within grid bounds)
+ * Check if position is valid
  * @param {number} row
  * @param {number} col
  * @returns {boolean}
@@ -137,14 +332,13 @@ function isValidPosition(row, col) {
  * @returns {boolean}
  */
 function isOccupied(row, col) {
-  return (gameState.playerPosition.row === row && gameState.playerPosition.col === col) ||
-         (gameState.opponentPosition.row === row && gameState.opponentPosition.col === col);
+  return getUnitAt(row, col) !== null;
 }
 
 /**
- * Get adjacent cells for a position (including diagonals)
- * @param {Position} pos
- * @returns {Position[]}
+ * Get adjacent cells for a position
+ * @param {{row: number, col: number}} pos
+ * @returns {{row: number, col: number}[]}
  */
 function getAdjacentCells(pos) {
   const directions = [
@@ -157,6 +351,24 @@ function getAdjacentCells(pos) {
     .map(([dr, dc]) => ({ row: pos.row + dr, col: pos.col + dc }))
     .filter(p => isValidPosition(p.row, p.col) && !isOccupied(p.row, p.col));
 }
+
+/**
+ * Get direction name
+ * @param {{row: number, col: number}} from
+ * @param {{row: number, col: number}} to
+ * @returns {string}
+ */
+function getDirectionName(from, to) {
+  const dr = to.row - from.row;
+  const dc = to.col - from.col;
+  const vertical = dr < 0 ? 'North' : dr > 0 ? 'South' : '';
+  const horizontal = dc < 0 ? 'West' : dc > 0 ? 'East' : '';
+  return vertical + horizontal || 'Center';
+}
+
+// ============================================================================
+// RENDERING
+// ============================================================================
 
 /**
  * Create the grid
@@ -177,63 +389,50 @@ function createGrid() {
 }
 
 /**
- * Render units on the grid
+ * Render all units on the grid
  */
 function renderUnits() {
-  // Clear all units first
+  // Clear existing units
   document.querySelectorAll('.entity').forEach(el => el.remove());
 
-  // Place player
-  const playerCell = getCellAt(gameState.playerPosition.row, gameState.playerPosition.col);
-  if (playerCell) {
-    const playerEl = document.createElement('div');
-    playerEl.className = 'entity player';
-    playerEl.id = 'player';
-    playerEl.innerHTML = PLAYER_SVG;
-    playerCell.appendChild(playerEl);
+  gameState.units.forEach(unit => {
+    const cell = getCellAt(unit.position.row, unit.position.col);
+    if (!cell) return;
 
-    playerEl.addEventListener('mouseenter', () => showUnitInfo('player'));
-    playerEl.addEventListener('mouseleave', () => showUnitInfo(null));
-  }
+    const el = document.createElement('div');
+    el.className = `entity ${unit.team}`;
+    el.id = unit.id;
+    el.innerHTML = UNIT_SVGS[unit.type];
+    cell.appendChild(el);
 
-  // Place opponent
-  const opponentCell = getCellAt(gameState.opponentPosition.row, gameState.opponentPosition.col);
-  if (opponentCell) {
-    const opponentEl = document.createElement('div');
-    opponentEl.className = 'entity opponent';
-    opponentEl.id = 'opponent';
-    opponentEl.innerHTML = OPPONENT_SVG;
-    opponentCell.appendChild(opponentEl);
-
-    opponentEl.addEventListener('mouseenter', () => showUnitInfo('opponent'));
-    opponentEl.addEventListener('mouseleave', () => showUnitInfo(null));
-  }
+    el.addEventListener('mouseenter', () => showUnitInfo(unit));
+    el.addEventListener('mouseleave', () => showUnitInfo(null));
+  });
 }
 
 /**
- * Highlight adjacent cells for active unit
+ * Highlight cells for current unit
  */
-function highlightAdjacentCells() {
+function highlightCells() {
   // Clear all highlights
   document.querySelectorAll('.cell').forEach(cell => {
     cell.classList.remove('highlight', 'move-option');
+    cell.onclick = null;
     const numEl = cell.querySelector('.cell-number');
     if (numEl) numEl.remove();
   });
 
-  if (gameState.activePlayer !== 'player') return;
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit || currentUnit.team !== 'player') return;
 
-  const pos = gameState.playerPosition;
-  const adjacent = getAdjacentCells(pos);
+  const adjacent = getAdjacentCells(currentUnit.position);
 
   if (gameState.menuState === 'main') {
-    // Just highlight adjacent cells
     adjacent.forEach(p => {
       const cell = getCellAt(p.row, p.col);
       if (cell) cell.classList.add('highlight');
     });
   } else if (gameState.menuState === 'move') {
-    // Show numbered move options
     gameState.validMoves = adjacent;
     adjacent.forEach((p, index) => {
       const cell = getCellAt(p.row, p.col);
@@ -243,7 +442,6 @@ function highlightAdjacentCells() {
         numEl.className = 'cell-number';
         numEl.textContent = index + 1;
         cell.appendChild(numEl);
-
         cell.onclick = () => executeMove(index);
       }
     });
@@ -251,19 +449,59 @@ function highlightAdjacentCells() {
 }
 
 /**
- * Render the options menu
+ * Render turn order in status section
+ */
+function renderTurnOrder() {
+  const statusContent = document.querySelector('.status-content');
+
+  let html = `
+    <div class="status-row">
+      <span class="status-label">Turn</span>
+      <span class="status-value" id="turn-display">${gameState.turn}</span>
+    </div>
+  `;
+
+  html += '<div class="turn-order">';
+  html += '<div class="turn-order-label">Turn Order</div>';
+
+  gameState.turnOrder.forEach((unitId, index) => {
+    const unit = gameState.units.find(u => u.id === unitId);
+    if (!unit) return;
+
+    const isCurrent = index === gameState.currentUnitIndex;
+    const teamClass = unit.team;
+
+    html += `<div class="turn-order-item ${teamClass} ${isCurrent ? 'current' : ''}">
+      <span class="turn-order-marker">${isCurrent ? '▶' : ''}</span>
+      <span class="turn-order-name">${unit.name}</span>
+    </div>`;
+  });
+
+  html += '</div>';
+
+  statusContent.innerHTML = html;
+}
+
+/**
+ * Render options menu
  */
 function renderOptions() {
   const optionsEl = document.getElementById('options');
+  const currentUnit = getCurrentUnit();
 
-  if (gameState.activePlayer !== 'player') {
-    optionsEl.innerHTML = '<div class="options-header">Opponent\'s Turn...</div>';
+  if (!currentUnit) {
+    optionsEl.innerHTML = '<div class="options-header">Game Over</div>';
+    return;
+  }
+
+  if (currentUnit.team !== 'player') {
+    optionsEl.innerHTML = `<div class="options-header">${currentUnit.name}'s Turn...</div>`;
     return;
   }
 
   if (gameState.menuState === 'main') {
     optionsEl.innerHTML = `
-      <div class="options-header">Actions</div>
+      <div class="options-header">${currentUnit.name} - Actions</div>
       <div class="option" data-action="move">
         <span class="option-key">1</span>
         <span class="option-text">Move</span>
@@ -282,14 +520,14 @@ function renderOptions() {
       });
     });
   } else if (gameState.menuState === 'move') {
-    let html = '<div class="options-header">Select destination</div>';
+    let html = `<div class="options-header">${currentUnit.name} - Select destination</div>`;
     html += `<div class="option" data-action="cancel">
       <span class="option-key">0</span>
       <span class="option-text">Cancel</span>
     </div>`;
 
     gameState.validMoves.forEach((pos, index) => {
-      const dirName = getDirectionName(gameState.playerPosition, pos);
+      const dirName = getDirectionName(currentUnit.position, pos);
       html += `<div class="option" data-action="move-${index}">
         <span class="option-key">${index + 1}</span>
         <span class="option-text">${dirName}</span>
@@ -312,155 +550,31 @@ function renderOptions() {
 }
 
 /**
- * Get direction name between two positions
- * @param {Position} from
- * @param {Position} to
- * @returns {string}
- */
-function getDirectionName(from, to) {
-  const dr = to.row - from.row;
-  const dc = to.col - from.col;
-
-  const vertical = dr < 0 ? 'North' : dr > 0 ? 'South' : '';
-  const horizontal = dc < 0 ? 'West' : dc > 0 ? 'East' : '';
-
-  return vertical + horizontal || 'Center';
-}
-
-/**
- * Enter move selection mode
- */
-function enterMoveMode() {
-  gameState.menuState = 'move';
-  gameState.validMoves = getAdjacentCells(gameState.playerPosition);
-  highlightAdjacentCells();
-  renderOptions();
-}
-
-/**
- * Exit move selection mode
- */
-function exitMoveMode() {
-  gameState.menuState = 'main';
-  gameState.validMoves = [];
-  highlightAdjacentCells();
-  renderOptions();
-}
-
-/**
- * Execute a move to the selected cell
- * @param {number} index
- */
-function executeMove(index) {
-  if (index < 0 || index >= gameState.validMoves.length) return;
-
-  const newPos = gameState.validMoves[index];
-  const oldPos = { ...gameState.playerPosition };
-  gameState.playerPosition = newPos;
-
-  const dirName = getDirectionName(oldPos, newPos);
-  addLogEntry(`Turn ${gameState.turn}: Player moves ${dirName}.`, 'player');
-
-  gameState.menuState = 'main';
-  gameState.validMoves = [];
-
-  endPlayerTurn();
-}
-
-/**
- * Execute wait action
- */
-function executeWait() {
-  addLogEntry(`Turn ${gameState.turn}: Player waits.`, 'player');
-  endPlayerTurn();
-}
-
-/**
- * End player turn and start opponent turn
- */
-function endPlayerTurn() {
-  gameState.activePlayer = 'opponent';
-  updateStatusDisplay();
-  renderUnits();
-  highlightAdjacentCells();
-  renderOptions();
-
-  // Opponent AI (simple: move toward player or wait)
-  setTimeout(() => {
-    opponentTurn();
-  }, 500);
-}
-
-/**
- * Simple opponent AI
- */
-function opponentTurn() {
-  const oppPos = gameState.opponentPosition;
-  const playerPos = gameState.playerPosition;
-  const adjacent = getAdjacentCells(oppPos);
-
-  if (adjacent.length > 0) {
-    // Find cell closest to player
-    let bestMove = adjacent[0];
-    let bestDist = Infinity;
-
-    adjacent.forEach(pos => {
-      const dist = Math.abs(pos.row - playerPos.row) + Math.abs(pos.col - playerPos.col);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestMove = pos;
-      }
-    });
-
-    const oldPos = { ...gameState.opponentPosition };
-    gameState.opponentPosition = bestMove;
-    const dirName = getDirectionName(oldPos, bestMove);
-    addLogEntry(`Turn ${gameState.turn}: Opponent moves ${dirName}.`, 'opponent');
-  } else {
-    addLogEntry(`Turn ${gameState.turn}: Opponent waits.`, 'opponent');
-  }
-
-  gameState.turn++;
-  gameState.activePlayer = 'player';
-  updateStatusDisplay();
-  renderUnits();
-  highlightAdjacentCells();
-  renderOptions();
-}
-
-/**
- * Update the status display
- */
-function updateStatusDisplay() {
-  document.getElementById('turn-display').textContent = gameState.turn;
-  document.getElementById('active-player-display').textContent =
-    gameState.activePlayer === 'player' ? 'Player' : 'Opponent';
-}
-
-/**
  * Show unit info on hover
- * @param {'player' | 'opponent' | null} unitType
+ * @param {Unit|null} unit
  */
-function showUnitInfo(unitType) {
+function showUnitInfo(unit) {
   const unitInfo = document.getElementById('unit-info');
 
-  if (!unitType) {
+  if (!unit) {
     unitInfo.innerHTML = '<div class="unit-info-placeholder">Hover over a unit to see details</div>';
     return;
   }
 
-  const title = unitType === 'player' ? 'Player' : 'Opponent';
-  const pos = unitType === 'player' ? gameState.playerPosition : gameState.opponentPosition;
   unitInfo.innerHTML = `
     <div class="unit-info-content">
-      <div class="unit-info-title ${unitType}">${title}</div>
-      <div class="unit-info-stats">Position: (${pos.row}, ${pos.col})<br>To be implemented</div>
+      <div class="unit-info-title ${unit.team}">${unit.name}</div>
+      <div class="unit-info-stats">
+        Type: ${unit.type.charAt(0).toUpperCase() + unit.type.slice(1)}<br>
+        Team: ${unit.team === 'player' ? 'Player' : 'Opponent'}<br>
+        Position: (${unit.position.row}, ${unit.position.col})
+      </div>
     </div>
   `;
 }
 
 /**
- * Add an entry to the action log
+ * Add log entry
  * @param {string} message
  * @param {'neutral' | 'player' | 'opponent'} type
  */
@@ -469,20 +583,133 @@ function addLogEntry(message, type = 'neutral') {
   const entry = document.createElement('div');
   entry.className = 'log-entry';
 
-  if (type === 'player') {
-    entry.classList.add('player-action');
-  } else if (type === 'opponent') {
-    entry.classList.add('opponent-action');
-  }
+  if (type === 'player') entry.classList.add('player-action');
+  else if (type === 'opponent') entry.classList.add('opponent-action');
 
   entry.textContent = message;
   logEntries.appendChild(entry);
   logEntries.scrollTop = logEntries.scrollHeight;
 }
 
-// Keyboard controls
+// ============================================================================
+// GAME ACTIONS
+// ============================================================================
+
+function enterMoveMode() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  gameState.menuState = 'move';
+  gameState.validMoves = getAdjacentCells(currentUnit.position);
+  highlightCells();
+  renderOptions();
+}
+
+function exitMoveMode() {
+  gameState.menuState = 'main';
+  gameState.validMoves = [];
+  highlightCells();
+  renderOptions();
+}
+
+function executeMove(index) {
+  if (index < 0 || index >= gameState.validMoves.length) return;
+
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  const newPos = gameState.validMoves[index];
+  const oldPos = { ...currentUnit.position };
+  currentUnit.position = newPos;
+
+  const dirName = getDirectionName(oldPos, newPos);
+  addLogEntry(`${currentUnit.name} moves ${dirName}.`, currentUnit.team);
+
+  gameState.menuState = 'main';
+  gameState.validMoves = [];
+
+  endTurn();
+}
+
+function executeWait() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  addLogEntry(`${currentUnit.name} waits.`, currentUnit.team);
+  endTurn();
+}
+
+function endTurn() {
+  gameState.currentUnitIndex++;
+
+  // Check if we've gone through all units
+  if (gameState.currentUnitIndex >= gameState.turnOrder.length) {
+    gameState.currentUnitIndex = 0;
+    gameState.turn++;
+  }
+
+  renderUnits();
+  highlightCells();
+  renderTurnOrder();
+  renderOptions();
+
+  // If it's opponent's turn, run AI
+  const currentUnit = getCurrentUnit();
+  if (currentUnit && currentUnit.team === 'opponent') {
+    setTimeout(() => runOpponentAI(), 500);
+  }
+}
+
+/**
+ * Simple opponent AI
+ */
+function runOpponentAI() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit || currentUnit.team !== 'player') {
+    // Find closest player unit
+    const playerUnits = gameState.units.filter(u => u.team === 'player');
+    if (playerUnits.length === 0) {
+      addLogEntry(`${currentUnit.name} waits.`, 'opponent');
+      endTurn();
+      return;
+    }
+
+    const adjacent = getAdjacentCells(currentUnit.position);
+
+    if (adjacent.length > 0) {
+      // Find cell closest to any player unit
+      let bestMove = adjacent[0];
+      let bestDist = Infinity;
+
+      adjacent.forEach(pos => {
+        playerUnits.forEach(player => {
+          const dist = Math.abs(pos.row - player.position.row) + Math.abs(pos.col - player.position.col);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestMove = pos;
+          }
+        });
+      });
+
+      const oldPos = { ...currentUnit.position };
+      currentUnit.position = bestMove;
+      const dirName = getDirectionName(oldPos, bestMove);
+      addLogEntry(`${currentUnit.name} moves ${dirName}.`, 'opponent');
+    } else {
+      addLogEntry(`${currentUnit.name} waits.`, 'opponent');
+    }
+
+    endTurn();
+  }
+}
+
+// ============================================================================
+// KEYBOARD CONTROLS
+// ============================================================================
+
 document.addEventListener('keydown', (event) => {
-  if (gameState.activePlayer !== 'player') return;
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit || currentUnit.team !== 'player') return;
 
   const key = event.key;
 
@@ -500,14 +727,34 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-// Initialize game
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
 function initGame() {
+  // Create units
+  gameState.units = createInitialUnits();
+
+  // Create random turn order
+  const allUnitIds = gameState.units.map(u => u.id);
+  gameState.turnOrder = shuffleArray(allUnitIds);
+  gameState.currentUnitIndex = 0;
+
+  // Render
   createGrid();
   renderUnits();
-  highlightAdjacentCells();
+  highlightCells();
+  renderTurnOrder();
   renderOptions();
-  updateStatusDisplay();
+
   addLogEntry('Game started.');
+
+  // If first unit is opponent, run AI
+  const firstUnit = getCurrentUnit();
+  if (firstUnit && firstUnit.team === 'opponent') {
+    setTimeout(() => runOpponentAI(), 500);
+  }
+
   console.log('Game Arena initialized');
 }
 
