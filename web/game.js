@@ -423,7 +423,7 @@ function renderUnits() {
 
 function highlightCells() {
   document.querySelectorAll('.cell').forEach(cell => {
-    cell.classList.remove('highlight', 'move-option', 'attack-target', 'active-unit');
+    cell.classList.remove('highlight', 'move-option', 'melee-target', 'ranged-target', 'attack-target', 'active-unit');
     cell.onclick = null;
     const numEl = cell.querySelector('.cell-number');
     if (numEl) numEl.remove();
@@ -441,11 +441,66 @@ function highlightCells() {
   if (currentUnit.team !== 'player') return;
 
   if (gameState.menuState === 'main') {
-    const adjacent = getAdjacentCells(currentUnit.position);
-    adjacent.forEach(p => {
+    // Show all available actions directly on the grid
+
+    // Move options (adjacent empty cells)
+    const moveOptions = getAdjacentCells(currentUnit.position);
+    moveOptions.forEach(p => {
       const cell = getCellAt(p.row, p.col);
-      if (cell) cell.classList.add('highlight');
+      if (cell) {
+        cell.classList.add('move-option');
+        cell.onclick = () => {
+          gameState.validMoves = moveOptions;
+          const index = moveOptions.findIndex(m => m.row === p.row && m.col === p.col);
+          executeMove(index);
+        };
+      }
     });
+
+    // Melee targets (adjacent enemies)
+    if (currentUnit.meleeDamage !== null) {
+      const meleeTargets = getAdjacentEnemies(currentUnit);
+      meleeTargets.forEach(target => {
+        const cell = getCellAt(target.position.row, target.position.col);
+        if (cell) {
+          cell.classList.add('melee-target');
+          cell.onclick = () => {
+            gameState.menuState = 'melee';
+            gameState.validTargets = meleeTargets;
+            const index = meleeTargets.findIndex(t => t.id === target.id);
+            executeAttack(index);
+          };
+        }
+      });
+    }
+
+    // Ranged targets (all enemies, but not adjacent ones if we have melee)
+    if (currentUnit.rangedDamage !== null) {
+      const allEnemies = getAllEnemies(currentUnit);
+      const adjacentEnemyIds = getAdjacentEnemies(currentUnit).map(e => e.id);
+      allEnemies.forEach(target => {
+        const cell = getCellAt(target.position.row, target.position.col);
+        if (cell && !adjacentEnemyIds.includes(target.id)) {
+          // Only show ranged option for non-adjacent enemies (adjacent ones show melee)
+          cell.classList.add('ranged-target');
+          cell.onclick = () => {
+            gameState.menuState = 'ranged';
+            gameState.validTargets = allEnemies;
+            const index = allEnemies.findIndex(t => t.id === target.id);
+            executeAttack(index);
+          };
+        } else if (cell && currentUnit.meleeDamage === null) {
+          // If no melee, show ranged for adjacent too
+          cell.classList.add('ranged-target');
+          cell.onclick = () => {
+            gameState.menuState = 'ranged';
+            gameState.validTargets = allEnemies;
+            const index = allEnemies.findIndex(t => t.id === target.id);
+            executeAttack(index);
+          };
+        }
+      });
+    }
   } else if (gameState.menuState === 'move') {
     gameState.validMoves = getAdjacentCells(currentUnit.position);
     gameState.validMoves.forEach((p, index) => {
@@ -463,9 +518,18 @@ function highlightCells() {
     gameState.validTargets.forEach((target, index) => {
       const cell = getCellAt(target.position.row, target.position.col);
       if (cell) {
-        cell.classList.add('attack-target');
+        // Use appropriate class based on attack type
         const numEl = document.createElement('div');
-        numEl.className = 'cell-number attack';
+        if (gameState.menuState === 'melee') {
+          cell.classList.add('melee-target');
+          numEl.className = 'cell-number melee';
+        } else if (gameState.menuState === 'ranged') {
+          cell.classList.add('ranged-target');
+          numEl.className = 'cell-number ranged';
+        } else {
+          cell.classList.add('attack-target');
+          numEl.className = 'cell-number attack';
+        }
         numEl.textContent = index + 1;
         cell.appendChild(numEl);
         cell.onclick = () => executeAttack(index);
