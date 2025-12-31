@@ -41,7 +41,8 @@ function createInitialUnits() {
 
   const opponentUnits = [
     createUnit('orc1', 'Orc #1', 'orc', 'opponent'),
-    createUnit('orc2', 'Orc #2', 'orc', 'opponent')
+    createUnit('orc2', 'Orc #2', 'orc', 'opponent'),
+    createUnit('goblin1', 'Goblin', 'goblin', 'opponent')
   ];
 
   placeUnitsInColumn(playerUnits, 0);
@@ -844,12 +845,38 @@ function runOpponentAI() {
     return;
   }
 
-  // Check for adjacent enemies to attack
+  // Check for adjacent enemies to melee attack
   const adjacentEnemies = getAdjacentEnemies(currentUnit);
   if (adjacentEnemies.length > 0 && currentUnit.meleeDamage !== null) {
     // Attack the lowest HP enemy
     const target = adjacentEnemies.reduce((a, b) => a.hp < b.hp ? a : b);
     const result = performMeleeAttack(currentUnit, target);
+
+    // Show roll result popup
+    showRollResult(result.roll, result.hit, result.critical, result.damage);
+
+    addLogEntry(result.message, 'opponent');
+
+    if (result.hit) {
+      applyDamage(target, result.damage);
+      removeDeadUnits();
+    }
+
+    if (!checkGameOver()) {
+      endTurn();
+    } else {
+      renderUnits();
+      renderTurnOrder();
+      renderOptions();
+    }
+    return;
+  }
+
+  // Use ranged attack if available
+  if (currentUnit.rangedDamage !== null && playerUnits.length > 0) {
+    // Target the lowest HP enemy
+    const target = playerUnits.reduce((a, b) => a.hp < b.hp ? a : b);
+    const result = performRangedAttack(currentUnit, target);
 
     // Show roll result popup
     showRollResult(result.roll, result.hit, result.critical, result.damage);

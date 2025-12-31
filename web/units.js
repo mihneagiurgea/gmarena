@@ -145,6 +145,57 @@ const UNIT_SVGS = {
   <path d="M64 24 L72 18 L66 28" fill="#5a7a4a" stroke="#3a5a2a" stroke-width="1"/>
   <line x1="38" y1="20" x2="42" y2="32" stroke="#8a2020" stroke-width="1.5"/>
   <line x1="62" y1="20" x2="58" y2="32" stroke="#8a2020" stroke-width="1.5"/>
+</svg>`,
+
+  goblin: `
+<svg viewBox="0 0 100 100" class="unit-svg">
+  <!-- Shadow -->
+  <ellipse cx="50" cy="95" rx="15" ry="4" fill="rgba(0,0,0,0.3)"/>
+  <!-- Legs -->
+  <path d="M44 72 L42 88 L46 88 L47 74" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <path d="M56 72 L58 88 L54 88 L53 74" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <!-- Feet -->
+  <path d="M40 86 L48 86 L48 92 L38 92 Z" fill="#4a4a3a" stroke="#3a3a2a" stroke-width="1"/>
+  <path d="M52 86 L60 86 L62 92 L52 92 Z" fill="#4a4a3a" stroke="#3a3a2a" stroke-width="1"/>
+  <!-- Body - ragged tunic -->
+  <path d="M42 50 L40 75 L60 75 L58 50 Z" fill="#8b6914" stroke="#6b4904" stroke-width="1"/>
+  <path d="M42 70 L44 75 L48 72 L52 75 L56 72 L60 75 L58 70" fill="#8b6914" stroke="#6b4904" stroke-width="1"/>
+  <!-- Belt -->
+  <rect x="41" y="62" width="18" height="3" fill="#4a3a2a" stroke="#2a2015" stroke-width="1"/>
+  <!-- Arms -->
+  <path d="M42 52 L32 58 L34 62 L44 56" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <path d="M58 52 L68 58 L66 62 L56 56" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <!-- Hands -->
+  <circle cx="32" cy="60" r="4" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <circle cx="68" cy="60" r="4" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <!-- Slingshot -->
+  <path d="M26 50 Q22 60 26 70" fill="none" stroke="#5a4030" stroke-width="2"/>
+  <path d="M26 50 L30 55 M26 70 L30 65" stroke="#5a4030" stroke-width="2"/>
+  <path d="M30 55 Q34 60 30 65" fill="none" stroke="#888" stroke-width="1"/>
+  <!-- Rock in slingshot -->
+  <circle cx="32" cy="60" r="3" fill="#666" stroke="#444" stroke-width="1"/>
+  <!-- Head - large for goblin -->
+  <ellipse cx="50" cy="38" rx="12" ry="14" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <!-- Ears - large pointy -->
+  <path d="M38 38 L28 30 L36 42" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <path d="M62 38 L72 30 L64 42" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="1"/>
+  <path d="M30 32 L34 38" stroke="#5a7a4a" stroke-width="1"/>
+  <path d="M70 32 L66 38" stroke="#5a7a4a" stroke-width="1"/>
+  <!-- Eyes - beady yellow -->
+  <ellipse cx="45" cy="36" rx="3" ry="4" fill="#ffff80" stroke="#cccc00" stroke-width="1"/>
+  <ellipse cx="55" cy="36" rx="3" ry="4" fill="#ffff80" stroke="#cccc00" stroke-width="1"/>
+  <circle cx="45" cy="37" r="1.5" fill="#222"/>
+  <circle cx="55" cy="37" r="1.5" fill="#222"/>
+  <!-- Nose - long pointy -->
+  <path d="M50 38 L48 46 L52 46 Z" fill="#5a7a4a" stroke="#4a6a3a" stroke-width="1"/>
+  <!-- Mouth - wide grin -->
+  <path d="M44 50 Q50 54 56 50" stroke="#3a5a2a" stroke-width="1.5" fill="none"/>
+  <!-- Teeth -->
+  <path d="M46 50 L47 52 L48 50" fill="#eeeecc" stroke="#ccccaa" stroke-width="0.5"/>
+  <path d="M52 50 L53 52 L54 50" fill="#eeeecc" stroke="#ccccaa" stroke-width="0.5"/>
+  <!-- Eyebrows - angry -->
+  <path d="M42 32 L48 34" stroke="#4a6a3a" stroke-width="1.5"/>
+  <path d="M52 34 L58 32" stroke="#4a6a3a" stroke-width="1.5"/>
 </svg>`
 };
 
@@ -187,6 +238,15 @@ const UNIT_STATS = {
     wc: 11,
     meleeDamage: 25,
     rangedDamage: null,
+    spells: []
+  },
+  goblin: {
+    maxHp: 50,
+    ac: 13,
+    sr: 6,
+    wc: 3,
+    meleeDamage: null,
+    rangedDamage: 10,
     spells: []
   }
 };
