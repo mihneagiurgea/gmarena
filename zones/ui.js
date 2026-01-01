@@ -130,7 +130,7 @@ function highlightZones() {
 
   // Remove target highlights from units
   document.querySelectorAll('.unit-wrapper').forEach(el => {
-    el.classList.remove('melee-target', 'ranged-target', 'spell-target', 'protected-target');
+    el.classList.remove('melee-target', 'ranged-target', 'spell-target', 'charge-target', 'protected-target');
     el.onclick = null;
   });
 
@@ -236,13 +236,40 @@ function highlightZones() {
       });
     }
 
-  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
+    // Highlight charge targets in forward zone
+    if (canCharge(currentUnit)) {
+      const { targets: chargeTargets, protected: protectedUnits } = getChargeTargets(currentUnit);
+
+      chargeTargets.forEach(target => {
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper && !wrapper.classList.contains('melee-target') && !wrapper.classList.contains('ranged-target')) {
+          wrapper.classList.add('charge-target');
+          wrapper.onclick = () => {
+            gameState.menuState = 'charge';
+            gameState.validTargets = chargeTargets;
+            const index = chargeTargets.findIndex(t => t.id === target.id);
+            executeAttack(index);
+          };
+        }
+      });
+
+      // Show protected units in forward zone
+      protectedUnits.forEach(target => {
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper && !wrapper.classList.contains('protected-target')) {
+          wrapper.classList.add('protected-target');
+        }
+      });
+    }
+
+  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell' || gameState.menuState === 'charge') {
     // Highlight valid targets with numbers
     gameState.validTargets.forEach((target, index) => {
       const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
       if (wrapper) {
         const className = gameState.menuState === 'melee' ? 'melee-target' :
-                          gameState.menuState === 'ranged' ? 'ranged-target' : 'spell-target';
+                          gameState.menuState === 'ranged' ? 'ranged-target' :
+                          gameState.menuState === 'charge' ? 'charge-target' : 'spell-target';
         wrapper.classList.add(className);
         wrapper.onclick = () => executeAttack(index);
 
@@ -346,6 +373,14 @@ function renderOptions() {
       }
     }
 
+    // Charge option (move forward + melee with -4 WC)
+    if (canCharge(currentUnit)) {
+      html += `<div class="option" data-action="charge">
+        <span class="option-key">${keyIndex++}</span>
+        <span class="option-text">Charge! (${currentUnit.meleeDamage} dmg, -4 WC)</span>
+      </div>`;
+    }
+
     // Ranged attack option
     if (currentUnit.rangedDamage !== null) {
       const enemies = getAllEnemies(currentUnit);
@@ -374,9 +409,10 @@ function renderOptions() {
     optionsEl.innerHTML = html;
     bindMainMenuEvents();
 
-  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
+  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell' || gameState.menuState === 'charge') {
     const actionName = gameState.menuState === 'melee' ? 'Melee Attack' :
                        gameState.menuState === 'ranged' ? 'Ranged Attack' :
+                       gameState.menuState === 'charge' ? 'Charge!' :
                        SPELLS[gameState.selectedSpell].name;
     let html = `<div class="options-header">${currentUnit.name} - ${actionName} Target</div>`;
     html += `<div class="option" data-action="cancel">
@@ -405,6 +441,7 @@ function bindMainMenuEvents() {
       if (action === 'move-forward') executeMoveForward();
       else if (action === 'move-backward') executeMoveBackward();
       else if (action === 'melee') enterMeleeMode();
+      else if (action === 'charge') enterChargeMode();
       else if (action === 'ranged') enterRangedMode();
       else if (action.startsWith('spell-')) {
         const spellId = action.replace('spell-', '');
@@ -546,6 +583,16 @@ function enterSpellMode(spellId) {
   renderOptions();
 }
 
+function enterChargeMode() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit || !canCharge(currentUnit)) return;
+  gameState.menuState = 'charge';
+  const { targets } = getChargeTargets(currentUnit);
+  gameState.validTargets = targets;
+  highlightZones();
+  renderOptions();
+}
+
 function exitToMainMenu() {
   gameState.menuState = 'main';
   gameState.validTargets = [];
@@ -600,6 +647,14 @@ function executeAttack(index) {
     result = performRangedAttack(currentUnit, target);
   } else if (gameState.menuState === 'spell') {
     result = castSpell(currentUnit, target, gameState.selectedSpell);
+  } else if (gameState.menuState === 'charge') {
+    // Move to forward zone first
+    const oldZone = currentUnit.zone;
+    const newZone = getForwardZone(currentUnit);
+    currentUnit.zone = newZone;
+    addLogEntry(`${currentUnit.name} charges from Zone ${oldZone} to Zone ${newZone}!`, currentUnit.team);
+    // Then perform charge attack
+    result = performChargeAttack(currentUnit, target);
   }
 
   // Show roll result popup
@@ -760,6 +815,51 @@ function runOpponentAI() {
     return;
   }
 
+  // Try to charge if possible (move + attack)
+  if (canCharge(currentUnit)) {
+    const { targets: chargeTargets } = getChargeTargets(currentUnit);
+    if (chargeTargets.length > 0) {
+      const target = chargeTargets.reduce((a, b) => a.hp < b.hp ? a : b);
+      const oldZone = currentUnit.zone;
+      const newZone = getForwardZone(currentUnit);
+      currentUnit.zone = newZone;
+      addLogEntry(`${currentUnit.name} charges from Zone ${oldZone} to Zone ${newZone}!`, 'opponent');
+
+      gameState.menuState = 'charge';
+      gameState.validTargets = chargeTargets;
+      const result = performChargeAttack(currentUnit, target);
+
+      showRollResult(result.roll, result.hit, result.critical, result.damage);
+      addLogEntry(result.message, 'opponent');
+
+      if (result.hit) {
+        applyDamage(target, result.damage);
+        const deadUnits = removeDeadUnits();
+        deadUnits.forEach(unit => {
+          addLogEntry(`${unit.name} has fallen!`, unit.team);
+        });
+      }
+
+      gameState.menuState = 'main';
+      gameState.validTargets = [];
+
+      const gameResult = checkGameOver();
+      if (gameResult === 'ongoing') {
+        endTurn();
+      } else {
+        if (gameResult === 'defeat') {
+          addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
+        } else {
+          addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
+        }
+        renderUnits();
+        renderTurnOrder();
+        renderOptions();
+      }
+      return;
+    }
+  }
+
   // Try to move forward towards player units
   if (canMoveForward(currentUnit)) {
     const oldZone = currentUnit.zone;
@@ -802,7 +902,7 @@ document.addEventListener('keydown', (event) => {
     } else {
       const num = parseInt(key);
       if (!isNaN(num) && num >= 1) {
-        if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell')
+        if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell' || gameState.menuState === 'charge')
                    && num <= gameState.validTargets.length) {
           executeAttack(num - 1);
         }

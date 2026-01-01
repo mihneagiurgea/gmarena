@@ -37,7 +37,7 @@ const gameState = {
   units: [],
   turnOrder: [],
   currentUnitIndex: 0,
-  menuState: 'main', // 'main', 'melee', 'ranged', 'spell'
+  menuState: 'main', // 'main', 'melee', 'ranged', 'spell', 'charge'
   validTargets: [],
   selectedSpell: null,
   playerControlsBoth: false // Set to true to control both teams (for testing)
@@ -418,4 +418,73 @@ function getValidMeleeTargets(unit) {
  */
 function getAllEnemies(unit) {
   return gameState.units.filter(u => u.team !== unit.team);
+}
+
+/**
+ * Check if a unit can perform a Charge attack
+ * Charge requires: melee capability, can move forward, enemies in forward zone
+ */
+function canCharge(unit) {
+  // Must have melee damage
+  if (unit.meleeDamage === null) return false;
+
+  // Must be able to move forward
+  if (!canMoveForward(unit)) return false;
+
+  // Forward zone must have enemies
+  const forwardZone = getForwardZone(unit);
+  const enemiesInForwardZone = gameState.units.filter(
+    u => u.zone === forwardZone && u.team !== unit.team
+  );
+
+  return enemiesInForwardZone.length > 0;
+}
+
+/**
+ * Get valid charge targets in the forward zone, respecting Taunt
+ */
+function getChargeTargets(unit) {
+  const forwardZone = getForwardZone(unit);
+  const enemiesInForwardZone = gameState.units.filter(
+    u => u.zone === forwardZone && u.team !== unit.team
+  );
+
+  const taunters = enemiesInForwardZone.filter(e => e.taunt);
+
+  // If there are taunters, only they can be targeted
+  if (taunters.length > 0) {
+    return { targets: taunters, protected: enemiesInForwardZone.filter(e => !e.taunt) };
+  }
+
+  return { targets: enemiesInForwardZone, protected: [] };
+}
+
+/**
+ * Perform a charge attack (melee with -4 WC penalty)
+ * @returns {{roll: number, hit: boolean, critical: boolean, damage: number, message: string}}
+ */
+function performChargeAttack(attacker, defender) {
+  const roll = rollD20();
+  const wcPenalty = -4;
+  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
+
+  if (roll === 1) {
+    result.message = `${attacker.name} charges and rolls ${roll} - Critical Miss!`;
+  } else if (roll === 20) {
+    result.hit = true;
+    result.critical = true;
+    result.damage = Math.floor(attacker.meleeDamage * 1.5);
+    result.message = `${attacker.name} charges and rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${defender.name}!`;
+  } else {
+    const attackValue = attacker.wc + wcPenalty + roll;
+    if (attackValue >= defender.ac) {
+      result.hit = true;
+      result.damage = attacker.meleeDamage;
+      result.message = `${attacker.name} charges and rolls ${roll} (${attackValue} vs AC ${defender.ac}, -4 WC) - Hit! Deals ${result.damage} damage to ${defender.name}.`;
+    } else {
+      result.message = `${attacker.name} charges and rolls ${roll} (${attackValue} vs AC ${defender.ac}, -4 WC) - Miss!`;
+    }
+  }
+
+  return result;
 }
