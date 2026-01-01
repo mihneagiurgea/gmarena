@@ -302,7 +302,7 @@ function renderOptions() {
     });
 
     html += `<div class="option" data-action="wait">
-      <span class="option-key">${keyIndex}</span>
+      <span class="option-key">0</span>
       <span class="option-text">Skip turn</span>
     </div>`;
 
@@ -744,11 +744,15 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   if (gameState.menuState === 'main') {
-    const num = parseInt(key);
-    if (!isNaN(num) && num >= 1) {
-      const options = document.querySelectorAll('#options .option');
-      if (num <= options.length) {
-        options[num - 1].click();
+    if (key === '0') {
+      executeWait();
+    } else {
+      const num = parseInt(key);
+      if (!isNaN(num) && num >= 1) {
+        const options = document.querySelectorAll('#options .option');
+        if (num <= options.length) {
+          options[num - 1].click();
+        }
       }
     }
   } else {
