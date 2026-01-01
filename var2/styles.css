@@ -774,3 +774,331 @@ html, body {
 .cell.protected-target:hover {
   background: rgba(74, 122, 199, 0.15);
 }
+
+/* ============================================================================
+   ZONES LAYOUT
+   ============================================================================ */
+
+.zones-container {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 20px;
+  height: 100%;
+  width: 100%;
+}
+
+.zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.zone:nth-child(odd) {
+  background: rgba(15, 19, 34, 0.8);
+}
+
+.zone:nth-child(even) {
+  background: rgba(22, 33, 62, 0.6);
+}
+
+.zone-label {
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 10px;
+}
+
+.zone-units {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  align-items: center;
+}
+
+/* Unit wrapper within zones */
+.unit-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.unit-wrapper:hover {
+  background: rgba(74, 158, 255, 0.1);
+}
+
+.unit-wrapper.player {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.unit-wrapper.opponent {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.unit-wrapper .entity {
+  width: 80px;
+  height: 90px;
+}
+
+.unit-wrapper .hp-bar-container {
+  position: relative;
+  width: 80px;
+  height: 6px;
+  margin-top: 4px;
+  bottom: auto;
+  left: auto;
+  right: auto;
+}
+
+.unit-name {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Active unit in zone */
+.unit-wrapper.active-unit {
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+  animation: active-unit-pulse 2s ease-in-out infinite;
+}
+
+@keyframes active-unit-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(74, 158, 255, 0.5); }
+  50% { box-shadow: 0 0 25px rgba(74, 158, 255, 0.7); }
+}
+
+/* Zone movement highlighting */
+.zone.move-forward-target {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15) !important;
+}
+
+.zone.move-forward-target:hover {
+  background: rgba(34, 197, 94, 0.25) !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.zone.move-backward-target {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15) !important;
+}
+
+.zone.move-backward-target:hover {
+  background: rgba(251, 191, 36, 0.25) !important;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+}
+
+/* Arrow cursors - right pointing (player forward, opponent backward) */
+.zone.move-forward-target.arrow-right {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
+}
+
+.zone.move-backward-target.arrow-right {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
+}
+
+/* Arrow cursors - left pointing (player backward, opponent forward) */
+.zone.move-forward-target.arrow-left {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
+}
+
+.zone.move-backward-target.arrow-left {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
+}
+
+/* Zone blocked by taunt */
+.zone.taunt-blocked {
+  border-color: #6b7280;
+  border-style: dashed;
+  position: relative;
+}
+
+.zone.taunt-blocked::after {
+  content: '🚫';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.zone.taunt-blocked:hover {
+  background: rgba(107, 114, 128, 0.15) !important;
+  cursor: not-allowed;
+}
+
+.zone.taunt-blocked:hover::after {
+  opacity: 0.7;
+}
+
+/* Unit targeting in zones */
+.unit-wrapper.melee-target {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23c0c0c0" stroke-width="3" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><path stroke="%23ef4444" stroke-width="3" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><circle cx="16" cy="16" r="3" fill="%23fff" stroke="%23000" stroke-width="2"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.melee-target:hover {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.unit-wrapper.ranged-target {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23f97316" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23f97316" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23f97316" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.ranged-target:hover {
+  background: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+}
+
+.unit-wrapper.spell-target {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23a855f7" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23a855f7" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23a855f7" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.spell-target:hover {
+  background: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+/* Allow clicking through child elements when wrapper is a target */
+.unit-wrapper.melee-target .entity,
+.unit-wrapper.melee-target .hp-bar-container,
+.unit-wrapper.melee-target .unit-name,
+.unit-wrapper.melee-target .taunt-indicator,
+.unit-wrapper.ranged-target .entity,
+.unit-wrapper.ranged-target .hp-bar-container,
+.unit-wrapper.ranged-target .unit-name,
+.unit-wrapper.ranged-target .taunt-indicator,
+.unit-wrapper.spell-target .entity,
+.unit-wrapper.spell-target .hp-bar-container,
+.unit-wrapper.spell-target .unit-name,
+.unit-wrapper.spell-target .taunt-indicator {
+  pointer-events: none;
+}
+
+.unit-wrapper.protected-target {
+  border-color: #4a7ac7;
+  background: rgba(74, 122, 199, 0.15);
+  cursor: not-allowed;
+}
+
+/* Target number indicator */
+.target-number {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid var(--bg-primary);
+}
+
+.unit-wrapper.ranged-target .target-number {
+  background: #f97316;
+}
+
+.unit-wrapper.spell-target .target-number {
+  background: #a855f7;
+}
+
+/* Taunt indicator adjustments for zones */
+.unit-wrapper .taunt-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 90px;
+  height: 100px;
+}
+
+/* Protected indicator adjustments for zones */
+.unit-wrapper .protected-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 80px;
+  height: 90px;
+}
+
+/* Taunted indicator - shown when unit can't move forward due to taunt */
+.taunted-indicator {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  font-size: 18px;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.unit-wrapper.active-unit:hover .taunted-indicator {
+  opacity: 1;
+}
+
+/* Turn order zone indicator */
+.turn-order-zone {
+  font-size: 10px;
+  color: var(--accent);
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: rgba(74, 158, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Zone scrollbar */
+.zone-units::-webkit-scrollbar {
+  width: 4px;
+}
+
+.zone-units::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.zone-units::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.zone-units::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}

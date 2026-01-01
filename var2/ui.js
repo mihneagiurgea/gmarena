@@ -1,125 +1,189 @@
 /**
  * Game UI - Rendering, DOM manipulation, and event handling
  * Depends on engine.js for game logic
+ *
+ * Zone-based UI: 5 zones arranged horizontally
+ * Units within a zone are stacked vertically
  */
-
-// ============================================================================
-// DOM HELPERS
-// ============================================================================
-
-function getCellAt(row, col) {
-  return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-}
 
 // ============================================================================
 // RENDERING
 // ============================================================================
 
-function createGrid() {
+function createZones() {
   const gridEl = document.getElementById('grid');
   gridEl.innerHTML = '';
+  gridEl.className = 'zones-container';
 
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.row = row;
-      cell.dataset.col = col;
-      gridEl.appendChild(cell);
-    }
+  for (let zone = 0; zone < NUM_ZONES; zone++) {
+    const zoneEl = document.createElement('div');
+    zoneEl.className = 'zone';
+    zoneEl.dataset.zone = zone;
+
+    // Add zone label
+    const label = document.createElement('div');
+    label.className = 'zone-label';
+    label.textContent = `Zone ${zone}`;
+    zoneEl.appendChild(label);
+
+    // Container for units
+    const unitsContainer = document.createElement('div');
+    unitsContainer.className = 'zone-units';
+    zoneEl.appendChild(unitsContainer);
+
+    gridEl.appendChild(zoneEl);
   }
 }
 
 function renderUnits() {
-  document.querySelectorAll('.entity').forEach(el => el.remove());
-  document.querySelectorAll('.hp-bar-container').forEach(el => el.remove());
-  document.querySelectorAll('.taunt-indicator').forEach(el => el.remove());
-  document.querySelectorAll('.protected-indicator').forEach(el => el.remove());
-
-  gameState.units.forEach(unit => {
-    const cell = getCellAt(unit.position.row, unit.position.col);
-    if (!cell) return;
-
-    // Add taunt shield watermark behind taunters
-    if (unit.taunt) {
-      const tauntEl = document.createElement('div');
-      tauntEl.className = 'taunt-indicator';
-      tauntEl.innerHTML = TAUNT_SHIELD_SVG;
-      cell.appendChild(tauntEl);
-    }
-
-    const el = document.createElement('div');
-    el.className = `entity ${unit.team}`;
-    el.id = unit.id;
-    el.innerHTML = UNIT_SVGS[unit.type];
-    cell.appendChild(el);
-
-    // HP bar
-    const hpContainer = document.createElement('div');
-    hpContainer.className = 'hp-bar-container';
-    const hpBar = document.createElement('div');
-    hpBar.className = 'hp-bar';
-    const hpPercent = (unit.hp / unit.maxHp) * 100;
-    hpBar.style.width = `${hpPercent}%`;
-    if (hpPercent <= 25) hpBar.classList.add('critical');
-    else if (hpPercent <= 50) hpBar.classList.add('low');
-    hpContainer.appendChild(hpBar);
-    cell.appendChild(hpContainer);
-
-    el.addEventListener('mouseenter', () => showUnitInfo(unit));
-    el.addEventListener('mouseleave', () => showUnitInfo(null));
+  // Clear all units from zones
+  document.querySelectorAll('.zone-units').forEach(container => {
+    container.innerHTML = '';
   });
+
+  // Group units by zone
+  for (let zone = 0; zone < NUM_ZONES; zone++) {
+    const unitsInZone = getUnitsInZone(zone);
+    const container = document.querySelector(`.zone[data-zone="${zone}"] .zone-units`);
+    if (!container) continue;
+
+    unitsInZone.forEach(unit => {
+      const unitWrapper = document.createElement('div');
+      unitWrapper.className = `unit-wrapper ${unit.team}`;
+      unitWrapper.dataset.unitId = unit.id;
+
+      // Taunt indicator behind unit
+      if (unit.taunt) {
+        const tauntEl = document.createElement('div');
+        tauntEl.className = 'taunt-indicator';
+        tauntEl.innerHTML = TAUNT_SHIELD_SVG;
+        unitWrapper.appendChild(tauntEl);
+      }
+
+      // Unit sprite
+      const el = document.createElement('div');
+      el.className = `entity ${unit.team}`;
+      el.id = unit.id;
+      el.innerHTML = UNIT_SVGS[unit.type];
+      unitWrapper.appendChild(el);
+
+      // HP bar
+      const hpContainer = document.createElement('div');
+      hpContainer.className = 'hp-bar-container';
+      const hpBar = document.createElement('div');
+      hpBar.className = 'hp-bar';
+      const hpPercent = (unit.hp / unit.maxHp) * 100;
+      hpBar.style.width = `${hpPercent}%`;
+      if (hpPercent <= 25) hpBar.classList.add('critical');
+      else if (hpPercent <= 50) hpBar.classList.add('low');
+      hpContainer.appendChild(hpBar);
+      unitWrapper.appendChild(hpContainer);
+
+      // Unit name label
+      const nameLabel = document.createElement('div');
+      nameLabel.className = 'unit-name';
+      nameLabel.textContent = unit.name;
+      unitWrapper.appendChild(nameLabel);
+
+      // Taunted indicator (shown on hover when unit can't move forward due to taunt)
+      if (isTaunted(unit)) {
+        const tauntedEl = document.createElement('div');
+        tauntedEl.className = 'taunted-indicator';
+        tauntedEl.textContent = '🚫';
+        tauntedEl.title = 'Blocked by Taunt - need more allies in this zone to advance';
+        unitWrapper.appendChild(tauntedEl);
+      }
+
+      container.appendChild(unitWrapper);
+
+      // Hover events
+      unitWrapper.addEventListener('mouseenter', () => showUnitInfo(unit));
+      unitWrapper.addEventListener('mouseleave', () => showUnitInfo(null));
+    });
+  }
+
+  highlightCurrentUnit();
 }
 
-function highlightCells() {
-  document.querySelectorAll('.cell').forEach(cell => {
-    cell.classList.remove('highlight', 'move-option', 'melee-target', 'ranged-target', 'attack-target', 'active-unit', 'protected-target');
-    cell.onclick = null;
-    const numEl = cell.querySelector('.cell-number');
-    if (numEl) numEl.remove();
+function highlightCurrentUnit() {
+  // Remove previous highlights
+  document.querySelectorAll('.unit-wrapper').forEach(el => {
+    el.classList.remove('active-unit');
   });
-
-  // Remove protected indicators
-  document.querySelectorAll('.protected-indicator').forEach(el => el.remove());
 
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
 
-  // Highlight current unit's cell
-  const currentCell = getCellAt(currentUnit.position.row, currentUnit.position.col);
-  if (currentCell) {
-    currentCell.classList.add('active-unit');
+  const unitWrapper = document.querySelector(`.unit-wrapper[data-unit-id="${currentUnit.id}"]`);
+  if (unitWrapper) {
+    unitWrapper.classList.add('active-unit');
   }
+}
+
+function highlightZones() {
+  // Remove previous highlights from zones
+  document.querySelectorAll('.zone').forEach(zone => {
+    zone.classList.remove('move-forward-target', 'move-backward-target', 'melee-zone', 'taunt-blocked', 'arrow-left', 'arrow-right');
+    zone.onclick = null;
+    zone.title = '';
+  });
+
+  // Remove target highlights from units
+  document.querySelectorAll('.unit-wrapper').forEach(el => {
+    el.classList.remove('melee-target', 'ranged-target', 'spell-target', 'protected-target');
+    el.onclick = null;
+  });
+
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  highlightCurrentUnit();
 
   if (!isPlayerControlled(currentUnit)) return;
 
   if (gameState.menuState === 'main') {
-    // Show all available actions directly on the grid
+    // Determine arrow directions based on team
+    // Player: forward = right, backward = left
+    // Opponent: forward = left, backward = right
+    const forwardArrow = currentUnit.team === 'player' ? 'arrow-right' : 'arrow-left';
+    const backwardArrow = currentUnit.team === 'player' ? 'arrow-left' : 'arrow-right';
 
-    // Move options (adjacent empty cells)
-    const moveOptions = getAdjacentCells(currentUnit.position);
-    moveOptions.forEach(p => {
-      const cell = getCellAt(p.row, p.col);
-      if (cell) {
-        cell.classList.add('move-option');
-        cell.onclick = () => {
-          gameState.validMoves = moveOptions;
-          const index = moveOptions.findIndex(m => m.row === p.row && m.col === p.col);
-          executeMove(index);
-        };
+    // Highlight zones for movement
+    if (canMoveForward(currentUnit)) {
+      const forwardZone = getForwardZone(currentUnit);
+      const zoneEl = document.querySelector(`.zone[data-zone="${forwardZone}"]`);
+      if (zoneEl) {
+        zoneEl.classList.add('move-forward-target', forwardArrow);
+        zoneEl.onclick = () => executeMoveForward();
       }
-    });
+    } else if (isTaunted(currentUnit)) {
+      // Show blocked indicator on forward zone
+      const forwardZone = getForwardZone(currentUnit);
+      const zoneEl = document.querySelector(`.zone[data-zone="${forwardZone}"]`);
+      if (zoneEl) {
+        zoneEl.classList.add('taunt-blocked');
+        zoneEl.title = 'Blocked by Taunt - need more allies in this zone to advance';
+      }
+    }
 
-    // Melee targets (adjacent enemies) - respecting Taunt
+    if (canMoveBackward(currentUnit)) {
+      const backwardZone = getBackwardZone(currentUnit);
+      const zoneEl = document.querySelector(`.zone[data-zone="${backwardZone}"]`);
+      if (zoneEl) {
+        zoneEl.classList.add('move-backward-target', backwardArrow);
+        zoneEl.onclick = () => executeMoveBackward();
+      }
+    }
+
+    // Highlight melee targets in same zone
     if (currentUnit.meleeDamage !== null) {
       const { targets: meleeTargets, protected: protectedUnits } = getValidMeleeTargets(currentUnit);
 
-      // Show valid melee targets
       meleeTargets.forEach(target => {
-        const cell = getCellAt(target.position.row, target.position.col);
-        if (cell) {
-          cell.classList.add('melee-target');
-          cell.onclick = () => {
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper) {
+          wrapper.classList.add('melee-target');
+          wrapper.onclick = () => {
             gameState.menuState = 'melee';
             gameState.validTargets = meleeTargets;
             const index = meleeTargets.findIndex(t => t.id === target.id);
@@ -128,79 +192,68 @@ function highlightCells() {
         }
       });
 
-      // Show protected units with shield indicator
-      protectedUnits.forEach(unit => {
-        const cell = getCellAt(unit.position.row, unit.position.col);
-        if (cell) {
-          cell.classList.add('protected-target');
-          // Add protected shield indicator
-          const protectedEl = document.createElement('div');
-          protectedEl.className = 'protected-indicator';
-          protectedEl.innerHTML = PROTECTED_SHIELD_SVG;
-          cell.appendChild(protectedEl);
+      protectedUnits.forEach(target => {
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper) {
+          wrapper.classList.add('protected-target');
         }
       });
     }
 
-    // Ranged targets (all enemies, but not adjacent ones if we have melee)
+    // Highlight ranged targets (all enemies not in same zone, or all if no melee)
     if (currentUnit.rangedDamage !== null) {
       const allEnemies = getAllEnemies(currentUnit);
-      const adjacentEnemyIds = getAdjacentEnemies(currentUnit).map(e => e.id);
+      const enemiesInSameZone = getEnemiesInSameZone(currentUnit);
+
       allEnemies.forEach(target => {
-        const cell = getCellAt(target.position.row, target.position.col);
-        if (cell && !adjacentEnemyIds.includes(target.id)) {
-          // Only show ranged option for non-adjacent enemies (adjacent ones show melee)
-          cell.classList.add('ranged-target');
-          cell.onclick = () => {
-            gameState.menuState = 'ranged';
-            gameState.validTargets = allEnemies;
-            const index = allEnemies.findIndex(t => t.id === target.id);
-            executeAttack(index);
-          };
-        } else if (cell && currentUnit.meleeDamage === null) {
-          // If no melee, show ranged for adjacent too
-          cell.classList.add('ranged-target');
-          cell.onclick = () => {
-            gameState.menuState = 'ranged';
-            gameState.validTargets = allEnemies;
-            const index = allEnemies.findIndex(t => t.id === target.id);
-            executeAttack(index);
-          };
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper) {
+          // If enemy is in same zone and we have melee, don't show ranged option
+          const isInSameZone = enemiesInSameZone.some(e => e.id === target.id);
+          if (!isInSameZone || currentUnit.meleeDamage === null) {
+            if (!wrapper.classList.contains('melee-target')) {
+              wrapper.classList.add('ranged-target');
+              wrapper.onclick = () => {
+                gameState.menuState = 'ranged';
+                gameState.validTargets = allEnemies;
+                const index = allEnemies.findIndex(t => t.id === target.id);
+                executeAttack(index);
+              };
+            }
+          }
         }
       });
     }
-  } else if (gameState.menuState === 'move') {
-    gameState.validMoves = getAdjacentCells(currentUnit.position);
-    gameState.validMoves.forEach((p, index) => {
-      const cell = getCellAt(p.row, p.col);
-      if (cell) {
-        cell.classList.add('move-option');
-        const numEl = document.createElement('div');
-        numEl.className = 'cell-number';
-        numEl.textContent = index + 1;
-        cell.appendChild(numEl);
-        cell.onclick = () => executeMove(index);
-      }
-    });
+
+    // Highlight spell targets
+    if (currentUnit.spells.length > 0) {
+      const allEnemies = getAllEnemies(currentUnit);
+      allEnemies.forEach(target => {
+        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+        if (wrapper && !wrapper.classList.contains('melee-target') && !wrapper.classList.contains('ranged-target')) {
+          wrapper.classList.add('spell-target');
+        }
+      });
+    }
+
   } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
+    // Highlight valid targets with numbers
     gameState.validTargets.forEach((target, index) => {
-      const cell = getCellAt(target.position.row, target.position.col);
-      if (cell) {
-        // Use appropriate class based on attack type
-        const numEl = document.createElement('div');
-        if (gameState.menuState === 'melee') {
-          cell.classList.add('melee-target');
-          numEl.className = 'cell-number melee';
-        } else if (gameState.menuState === 'ranged') {
-          cell.classList.add('ranged-target');
-          numEl.className = 'cell-number ranged';
-        } else {
-          cell.classList.add('attack-target');
-          numEl.className = 'cell-number attack';
+      const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
+      if (wrapper) {
+        const className = gameState.menuState === 'melee' ? 'melee-target' :
+                          gameState.menuState === 'ranged' ? 'ranged-target' : 'spell-target';
+        wrapper.classList.add(className);
+        wrapper.onclick = () => executeAttack(index);
+
+        // Add number indicator
+        let numEl = wrapper.querySelector('.target-number');
+        if (!numEl) {
+          numEl = document.createElement('div');
+          numEl.className = 'target-number';
+          wrapper.appendChild(numEl);
         }
         numEl.textContent = index + 1;
-        cell.appendChild(numEl);
-        cell.onclick = () => executeAttack(index);
       }
     });
   }
@@ -230,6 +283,7 @@ function renderTurnOrder() {
       <span class="turn-order-marker">${isCurrent ? '▶' : ''}</span>
       <span class="turn-order-name">${unit.name}</span>
       <span class="turn-order-hp">${unit.hp}/${unit.maxHp}</span>
+      <span class="turn-order-zone">Z${unit.zone}</span>
     </div>`;
   });
 
@@ -262,18 +316,29 @@ function renderOptions() {
   }
 
   if (gameState.menuState === 'main') {
-    let html = `<div class="options-header">${currentUnit.name} - Actions</div>`;
+    let html = `<div class="options-header">${currentUnit.name} - Actions (Zone ${currentUnit.zone})</div>`;
     let keyIndex = 1;
 
-    html += `<div class="option" data-action="move">
-      <span class="option-key">${keyIndex++}</span>
-      <span class="option-text">Move</span>
-    </div>`;
+    // Move Forward option
+    if (canMoveForward(currentUnit)) {
+      html += `<div class="option" data-action="move-forward">
+        <span class="option-key">${keyIndex++}</span>
+        <span class="option-text">Move Forward → Zone ${getForwardZone(currentUnit)}</span>
+      </div>`;
+    }
 
-    // Melee attack option
+    // Move Backward option
+    if (canMoveBackward(currentUnit)) {
+      html += `<div class="option" data-action="move-backward">
+        <span class="option-key">${keyIndex++}</span>
+        <span class="option-text">Move Backward → Zone ${getBackwardZone(currentUnit)}</span>
+      </div>`;
+    }
+
+    // Melee attack option (only if enemies in same zone)
     if (currentUnit.meleeDamage !== null) {
-      const adjacentEnemies = getAdjacentEnemies(currentUnit);
-      if (adjacentEnemies.length > 0) {
+      const { targets: meleeTargets } = getValidMeleeTargets(currentUnit);
+      if (meleeTargets.length > 0) {
         html += `<div class="option" data-action="melee">
           <span class="option-key">${keyIndex++}</span>
           <span class="option-text">Melee Attack (${currentUnit.meleeDamage} dmg)</span>
@@ -309,24 +374,6 @@ function renderOptions() {
     optionsEl.innerHTML = html;
     bindMainMenuEvents();
 
-  } else if (gameState.menuState === 'move') {
-    let html = `<div class="options-header">${currentUnit.name} - Select destination</div>`;
-    html += `<div class="option" data-action="cancel">
-      <span class="option-key">0</span>
-      <span class="option-text">Cancel</span>
-    </div>`;
-
-    gameState.validMoves.forEach((pos, index) => {
-      const dirName = getDirectionName(currentUnit.position, pos);
-      html += `<div class="option" data-action="move-${index}">
-        <span class="option-key">${index + 1}</span>
-        <span class="option-text">${dirName}</span>
-      </div>`;
-    });
-
-    optionsEl.innerHTML = html;
-    bindMoveMenuEvents();
-
   } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
     const actionName = gameState.menuState === 'melee' ? 'Melee Attack' :
                        gameState.menuState === 'ranged' ? 'Ranged Attack' :
@@ -338,9 +385,10 @@ function renderOptions() {
     </div>`;
 
     gameState.validTargets.forEach((target, index) => {
+      const distance = getDistance(currentUnit, target);
       html += `<div class="option attack-option" data-action="attack-${index}">
         <span class="option-key">${index + 1}</span>
-        <span class="option-text">${target.name} (${target.hp}/${target.maxHp} HP)</span>
+        <span class="option-text">${target.name} (${target.hp}/${target.maxHp} HP) - ${distance === 0 ? 'Same zone' : `${distance} zone${distance > 1 ? 's' : ''} away`}</span>
       </div>`;
     });
 
@@ -354,7 +402,8 @@ function bindMainMenuEvents() {
   optionsEl.querySelectorAll('.option').forEach(opt => {
     opt.addEventListener('click', () => {
       const action = opt.dataset.action;
-      if (action === 'move') enterMoveMode();
+      if (action === 'move-forward') executeMoveForward();
+      else if (action === 'move-backward') executeMoveBackward();
       else if (action === 'melee') enterMeleeMode();
       else if (action === 'ranged') enterRangedMode();
       else if (action.startsWith('spell-')) {
@@ -362,20 +411,6 @@ function bindMainMenuEvents() {
         enterSpellMode(spellId);
       }
       else if (action === 'wait') executeWait();
-    });
-  });
-}
-
-function bindMoveMenuEvents() {
-  const optionsEl = document.getElementById('options');
-  optionsEl.querySelectorAll('.option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const action = opt.dataset.action;
-      if (action === 'cancel') exitToMainMenu();
-      else if (action.startsWith('move-')) {
-        const index = parseInt(action.split('-')[1]);
-        executeMove(index);
-      }
     });
   });
 }
@@ -403,6 +438,7 @@ function showUnitInfo(unit) {
   }
 
   let statsHtml = `HP: ${unit.hp}/${unit.maxHp}<br>`;
+  statsHtml += `Zone: ${unit.zone}<br>`;
   statsHtml += `AC: ${unit.ac} | SR: ${unit.sr}<br>`;
   if (unit.meleeDamage !== null) statsHtml += `Melee: WC ${unit.wc}, ${unit.meleeDamage} dmg<br>`;
   if (unit.rangedDamage !== null) statsHtml += `Ranged: ${unit.rangedDamage} dmg<br>`;
@@ -480,22 +516,13 @@ function showRollResult(roll, hit, critical, damage = 0) {
 // GAME ACTIONS
 // ============================================================================
 
-function enterMoveMode() {
-  const currentUnit = getCurrentUnit();
-  if (!currentUnit) return;
-  gameState.menuState = 'move';
-  gameState.validMoves = getAdjacentCells(currentUnit.position);
-  highlightCells();
-  renderOptions();
-}
-
 function enterMeleeMode() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
   gameState.menuState = 'melee';
   const { targets } = getValidMeleeTargets(currentUnit);
   gameState.validTargets = targets;
-  highlightCells();
+  highlightZones();
   renderOptions();
 }
 
@@ -504,7 +531,7 @@ function enterRangedMode() {
   if (!currentUnit) return;
   gameState.menuState = 'ranged';
   gameState.validTargets = getAllEnemies(currentUnit);
-  highlightCells();
+  highlightZones();
   renderOptions();
 }
 
@@ -515,33 +542,47 @@ function enterSpellMode(spellId) {
   gameState.selectedSpell = spellId;
   // For offensive spells, target enemies
   gameState.validTargets = getAllEnemies(currentUnit);
-  highlightCells();
+  highlightZones();
   renderOptions();
 }
 
 function exitToMainMenu() {
   gameState.menuState = 'main';
-  gameState.validMoves = [];
   gameState.validTargets = [];
   gameState.selectedSpell = null;
-  highlightCells();
+
+  // Remove target numbers
+  document.querySelectorAll('.target-number').forEach(el => el.remove());
+
+  highlightZones();
   renderOptions();
 }
 
-function executeMove(index) {
-  if (index < 0 || index >= gameState.validMoves.length) return;
+function executeMoveForward() {
   const currentUnit = getCurrentUnit();
-  if (!currentUnit) return;
+  if (!currentUnit || !canMoveForward(currentUnit)) return;
 
-  const newPos = gameState.validMoves[index];
-  const oldPos = { ...currentUnit.position };
-  currentUnit.position = newPos;
+  const oldZone = currentUnit.zone;
+  const newZone = getForwardZone(currentUnit);
+  currentUnit.zone = newZone;
 
-  const dirName = getDirectionName(oldPos, newPos);
-  addLogEntry(`${currentUnit.name} moves ${dirName}.`, currentUnit.team);
+  addLogEntry(`${currentUnit.name} advances from Zone ${oldZone} to Zone ${newZone}.`, currentUnit.team);
 
   gameState.menuState = 'main';
-  gameState.validMoves = [];
+  endTurn();
+}
+
+function executeMoveBackward() {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit || !canMoveBackward(currentUnit)) return;
+
+  const oldZone = currentUnit.zone;
+  const newZone = getBackwardZone(currentUnit);
+  currentUnit.zone = newZone;
+
+  addLogEntry(`${currentUnit.name} retreats from Zone ${oldZone} to Zone ${newZone}.`, currentUnit.team);
+
+  gameState.menuState = 'main';
   endTurn();
 }
 
@@ -578,6 +619,9 @@ function executeAttack(index) {
   gameState.validTargets = [];
   gameState.selectedSpell = null;
 
+  // Remove target numbers
+  document.querySelectorAll('.target-number').forEach(el => el.remove());
+
   const gameResult = checkGameOver();
   if (gameResult === 'ongoing') {
     endTurn();
@@ -609,7 +653,7 @@ function endTurn() {
   }
 
   renderUnits();
-  highlightCells();
+  highlightZones();
   renderTurnOrder();
   renderOptions();
 
@@ -633,12 +677,14 @@ function runOpponentAI() {
     return;
   }
 
-  // Check for adjacent enemies to melee attack (respecting Taunt)
+  // Check for enemies in same zone to melee attack (respecting Taunt)
   if (currentUnit.meleeDamage !== null) {
     const { targets: meleeTargets } = getValidMeleeTargets(currentUnit);
     if (meleeTargets.length > 0) {
       // Attack the lowest HP valid target
       const target = meleeTargets.reduce((a, b) => a.hp < b.hp ? a : b);
+      gameState.menuState = 'melee';
+      gameState.validTargets = meleeTargets;
       const result = performMeleeAttack(currentUnit, target);
 
       // Show roll result popup
@@ -653,6 +699,9 @@ function runOpponentAI() {
           addLogEntry(`${unit.name} has fallen!`, unit.team);
         });
       }
+
+      gameState.menuState = 'main';
+      gameState.validTargets = [];
 
       const gameResult = checkGameOver();
       if (gameResult === 'ongoing') {
@@ -671,10 +720,12 @@ function runOpponentAI() {
     }
   }
 
-  // Use ranged attack if available
+  // Use ranged attack if available and no melee targets
   if (currentUnit.rangedDamage !== null && playerUnits.length > 0) {
     // Target the lowest HP enemy
     const target = playerUnits.reduce((a, b) => a.hp < b.hp ? a : b);
+    gameState.menuState = 'ranged';
+    gameState.validTargets = playerUnits;
     const result = performRangedAttack(currentUnit, target);
 
     // Show roll result popup
@@ -689,6 +740,9 @@ function runOpponentAI() {
         addLogEntry(`${unit.name} has fallen!`, unit.team);
       });
     }
+
+    gameState.menuState = 'main';
+    gameState.validTargets = [];
 
     const gameResult = checkGameOver();
     if (gameResult === 'ongoing') {
@@ -706,30 +760,17 @@ function runOpponentAI() {
     return;
   }
 
-  // Move towards closest player unit
-  const adjacent = getAdjacentCells(currentUnit.position);
-  if (adjacent.length > 0) {
-    let bestMove = adjacent[0];
-    let bestDist = Infinity;
-
-    adjacent.forEach(pos => {
-      playerUnits.forEach(player => {
-        const dist = Math.abs(pos.row - player.position.row) + Math.abs(pos.col - player.position.col);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestMove = pos;
-        }
-      });
-    });
-
-    const oldPos = { ...currentUnit.position };
-    currentUnit.position = bestMove;
-    const dirName = getDirectionName(oldPos, bestMove);
-    addLogEntry(`${currentUnit.name} moves ${dirName}.`, 'opponent');
-  } else {
-    addLogEntry(`${currentUnit.name} waits.`, 'opponent');
+  // Try to move forward towards player units
+  if (canMoveForward(currentUnit)) {
+    const oldZone = currentUnit.zone;
+    currentUnit.zone = getForwardZone(currentUnit);
+    addLogEntry(`${currentUnit.name} advances from Zone ${oldZone} to Zone ${currentUnit.zone}.`, 'opponent');
+    endTurn();
+    return;
   }
 
+  // Can't do anything, wait
+  addLogEntry(`${currentUnit.name} waits.`, 'opponent');
   endTurn();
 }
 
@@ -761,9 +802,7 @@ document.addEventListener('keydown', (event) => {
     } else {
       const num = parseInt(key);
       if (!isNaN(num) && num >= 1) {
-        if (gameState.menuState === 'move' && num <= gameState.validMoves.length) {
-          executeMove(num - 1);
-        } else if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell')
+        if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell')
                    && num <= gameState.validTargets.length) {
           executeAttack(num - 1);
         }
@@ -782,9 +821,9 @@ function initGame() {
   gameState.turnOrder = shuffleArray(allUnitIds);
   gameState.currentUnitIndex = 0;
 
-  createGrid();
+  createZones();
   renderUnits();
-  highlightCells();
+  highlightZones();
   renderTurnOrder();
   renderOptions();
 
@@ -795,7 +834,7 @@ function initGame() {
     setTimeout(() => runOpponentAI(), 600);
   }
 
-  console.log('Game Arena initialized with combat!');
+  console.log('GM Arena (Zones variant) initialized!');
 }
 
 // ============================================================================
@@ -853,7 +892,7 @@ function initDebugUI() {
     controlBothCheckbox.addEventListener('change', () => {
       gameState.playerControlsBoth = controlBothCheckbox.checked;
       // Re-render to apply changes immediately
-      highlightCells();
+      highlightZones();
       renderOptions();
 
       // If it's opponent's turn and we just disabled control, trigger AI

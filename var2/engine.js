@@ -1,10 +1,13 @@
 /**
  * Game Engine - Core game logic and state management
  * No DOM dependencies - pure game logic
+ *
+ * Zone-based positioning: 5 zones (0-4) arranged horizontally
+ * - Player team starts in zone 0 (leftmost)
+ * - Opponent team starts in zone 4 (rightmost)
  */
 
-const GRID_ROWS = 3;
-const GRID_COLS = 5;
+const NUM_ZONES = 5;
 
 // ============================================================================
 // GAME STATE
@@ -16,7 +19,7 @@ const GRID_COLS = 5;
  * @property {string} name
  * @property {string} type
  * @property {'player' | 'opponent'} team
- * @property {{row: number, col: number}} position
+ * @property {number} zone - Zone index (0-4)
  * @property {number} hp
  * @property {number} maxHp
  * @property {number} ac
@@ -34,8 +37,7 @@ const gameState = {
   units: [],
   turnOrder: [],
   currentUnitIndex: 0,
-  menuState: 'main', // 'main', 'move', 'melee', 'ranged', 'spell'
-  validMoves: [],
+  menuState: 'main', // 'main', 'melee', 'ranged', 'spell'
   validTargets: [],
   selectedSpell: null,
   playerControlsBoth: false // Set to true to control both teams (for testing)
@@ -55,7 +57,7 @@ function createUnit(id, name, type, team) {
     name,
     type,
     team,
-    position: null,
+    zone: null,
     hp: stats.maxHp,
     maxHp: stats.maxHp,
     ac: stats.ac,
@@ -69,24 +71,8 @@ function createUnit(id, name, type, team) {
 }
 
 /**
- * Place units in a column based on count
- */
-function placeUnitsInColumn(units, col) {
-  const count = units.length;
-  if (count === 1) {
-    units[0].position = { row: 1, col };
-  } else if (count === 2) {
-    units[0].position = { row: 0, col };
-    units[1].position = { row: 2, col };
-  } else if (count === 3) {
-    units[0].position = { row: 0, col };
-    units[1].position = { row: 1, col };
-    units[2].position = { row: 2, col };
-  }
-}
-
-/**
  * Create initial units for the game
+ * Player units start in zone 0, opponent units in zone 4
  * @returns {Unit[]}
  */
 function createInitialUnits() {
@@ -102,8 +88,15 @@ function createInitialUnits() {
     createUnit('goblin1', 'Goblin', 'goblin', 'opponent')
   ];
 
-  placeUnitsInColumn(playerUnits, 0);
-  placeUnitsInColumn(opponentUnits, GRID_COLS - 1);
+  // Place player units in zone 0
+  playerUnits.forEach(unit => {
+    unit.zone = 0;
+  });
+
+  // Place opponent units in zone 4
+  opponentUnits.forEach(unit => {
+    unit.zone = NUM_ZONES - 1;
+  });
 
   return [...playerUnits, ...opponentUnits];
 }
@@ -122,6 +115,121 @@ function shuffleArray(array) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// ============================================================================
+// ZONE HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get distance between two units (difference in zone indices)
+ */
+function getDistance(unit1, unit2) {
+  return Math.abs(unit1.zone - unit2.zone);
+}
+
+/**
+ * Get all units in a specific zone
+ */
+function getUnitsInZone(zone) {
+  return gameState.units.filter(u => u.zone === zone);
+}
+
+/**
+ * Get all enemy units in the same zone as the given unit
+ */
+function getEnemiesInSameZone(unit) {
+  return gameState.units.filter(u => u.zone === unit.zone && u.team !== unit.team);
+}
+
+/**
+ * Get all allied units in the same zone as the given unit (excluding self)
+ */
+function getAlliesInSameZone(unit) {
+  return gameState.units.filter(u => u.zone === unit.zone && u.team === unit.team && u.id !== unit.id);
+}
+
+/**
+ * Count units with Taunt from a specific team in a zone
+ */
+function countTauntersInZone(zone, team) {
+  return gameState.units.filter(u => u.zone === zone && u.team === team && u.taunt).length;
+}
+
+/**
+ * Count all units from a specific team in a zone
+ */
+function countUnitsInZone(zone, team) {
+  return gameState.units.filter(u => u.zone === zone && u.team === team).length;
+}
+
+/**
+ * Check if a unit can move forward
+ * Forward means: player team moves right (increasing zone), opponent moves left (decreasing zone)
+ * A unit can move forward only if Num(self team) > Taunt(enemy team) in current zone
+ */
+function canMoveForward(unit) {
+  const forwardZone = unit.team === 'player' ? unit.zone + 1 : unit.zone - 1;
+
+  // Check if forward zone exists
+  if (forwardZone < 0 || forwardZone >= NUM_ZONES) {
+    return false;
+  }
+
+  // Check Taunt mechanic in current zone
+  const enemyTeam = unit.team === 'player' ? 'opponent' : 'player';
+  const enemyTaunters = countTauntersInZone(unit.zone, enemyTeam);
+  const ownUnits = countUnitsInZone(unit.zone, unit.team);
+
+  // Can move forward if ownUnits > enemyTaunters
+  return ownUnits > enemyTaunters;
+}
+
+/**
+ * Check if a unit can move backward
+ * Backward means: player team moves left (decreasing zone), opponent moves right (increasing zone)
+ * Units can always move backward (no Taunt restriction)
+ */
+function canMoveBackward(unit) {
+  const backwardZone = unit.team === 'player' ? unit.zone - 1 : unit.zone + 1;
+
+  // Check if backward zone exists
+  return backwardZone >= 0 && backwardZone < NUM_ZONES;
+}
+
+/**
+ * Get the forward zone index for a unit
+ */
+function getForwardZone(unit) {
+  return unit.team === 'player' ? unit.zone + 1 : unit.zone - 1;
+}
+
+/**
+ * Get the backward zone index for a unit
+ */
+function getBackwardZone(unit) {
+  return unit.team === 'player' ? unit.zone - 1 : unit.zone + 1;
+}
+
+/**
+ * Check if a unit is blocked from moving forward specifically due to Taunt
+ * (not because they're at the edge of the map)
+ */
+function isTaunted(unit) {
+  const forwardZone = unit.team === 'player' ? unit.zone + 1 : unit.zone - 1;
+
+  // If at edge, not taunted - just can't move further
+  if (forwardZone < 0 || forwardZone >= NUM_ZONES) {
+    return false;
+  }
+
+  // Check if blocked by taunt
+  const enemyTeam = unit.team === 'player' ? 'opponent' : 'player';
+  const enemyTaunters = countTauntersInZone(unit.zone, enemyTeam);
+  const ownUnits = countUnitsInZone(unit.zone, unit.team);
+
+  // Taunted if there are enemy taunters and we can't outnumber them
+  return enemyTaunters > 0 && ownUnits <= enemyTaunters;
 }
 
 // ============================================================================
@@ -288,66 +396,26 @@ function isPlayerControlled(unit) {
   return unit.team === 'player' || gameState.playerControlsBoth;
 }
 
-function getUnitAt(row, col) {
-  return gameState.units.find(u => u.position.row === row && u.position.col === col) || null;
-}
-
-function isValidPosition(row, col) {
-  return row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS;
-}
-
-function isOccupied(row, col) {
-  return getUnitAt(row, col) !== null;
-}
-
-function getAdjacentCells(pos) {
-  const directions = [
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],           [0, 1],
-    [1, -1],  [1, 0],  [1, 1]
-  ];
-
-  return directions
-    .map(([dr, dc]) => ({ row: pos.row + dr, col: pos.col + dc }))
-    .filter(p => isValidPosition(p.row, p.col) && !isOccupied(p.row, p.col));
-}
-
-function getAdjacentEnemies(unit) {
-  const directions = [
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],           [0, 1],
-    [1, -1],  [1, 0],  [1, 1]
-  ];
-
-  return directions
-    .map(([dr, dc]) => getUnitAt(unit.position.row + dr, unit.position.col + dc))
-    .filter(u => u !== null && u.team !== unit.team);
-}
-
 /**
  * Get valid melee targets, respecting Taunt
- * If any adjacent enemy has Taunt, only taunters can be targeted
+ * Melee attacks can only target units in the same zone (distance = 0)
+ * If any enemy in the zone has Taunt, only taunters can be targeted
  */
 function getValidMeleeTargets(unit) {
-  const adjacentEnemies = getAdjacentEnemies(unit);
-  const taunters = adjacentEnemies.filter(e => e.taunt);
+  const enemiesInZone = getEnemiesInSameZone(unit);
+  const taunters = enemiesInZone.filter(e => e.taunt);
 
   // If there are taunters, only they can be targeted
   if (taunters.length > 0) {
-    return { targets: taunters, protected: adjacentEnemies.filter(e => !e.taunt) };
+    return { targets: taunters, protected: enemiesInZone.filter(e => !e.taunt) };
   }
 
-  return { targets: adjacentEnemies, protected: [] };
+  return { targets: enemiesInZone, protected: [] };
 }
 
+/**
+ * Get all enemies (for ranged attacks and spells)
+ */
 function getAllEnemies(unit) {
   return gameState.units.filter(u => u.team !== unit.team);
-}
-
-function getDirectionName(from, to) {
-  const dr = to.row - from.row;
-  const dc = to.col - from.col;
-  const vertical = dr < 0 ? 'North' : dr > 0 ? 'South' : '';
-  const horizontal = dc < 0 ? 'West' : dc > 0 ? 'East' : '';
-  return vertical + horizontal || 'Center';
 }
