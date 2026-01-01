@@ -1108,4 +1108,72 @@ function initGame() {
   console.log('Game Arena initialized with combat!');
 }
 
+// ============================================================================
+// DEBUG UI
+// ============================================================================
+
+function initDebugUI() {
+  // Log panel toggle
+  const logPanel = document.getElementById('log');
+  const logToggle = document.getElementById('log-toggle');
+  const logHeader = document.querySelector('.log-header');
+
+  if (logToggle && logPanel) {
+    logToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      logPanel.classList.toggle('minimized');
+      logToggle.textContent = logPanel.classList.contains('minimized') ? '+' : '−';
+      logToggle.title = logPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+    });
+
+    // Also toggle when clicking the header
+    logHeader.addEventListener('click', () => {
+      logPanel.classList.toggle('minimized');
+      logToggle.textContent = logPanel.classList.contains('minimized') ? '+' : '−';
+      logToggle.title = logPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+    });
+  }
+
+  // Debug panel toggle
+  const debugPanel = document.getElementById('debug-panel');
+  const debugToggle = document.getElementById('debug-toggle');
+  const debugHeader = document.querySelector('.debug-header');
+
+  if (debugToggle && debugPanel) {
+    debugToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      debugPanel.classList.toggle('minimized');
+      debugToggle.textContent = debugPanel.classList.contains('minimized') ? '+' : '−';
+      debugToggle.title = debugPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+    });
+
+    debugHeader.addEventListener('click', () => {
+      debugPanel.classList.toggle('minimized');
+      debugToggle.textContent = debugPanel.classList.contains('minimized') ? '+' : '−';
+      debugToggle.title = debugPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+    });
+  }
+
+  // Control both teams checkbox
+  const controlBothCheckbox = document.getElementById('debug-control-both');
+  if (controlBothCheckbox) {
+    // Initialize checkbox state from gameState
+    controlBothCheckbox.checked = gameState.playerControlsBoth;
+
+    controlBothCheckbox.addEventListener('change', () => {
+      gameState.playerControlsBoth = controlBothCheckbox.checked;
+      // Re-render to apply changes immediately
+      highlightCells();
+      renderOptions();
+
+      // If it's opponent's turn and we just disabled control, trigger AI
+      const currentUnit = getCurrentUnit();
+      if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
+        setTimeout(() => runOpponentAI(), 600);
+      }
+    });
+  }
+}
+
 initGame();
+initDebugUI();

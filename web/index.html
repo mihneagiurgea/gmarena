@@ -35,10 +35,28 @@
           <div class="unit-info-placeholder">Hover over a unit to see details</div>
         </div>
       </div>
-      <div class="log" id="log">
-        <div class="log-header">Action Log</div>
-        <div class="log-entries" id="log-entries">
-          <div class="log-entry">Game started.</div>
+      <div class="action-section">
+        <div class="log" id="log">
+          <div class="log-header">
+            <span class="log-title">Action Log</span>
+            <button class="panel-toggle" id="log-toggle" title="Minimize">−</button>
+          </div>
+          <div class="log-entries" id="log-entries">
+            <div class="log-entry">Game started.</div>
+          </div>
+        </div>
+        <div class="debug-panel" id="debug-panel">
+          <div class="debug-header">
+            <span class="debug-icon">⚙</span>
+            <span class="debug-title">Debug</span>
+            <button class="panel-toggle" id="debug-toggle" title="Minimize">−</button>
+          </div>
+          <div class="debug-content" id="debug-content">
+            <label class="debug-option">
+              <input type="checkbox" id="debug-control-both">
+              <span>Control both teams</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
