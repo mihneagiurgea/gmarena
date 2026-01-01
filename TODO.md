@@ -12,7 +12,7 @@
 
 ## Admin
 
-- [ ] Interface to help with debugging
+- [x] Interface to help with debugging
 
 ## UI/UX
 
