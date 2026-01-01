@@ -2,7 +2,7 @@
 
 ## Core Gameplay
 
-- [ ] Add support for Taunt and implement engaged/free concept
+- [x] Add support for Taunt and implement engaged/free concept
 - [ ] Add enchantments: spells that modify stats for rest of combat
 - [ ] Add one more mechanic that adds depth (will-points, cool-downs, or similar)
 
@@ -10,9 +10,13 @@
 
 - [ ] Implement an excellent AI using AlphaZero-style system
 
+## Admin
+
+- [ ] Interface to help with debugging
+
 ## UI/UX
 
-- [ ] Improve UI to make it mouse-friendly
+- [x] Improve UI to make it mouse-friendly
 - [ ] Improve UI to make it tablet-friendly
 - [ ] Improve UI / sprites
 

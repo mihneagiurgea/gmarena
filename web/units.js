@@ -6,6 +6,28 @@
 // SVG TEMPLATES
 // ============================================================================
 
+// Shield watermark for units with Taunt
+const TAUNT_SHIELD_SVG = `
+<svg viewBox="0 0 100 100" class="taunt-shield">
+  <path d="M50 10 L80 25 L80 55 Q80 80 50 95 Q20 80 20 55 L20 25 Z"
+        fill="rgba(74, 122, 199, 0.25)"
+        stroke="rgba(74, 122, 199, 0.5)"
+        stroke-width="2"/>
+  <path d="M50 20 L70 32 L70 52 Q70 72 50 85 Q30 72 30 52 L30 32 Z"
+        fill="none"
+        stroke="rgba(74, 122, 199, 0.3)"
+        stroke-width="1"/>
+</svg>`;
+
+// Shield icon for protected units (smaller, faint)
+const PROTECTED_SHIELD_SVG = `
+<svg viewBox="0 0 100 100" class="protected-shield">
+  <path d="M50 20 L75 32 L75 55 Q75 78 50 90 Q25 78 25 55 L25 32 Z"
+        fill="rgba(74, 122, 199, 0.15)"
+        stroke="rgba(74, 122, 199, 0.4)"
+        stroke-width="2"/>
+</svg>`;
+
 const UNIT_SVGS = {
   warrior: `
 <svg viewBox="0 0 100 100" class="unit-svg">
@@ -211,7 +233,8 @@ const UNIT_STATS = {
     wc: 9,
     meleeDamage: 20,
     rangedDamage: null,
-    spells: []
+    spells: [],
+    taunt: true
   },
   archer: {
     maxHp: 70,

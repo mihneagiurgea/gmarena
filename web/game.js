@@ -69,7 +69,8 @@ function createUnit(id, name, type, team) {
     wc: stats.wc,
     meleeDamage: stats.meleeDamage,
     rangedDamage: stats.rangedDamage,
-    spells: [...stats.spells]
+    spells: [...stats.spells],
+    taunt: stats.taunt || false
   };
 }
 
@@ -115,7 +116,8 @@ const gameState = {
   menuState: 'main', // 'main', 'move', 'melee', 'ranged', 'spell'
   validMoves: [],
   validTargets: [],
-  selectedSpell: null
+  selectedSpell: null,
+  playerControlsBoth: false // Set to true to control both teams (for testing)
 };
 
 // ============================================================================
@@ -319,6 +321,14 @@ function getCurrentUnit() {
   return gameState.units.find(u => u.id === unitId) || null;
 }
 
+/**
+ * Check if a unit is controlled by the player
+ */
+function isPlayerControlled(unit) {
+  if (!unit) return false;
+  return unit.team === 'player' || gameState.playerControlsBoth;
+}
+
 function getUnitAt(row, col) {
   return gameState.units.find(u => u.position.row === row && u.position.col === col) || null;
 }
@@ -359,6 +369,22 @@ function getAdjacentEnemies(unit) {
     .filter(u => u !== null && u.team !== unit.team);
 }
 
+/**
+ * Get valid melee targets, respecting Taunt
+ * If any adjacent enemy has Taunt, only taunters can be targeted
+ */
+function getValidMeleeTargets(unit) {
+  const adjacentEnemies = getAdjacentEnemies(unit);
+  const taunters = adjacentEnemies.filter(e => e.taunt);
+
+  // If there are taunters, only they can be targeted
+  if (taunters.length > 0) {
+    return { targets: taunters, protected: adjacentEnemies.filter(e => !e.taunt) };
+  }
+
+  return { targets: adjacentEnemies, protected: [] };
+}
+
 function getAllEnemies(unit) {
   return gameState.units.filter(u => u.team !== unit.team);
 }
@@ -393,10 +419,20 @@ function createGrid() {
 function renderUnits() {
   document.querySelectorAll('.entity').forEach(el => el.remove());
   document.querySelectorAll('.hp-bar-container').forEach(el => el.remove());
+  document.querySelectorAll('.taunt-indicator').forEach(el => el.remove());
+  document.querySelectorAll('.protected-indicator').forEach(el => el.remove());
 
   gameState.units.forEach(unit => {
     const cell = getCellAt(unit.position.row, unit.position.col);
     if (!cell) return;
+
+    // Add taunt shield watermark behind taunters
+    if (unit.taunt) {
+      const tauntEl = document.createElement('div');
+      tauntEl.className = 'taunt-indicator';
+      tauntEl.innerHTML = TAUNT_SHIELD_SVG;
+      cell.appendChild(tauntEl);
+    }
 
     const el = document.createElement('div');
     el.className = `entity ${unit.team}`;
@@ -423,11 +459,14 @@ function renderUnits() {
 
 function highlightCells() {
   document.querySelectorAll('.cell').forEach(cell => {
-    cell.classList.remove('highlight', 'move-option', 'melee-target', 'ranged-target', 'attack-target', 'active-unit');
+    cell.classList.remove('highlight', 'move-option', 'melee-target', 'ranged-target', 'attack-target', 'active-unit', 'protected-target');
     cell.onclick = null;
     const numEl = cell.querySelector('.cell-number');
     if (numEl) numEl.remove();
   });
+
+  // Remove protected indicators
+  document.querySelectorAll('.protected-indicator').forEach(el => el.remove());
 
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
@@ -438,7 +477,7 @@ function highlightCells() {
     currentCell.classList.add('active-unit');
   }
 
-  if (currentUnit.team !== 'player') return;
+  if (!isPlayerControlled(currentUnit)) return;
 
   if (gameState.menuState === 'main') {
     // Show all available actions directly on the grid
@@ -457,9 +496,11 @@ function highlightCells() {
       }
     });
 
-    // Melee targets (adjacent enemies)
+    // Melee targets (adjacent enemies) - respecting Taunt
     if (currentUnit.meleeDamage !== null) {
-      const meleeTargets = getAdjacentEnemies(currentUnit);
+      const { targets: meleeTargets, protected: protectedUnits } = getValidMeleeTargets(currentUnit);
+
+      // Show valid melee targets
       meleeTargets.forEach(target => {
         const cell = getCellAt(target.position.row, target.position.col);
         if (cell) {
@@ -470,6 +511,19 @@ function highlightCells() {
             const index = meleeTargets.findIndex(t => t.id === target.id);
             executeAttack(index);
           };
+        }
+      });
+
+      // Show protected units with shield indicator
+      protectedUnits.forEach(unit => {
+        const cell = getCellAt(unit.position.row, unit.position.col);
+        if (cell) {
+          cell.classList.add('protected-target');
+          // Add protected shield indicator
+          const protectedEl = document.createElement('div');
+          protectedEl.className = 'protected-indicator';
+          protectedEl.innerHTML = PROTECTED_SHIELD_SVG;
+          cell.appendChild(protectedEl);
         }
       });
     }
@@ -588,7 +642,7 @@ function renderOptions() {
     return;
   }
 
-  if (currentUnit.team !== 'player') {
+  if (!isPlayerControlled(currentUnit)) {
     optionsEl.innerHTML = `<div class="options-header">${currentUnit.name}'s Turn...</div>`;
     return;
   }
@@ -740,8 +794,9 @@ function showUnitInfo(unit) {
   if (unit.rangedDamage !== null) statsHtml += `Ranged: ${unit.rangedDamage} dmg<br>`;
   if (unit.spells.length > 0) {
     const spellNames = unit.spells.map(s => SPELLS[s].name).join(', ');
-    statsHtml += `Spells: ${spellNames}`;
+    statsHtml += `Spells: ${spellNames}<br>`;
   }
+  if (unit.taunt) statsHtml += `<span style="color: #4a9eff;">Taunt</span>`;
 
   unitInfo.innerHTML = `
     <div class="unit-info-content">
@@ -779,7 +834,8 @@ function enterMeleeMode() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
   gameState.menuState = 'melee';
-  gameState.validTargets = getAdjacentEnemies(currentUnit);
+  const { targets } = getValidMeleeTargets(currentUnit);
+  gameState.validTargets = targets;
   highlightCells();
   renderOptions();
 }
@@ -890,7 +946,7 @@ function endTurn() {
   renderOptions();
 
   const currentUnit = getCurrentUnit();
-  if (currentUnit && currentUnit.team === 'opponent') {
+  if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
     setTimeout(() => runOpponentAI(), 600);
   }
 }
@@ -909,31 +965,33 @@ function runOpponentAI() {
     return;
   }
 
-  // Check for adjacent enemies to melee attack
-  const adjacentEnemies = getAdjacentEnemies(currentUnit);
-  if (adjacentEnemies.length > 0 && currentUnit.meleeDamage !== null) {
-    // Attack the lowest HP enemy
-    const target = adjacentEnemies.reduce((a, b) => a.hp < b.hp ? a : b);
-    const result = performMeleeAttack(currentUnit, target);
+  // Check for adjacent enemies to melee attack (respecting Taunt)
+  if (currentUnit.meleeDamage !== null) {
+    const { targets: meleeTargets } = getValidMeleeTargets(currentUnit);
+    if (meleeTargets.length > 0) {
+      // Attack the lowest HP valid target
+      const target = meleeTargets.reduce((a, b) => a.hp < b.hp ? a : b);
+      const result = performMeleeAttack(currentUnit, target);
 
-    // Show roll result popup
-    showRollResult(result.roll, result.hit, result.critical, result.damage);
+      // Show roll result popup
+      showRollResult(result.roll, result.hit, result.critical, result.damage);
 
-    addLogEntry(result.message, 'opponent');
+      addLogEntry(result.message, 'opponent');
 
-    if (result.hit) {
-      applyDamage(target, result.damage);
-      removeDeadUnits();
+      if (result.hit) {
+        applyDamage(target, result.damage);
+        removeDeadUnits();
+      }
+
+      if (!checkGameOver()) {
+        endTurn();
+      } else {
+        renderUnits();
+        renderTurnOrder();
+        renderOptions();
+      }
+      return;
     }
-
-    if (!checkGameOver()) {
-      endTurn();
-    } else {
-      renderUnits();
-      renderTurnOrder();
-      renderOptions();
-    }
-    return;
   }
 
   // Use ranged attack if available
@@ -995,7 +1053,7 @@ function runOpponentAI() {
 
 document.addEventListener('keydown', (event) => {
   const currentUnit = getCurrentUnit();
-  if (!currentUnit || currentUnit.team !== 'player') return;
+  if (!currentUnit || !isPlayerControlled(currentUnit)) return;
 
   const key = event.key;
 
@@ -1043,7 +1101,7 @@ function initGame() {
   addLogEntry('Game started. Fight!');
 
   const firstUnit = getCurrentUnit();
-  if (firstUnit && firstUnit.team === 'opponent') {
+  if (firstUnit && firstUnit.team === 'opponent' && !gameState.playerControlsBoth) {
     setTimeout(() => runOpponentAI(), 600);
   }
 
