@@ -3,7 +3,7 @@
 ## Core Gameplay
 
 - [x] Add support for Taunt and implement engaged/free concept
-- [ ] Add Charge (with -4 WC)
+- [x] Add Charge (with -4 WC)
 - [ ] Add enchantments: spells that modify stats for rest of combat
 - [ ] Add one more mechanic that adds depth (will-points, cool-downs, or similar)
 - [ ] More spell ideas from old GM, links here:
