@@ -1,0 +1,1124 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f1322;
+  --accent: #4a9eff;
+  --accent-dim: #2d5a8a;
+  --text-primary: #e8e8e8;
+  --text-secondary: #8892a0;
+  --border-color: #2a3a5a;
+  --player-color: #4ade80;
+  --opponent-color: #f87171;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.left-section {
+  width: 80%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.arena {
+  width: 100%;
+  height: 80%;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Grid system */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 120px);
+  grid-template-rows: repeat(3, 140px);
+  gap: 4px;
+  padding: 20px;
+}
+
+.cell {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.cell.highlight {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  box-shadow: inset 0 0 20px rgba(74, 158, 255, 0.1);
+}
+
+.cell.move-option {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M16 4 L16 24 M16 24 L8 16 M16 24 L24 16"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M16 4 L16 24 M16 24 L8 16 M16 24 L24 16"/></svg>') 24 24, pointer;
+}
+
+.cell.move-option:hover {
+  background: rgba(251, 191, 36, 0.35);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+}
+
+.cell-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  background: #fbbf24;
+  color: var(--bg-primary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Entity styling */
+.entity {
+  width: 100px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.entity:hover {
+  transform: scale(1.05);
+}
+
+/* Allow clicking through entity when cell is a target */
+.cell.melee-target .entity,
+.cell.ranged-target .entity,
+.cell.attack-target .entity {
+  pointer-events: none;
+}
+
+.unit-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.player {
+  filter: drop-shadow(0 2px 8px rgba(74, 222, 128, 0.3));
+}
+
+.player:hover {
+  filter: drop-shadow(0 0 15px var(--player-color));
+}
+
+.opponent {
+  filter: drop-shadow(0 2px 8px rgba(248, 113, 113, 0.3));
+}
+
+.opponent:hover {
+  filter: drop-shadow(0 0 15px var(--opponent-color));
+}
+
+/* Active unit indicator */
+.cell.active-unit {
+  border-color: var(--accent);
+  border-width: 3px;
+  box-shadow: 0 0 20px rgba(74, 158, 255, 0.5), inset 0 0 15px rgba(74, 158, 255, 0.15);
+  animation: active-pulse 2s ease-in-out infinite;
+}
+
+@keyframes active-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(74, 158, 255, 0.5), inset 0 0 15px rgba(74, 158, 255, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(74, 158, 255, 0.7), inset 0 0 20px rgba(74, 158, 255, 0.25); }
+}
+
+.options {
+  width: 100%;
+  height: 20%;
+  background: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
+  padding: 20px 30px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 10px;
+}
+
+.options-header {
+  width: 100%;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option:hover {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.1);
+}
+
+.option-key {
+  width: 28px;
+  height: 28px;
+  background: var(--accent-dim);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.option-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.right-section {
+  width: 20%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.status {
+  height: 50%;
+  background: var(--bg-tertiary);
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.status-header {
+  display: none;
+}
+
+.status-content {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* Turn Order Display */
+.turn-order {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.turn-order-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.turn-order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.turn-order-item:hover {
+  background: rgba(74, 158, 255, 0.15);
+}
+
+.turn-order-item.player {
+  border-left-color: var(--player-color);
+}
+
+.turn-order-item.opponent {
+  border-left-color: var(--opponent-color);
+}
+
+.turn-order-item.current {
+  background: rgba(74, 158, 255, 0.2);
+  border-left-color: var(--accent);
+}
+
+.turn-order-marker {
+  width: 12px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.turn-order-name {
+  color: var(--text-primary);
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.status-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.unit-info {
+  flex: 1;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.unit-info-placeholder {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.unit-info-content {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+}
+
+.unit-info-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.unit-info-title.player {
+  color: var(--player-color);
+}
+
+.unit-info-title.opponent {
+  color: var(--opponent-color);
+}
+
+.unit-info-stats {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Action Section - contains Log and Debug panels */
+.action-section {
+  height: 50%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-tertiary);
+}
+
+.log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: flex 0.3s ease;
+}
+
+.log.minimized {
+  flex: 0 0 auto;
+}
+
+.log-header {
+  padding: 15px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.log-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log.minimized .log-title::before {
+  content: '📋';
+  font-size: 16px;
+}
+
+.log.minimized .log-entries {
+  display: none;
+}
+
+/* Panel toggle button */
+.panel-toggle {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.panel-toggle:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+/* Debug Panel */
+.debug-panel {
+  border-top: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.debug-panel.minimized .debug-content {
+  display: none;
+}
+
+.debug-header {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.debug-icon {
+  font-size: 16px;
+}
+
+.debug-title {
+  flex: 1;
+}
+
+.debug-content {
+  padding: 10px 20px 15px;
+}
+
+.debug-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.debug-option:hover {
+  background: rgba(74, 158, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.debug-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-entry {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-dim);
+}
+
+.log-entry.player-action {
+  border-left-color: var(--player-color);
+}
+
+.log-entry.opponent-action {
+  border-left-color: var(--opponent-color);
+}
+
+/* Scrollbar styling */
+.log-entries::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-entries::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.log-entries::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.log-entries::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
+
+/* HP Bar styling */
+.hp-bar-container {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hp-bar {
+  height: 100%;
+  background: var(--player-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.opponent .hp-bar,
+.cell:has(.opponent) .hp-bar {
+  background: var(--opponent-color);
+}
+
+.hp-bar.low {
+  background: #fbbf24;
+}
+
+.hp-bar.critical {
+  background: #ef4444;
+  animation: pulse-hp 1s ease-in-out infinite;
+}
+
+@keyframes pulse-hp {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Attack target styling - Melee */
+/* SWORD VERSION 3: Crossed swords (ACTIVE) */
+.cell.melee-target {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.2);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23c0c0c0" stroke-width="3" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><path stroke="%23ef4444" stroke-width="3" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><circle cx="16" cy="16" r="3" fill="%23fff" stroke="%23000" stroke-width="2"/></svg>') 24 24, crosshair;
+}
+
+.cell.melee-target:hover {
+  background: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Attack target styling - Ranged */
+.cell.ranged-target {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.2);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23f97316" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23f97316" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23f97316" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.cell.ranged-target:hover {
+  background: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+}
+
+/* Spell targeting */
+.cell.attack-target {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.2);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23a855f7" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23a855f7" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23a855f7" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.cell.attack-target:hover {
+  background: rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.cell-number.attack {
+  background: #ef4444;
+}
+
+.cell-number.melee {
+  background: #ef4444;
+}
+
+.cell-number.ranged {
+  background: #f97316;
+}
+
+/* Turn order HP display */
+.turn-order-hp {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Attack option styling */
+.option.attack-option {
+  border-left: 3px solid #ef4444;
+}
+
+/* D20 Roll Result Popup */
+.roll-result {
+  position: fixed;
+  top: 50%;
+  left: 40%;
+  transform: translate(-50%, -50%);
+  padding: 30px 50px;
+  border-radius: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  z-index: 1000;
+  animation: roll-popup 1.6s ease-out forwards;
+  pointer-events: none;
+}
+
+.roll-result .roll-number {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.roll-result .roll-text {
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.roll-result .roll-damage {
+  display: block;
+  font-size: 16px;
+  margin-top: 8px;
+  color: #fbbf24;
+}
+
+.roll-result.miss {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border: 3px solid #6b7280;
+  color: #9ca3af;
+  box-shadow: 0 0 30px rgba(107, 114, 128, 0.4);
+}
+
+.roll-result.hit {
+  background: linear-gradient(135deg, #166534 0%, #14532d 100%);
+  border: 3px solid #22c55e;
+  color: #4ade80;
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
+}
+
+.roll-result.critical {
+  background: linear-gradient(135deg, #7c2d12 0%, #451a03 100%);
+  border: 3px solid #f97316;
+  color: #fbbf24;
+  box-shadow: 0 0 40px rgba(251, 191, 36, 0.6);
+  animation: roll-popup 1.6s ease-out forwards, critical-glow 0.3s ease-in-out infinite;
+}
+
+@keyframes roll-popup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.9);
+  }
+}
+
+@keyframes critical-glow {
+  0%, 100% { box-shadow: 0 0 40px rgba(251, 191, 36, 0.6); }
+  50% { box-shadow: 0 0 60px rgba(251, 191, 36, 0.9); }
+}
+
+/* Taunt indicator - shield watermark behind taunting units */
+.taunt-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px;
+  height: 130px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.taunt-indicator .taunt-shield {
+  width: 100%;
+  height: 100%;
+}
+
+/* Protected indicator - faint shield over protected units */
+.protected-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 120px;
+  pointer-events: none;
+  z-index: 10;
+  animation: protected-pulse 2s ease-in-out infinite;
+}
+
+.protected-indicator .protected-shield {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes protected-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Protected cell styling - can't be targeted */
+.cell.protected-target {
+  border-color: #4a7ac7;
+  background: rgba(74, 122, 199, 0.1);
+  cursor: not-allowed;
+}
+
+.cell.protected-target:hover {
+  background: rgba(74, 122, 199, 0.15);
+}
+
+/* ============================================================================
+   ZONES LAYOUT
+   ============================================================================ */
+
+.zones-container {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 20px;
+  height: 100%;
+  width: 100%;
+}
+
+.zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.zone:nth-child(odd) {
+  background: rgba(15, 19, 34, 0.8);
+}
+
+.zone:nth-child(even) {
+  background: rgba(22, 33, 62, 0.6);
+}
+
+.zone-label {
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 10px;
+}
+
+.zone-units {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  align-items: center;
+}
+
+/* Unit wrapper within zones */
+.unit-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.unit-wrapper:hover {
+  background: rgba(74, 158, 255, 0.1);
+}
+
+.unit-wrapper.player {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.unit-wrapper.opponent {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.unit-wrapper .entity {
+  width: 80px;
+  height: 90px;
+}
+
+.unit-wrapper .hp-bar-container {
+  position: relative;
+  width: 80px;
+  height: 6px;
+  margin-top: 4px;
+  bottom: auto;
+  left: auto;
+  right: auto;
+}
+
+.unit-name {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Active unit in zone */
+.unit-wrapper.active-unit {
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+  animation: active-unit-pulse 2s ease-in-out infinite;
+}
+
+@keyframes active-unit-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(74, 158, 255, 0.5); }
+  50% { box-shadow: 0 0 25px rgba(74, 158, 255, 0.7); }
+}
+
+/* Zone movement highlighting */
+.zone.move-forward-target {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15) !important;
+}
+
+.zone.move-forward-target:hover {
+  background: rgba(34, 197, 94, 0.25) !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.zone.move-backward-target {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15) !important;
+}
+
+.zone.move-backward-target:hover {
+  background: rgba(251, 191, 36, 0.25) !important;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+}
+
+/* Arrow cursors - right pointing (player forward, opponent backward) */
+.zone.move-forward-target.arrow-right {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
+}
+
+.zone.move-backward-target.arrow-right {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
+}
+
+/* Arrow cursors - left pointing (player backward, opponent forward) */
+.zone.move-forward-target.arrow-left {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
+}
+
+.zone.move-backward-target.arrow-left {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
+}
+
+/* Zone blocked by taunt */
+.zone.taunt-blocked {
+  border-color: #6b7280;
+  border-style: dashed;
+  position: relative;
+}
+
+.zone.taunt-blocked::after {
+  content: '🚫';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.zone.taunt-blocked:hover {
+  background: rgba(107, 114, 128, 0.15) !important;
+  cursor: not-allowed;
+}
+
+.zone.taunt-blocked:hover::after {
+  opacity: 0.7;
+}
+
+/* Unit targeting in zones */
+.unit-wrapper.melee-target {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23c0c0c0" stroke-width="3" fill="none" stroke-linecap="round" d="M6 26 L26 6"/><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><path stroke="%23ef4444" stroke-width="3" fill="none" stroke-linecap="round" d="M6 6 L26 26"/><circle cx="16" cy="16" r="3" fill="%23fff" stroke="%23000" stroke-width="2"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.melee-target:hover {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.unit-wrapper.ranged-target {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23f97316" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23f97316" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23f97316" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.ranged-target:hover {
+  background: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+}
+
+.unit-wrapper.spell-target {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="%23000" stroke-width="4"/><circle cx="16" cy="16" r="10" fill="none" stroke="%23a855f7" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="%23a855f7" stroke="%23000" stroke-width="2"/><path stroke="%23000" stroke-width="3" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/><path stroke="%23a855f7" stroke-width="1.5" d="M16 2 L16 6 M16 26 L16 30 M2 16 L6 16 M26 16 L30 16"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.spell-target:hover {
+  background: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+/* Charge target - sword with forward arrow cursor */
+.unit-wrapper.charge-target {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.25);
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="5" stroke-linecap="round" d="M4 16 L18 16 M18 16 L12 10 M18 16 L12 22"/><path fill="none" stroke="%23fbbf24" stroke-width="2.5" stroke-linecap="round" d="M4 16 L18 16 M18 16 L12 10 M18 16 L12 22"/><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M20 26 L30 6"/><path stroke="%23dc2626" stroke-width="3" fill="none" stroke-linecap="round" d="M20 26 L30 6"/><circle cx="30" cy="6" r="3" fill="%23dc2626" stroke="%23000" stroke-width="2"/></svg>') 24 24, crosshair;
+}
+
+.unit-wrapper.charge-target:hover {
+  background: rgba(220, 38, 38, 0.4);
+  box-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
+}
+
+/* Allow clicking through child elements when wrapper is a target */
+.unit-wrapper.melee-target .entity,
+.unit-wrapper.melee-target .hp-bar-container,
+.unit-wrapper.melee-target .unit-name,
+.unit-wrapper.melee-target .taunt-indicator,
+.unit-wrapper.ranged-target .entity,
+.unit-wrapper.ranged-target .hp-bar-container,
+.unit-wrapper.ranged-target .unit-name,
+.unit-wrapper.ranged-target .taunt-indicator,
+.unit-wrapper.spell-target .entity,
+.unit-wrapper.spell-target .hp-bar-container,
+.unit-wrapper.spell-target .unit-name,
+.unit-wrapper.spell-target .taunt-indicator,
+.unit-wrapper.charge-target .entity,
+.unit-wrapper.charge-target .hp-bar-container,
+.unit-wrapper.charge-target .unit-name,
+.unit-wrapper.charge-target .taunt-indicator {
+  pointer-events: none;
+}
+
+.unit-wrapper.protected-target {
+  border-color: #4a7ac7;
+  background: rgba(74, 122, 199, 0.15);
+  cursor: not-allowed;
+}
+
+/* Target number indicator */
+.target-number {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid var(--bg-primary);
+}
+
+.unit-wrapper.ranged-target .target-number {
+  background: #f97316;
+}
+
+.unit-wrapper.spell-target .target-number {
+  background: #a855f7;
+}
+
+.unit-wrapper.charge-target .target-number {
+  background: #dc2626;
+}
+
+/* Taunt indicator adjustments for zones */
+.unit-wrapper .taunt-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 90px;
+  height: 100px;
+}
+
+/* Protected indicator adjustments for zones */
+.unit-wrapper .protected-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 80px;
+  height: 90px;
+}
+
+/* Taunted indicator - shown when unit can't move forward due to taunt */
+.taunted-indicator {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  font-size: 18px;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.unit-wrapper.active-unit:hover .taunted-indicator {
+  opacity: 1;
+}
+
+/* Turn order zone indicator */
+.turn-order-zone {
+  font-size: 10px;
+  color: var(--accent);
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: rgba(74, 158, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Zone scrollbar */
+.zone-units::-webkit-scrollbar {
+  width: 4px;
+}
+
+.zone-units::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.zone-units::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.zone-units::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
