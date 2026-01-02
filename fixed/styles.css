@@ -889,74 +889,6 @@ html, body {
   50% { box-shadow: 0 0 25px rgba(74, 158, 255, 0.7); }
 }
 
-/* Zone movement highlighting */
-.zone.move-forward-target {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.15) !important;
-}
-
-.zone.move-forward-target:hover {
-  background: rgba(34, 197, 94, 0.25) !important;
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-}
-
-.zone.move-backward-target {
-  border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.15) !important;
-}
-
-.zone.move-backward-target:hover {
-  background: rgba(251, 191, 36, 0.25) !important;
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
-}
-
-/* Arrow cursors - right pointing (player forward, opponent backward) */
-.zone.move-forward-target.arrow-right {
-  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
-}
-
-.zone.move-backward-target.arrow-right {
-  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 16 L26 16 M26 16 L18 8 M26 16 L18 24"/></svg>') 24 24, pointer;
-}
-
-/* Arrow cursors - left pointing (player backward, opponent forward) */
-.zone.move-forward-target.arrow-left {
-  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%2322c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
-}
-
-.zone.move-backward-target.arrow-left {
-  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/><path fill="none" stroke="%23fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M26 16 L6 16 M6 16 L14 8 M6 16 L14 24"/></svg>') 24 24, pointer;
-}
-
-/* Zone blocked by taunt */
-.zone.taunt-blocked {
-  border-color: #6b7280;
-  border-style: dashed;
-  position: relative;
-}
-
-.zone.taunt-blocked::after {
-  content: '🚫';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 48px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-}
-
-.zone.taunt-blocked:hover {
-  background: rgba(107, 114, 128, 0.15) !important;
-  cursor: not-allowed;
-}
-
-.zone.taunt-blocked:hover::after {
-  opacity: 0.7;
-}
-
 /* Unit targeting in zones */
 .unit-wrapper.melee-target {
   border-color: #ef4444;
@@ -991,18 +923,6 @@ html, body {
   box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
 }
 
-/* Charge target - sword with forward arrow cursor */
-.unit-wrapper.charge-target {
-  border-color: #dc2626;
-  background: rgba(220, 38, 38, 0.25);
-  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 32 32"><path fill="none" stroke="%23000" stroke-width="5" stroke-linecap="round" d="M4 16 L18 16 M18 16 L12 10 M18 16 L12 22"/><path fill="none" stroke="%23fbbf24" stroke-width="2.5" stroke-linecap="round" d="M4 16 L18 16 M18 16 L12 10 M18 16 L12 22"/><path stroke="%23000" stroke-width="5" fill="none" stroke-linecap="round" d="M20 26 L30 6"/><path stroke="%23dc2626" stroke-width="3" fill="none" stroke-linecap="round" d="M20 26 L30 6"/><circle cx="30" cy="6" r="3" fill="%23dc2626" stroke="%23000" stroke-width="2"/></svg>') 24 24, crosshair;
-}
-
-.unit-wrapper.charge-target:hover {
-  background: rgba(220, 38, 38, 0.4);
-  box-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
-}
-
 /* Allow clicking through child elements when wrapper is a target */
 .unit-wrapper.melee-target .entity,
 .unit-wrapper.melee-target .hp-bar-container,
@@ -1015,11 +935,7 @@ html, body {
 .unit-wrapper.spell-target .entity,
 .unit-wrapper.spell-target .hp-bar-container,
 .unit-wrapper.spell-target .unit-name,
-.unit-wrapper.spell-target .taunt-indicator,
-.unit-wrapper.charge-target .entity,
-.unit-wrapper.charge-target .hp-bar-container,
-.unit-wrapper.charge-target .unit-name,
-.unit-wrapper.charge-target .taunt-indicator {
+.unit-wrapper.spell-target .taunt-indicator {
   pointer-events: none;
 }
 
@@ -1055,10 +971,6 @@ html, body {
   background: #a855f7;
 }
 
-.unit-wrapper.charge-target .target-number {
-  background: #dc2626;
-}
-
 /* Taunt indicator adjustments for zones */
 .unit-wrapper .taunt-indicator {
   position: absolute;
@@ -1079,20 +991,21 @@ html, body {
   height: 90px;
 }
 
-/* Taunted indicator - shown when unit can't move forward due to taunt */
+/* Taunted indicator - shows sword icon when unit is under Taunt X effect */
 .taunted-indicator {
   position: absolute;
   top: -5px;
   left: -5px;
-  font-size: 18px;
+  font-size: 16px;
   z-index: 15;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 0.9;
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  animation: taunted-pulse 1.5s ease-in-out infinite;
 }
 
-.unit-wrapper.active-unit:hover .taunted-indicator {
-  opacity: 1;
+@keyframes taunted-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
 }
 
 /* Turn order zone indicator */

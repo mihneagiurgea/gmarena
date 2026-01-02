@@ -1,37 +1,30 @@
-# Zones
+# Fixed Position Zones (Variant 3)
 
-There will be 4 or 5 zones, one next to each other on a line. We'll start with 5.
+There are 4 zones, one next to each other on a line, numbered from left to right as such:
+AR (Team A - Ranged), AM (Team A - Melee), BM (Team B - Melee), BR (Team B - Ranged).
+ - Units are assigned to a zone and never move.
+ - A zone can have 1 or more units in it, but only from a single team.
 
-## Movement
+## Start of Combat
+At the start of the game, units are assigned automatically to a zone, as such:
+ - Team A ("the player") ranged units will start in AR, and melee units in AM
+ - Team B ("the opponent") ranged units will start in BR, and melee units in BM
 
-A zone can have 1 or more units in it, from both teams. At the start of the game, 
-team A ("the player") units start on the left-most zone ("zone 0"), and
-team B ("the opponent") units start on the right-most zone ("zone 4"). Team A units
-"move forward" towards the right, while Team B units "mofr forward" towards the left.
-In rare cases, units can move backwards.
+## Ranged Attacks
+Ranged attacks (including spells) can target any unit from any zone.
 
-## Distance
-The distance between 2 units is equal to the distance between their zone's indexes.
-E.g. units in the same Zone have distance = 0.
+## Melee Attacks
+Melee attacks can be made against units from the adjacent zone (e.g. if attacker
+is in AM zone, can attack any unit from BM), or against units in the enemy ranged
+zone (e.g. BR) if taunted by a unit there.
 
-Melee attacks can only target other units with distance = 0, i.e. in the same zone.
-Ranged attacks (including spels) can target units at any distance.
+## Taunt X
+Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
+unit ("the taunted"), that unit must attack one of its taunters, if able, for X
+rounds. At the end of the taunted unit's turn, X is decreased by 1.
 
-## Taunt
-Normally, units can move past zones with enemy units, except the machanics of Taunt.
+If a unit is taunted, it can only attack one of the taunter units. It can still
+choose to not attack any unit (skip turn).
 
-Within a given zone, we define the following:
-Taunt(A) = the number of units from team A that have Taunt, in that zone
-Num(B) = the number of units from team B, with or without Taunt
-
-A unit from team B can move forward (as defined above) if and only if Num(B) > Taunt(A).
-A unit from team B can always move backwards.
-
-Viceversa applies for team A.
-
-# Actions
-
-## Charge
-If a melee unit can move forward and the forward zone has enemies, then it can perform
-a "Charge!" attack against any of those enemies: a move into that zone, following by a 
-regular Melee Attack with a -4 WC penalty.
+If a Melee attack has Taunt X and hits, the defender will be Taunted X by the attacker.
+If it misses, nothing happens.

@@ -234,7 +234,7 @@ const UNIT_STATS = {
     meleeDamage: 20,
     rangedDamage: null,
     spells: [],
-    taunt: true
+    tauntDuration: 2  // Applies Taunt 2 on melee hit
   },
   archer: {
     maxHp: 70,
@@ -261,7 +261,8 @@ const UNIT_STATS = {
     wc: 11,
     meleeDamage: 25,
     rangedDamage: null,
-    spells: []
+    spells: [],
+    tauntDuration: 2  // Applies Taunt 2 on melee hit
   },
   goblin: {
     maxHp: 50,
