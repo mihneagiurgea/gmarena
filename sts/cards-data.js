@@ -22,10 +22,10 @@
  *
  *   // What the card does:
  *   effects: {
- *     damage: number,           // Deal damage (uses unit's damage stat if not specified)
- *     damageMultiplier: number, // Multiply unit's damage (e.g., 1.5 for 150%)
- *     taunt: number,            // Apply Taunt X to target
- *     heal: number,             // Heal target
+ *     damage: number,            // Base damage (unit's damageBonus is added to this)
+ *     taunt: number,             // Apply Taunt X to target
+ *     heal: number,              // Heal target
+ *     block: number,             // Gain block
  *     // ... more effects can be added
  *   },
  *
@@ -42,9 +42,9 @@ const CARD_DATA = [
   {
     id: 'attack',
     name: 'Attack',
-    description: 'Deal damage to target enemy',
+    description: 'Deal 15 damage',
     effects: {
-      damage: true  // Uses unit's damage stat
+      damage: 15
     },
     target: 'enemy'
   },
@@ -66,10 +66,10 @@ const CARD_DATA = [
   {
     id: 'shieldBash',
     name: 'Shield Bash',
-    description: 'Deal damage and Taunt (2)',
+    description: 'Deal 10 damage and Taunt (2)',
     requires: 'melee',
     effects: {
-      damage: true,
+      damage: 10,
       taunt: 2
     },
     target: 'enemy'

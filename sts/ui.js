@@ -416,7 +416,7 @@ function showUnitInfo(unit) {
   statsHtml += `Zone: ${ZONE_NAMES[unit.zone]}<br>`;
   statsHtml += `Range: ${unit.attackRange}<br>`;
   statsHtml += `Type: ${unit.attackType}<br>`;
-  statsHtml += `Damage: ${unit.damage}<br>`;
+  statsHtml += `Damage Bonus: ${unit.damageBonus >= 0 ? '+' : ''}${unit.damageBonus}<br>`;
 
   // Show taunt effects on this unit with duration
   if (isTaunted(unit)) {

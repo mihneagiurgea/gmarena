@@ -2,75 +2,60 @@
  * Unit Definitions
  *
  * This file contains all unit stats. Edit this file to add/modify units.
- * The game engine will read from UNIT_DATA to build units.
+ * The game engine reads from UNIT_DATA to build units.
  *
  * UNIT STRUCTURE:
  * {
- *   type: string,              // Unique identifier (matches key in sprites.js UNIT_SVGS)
  *   maxHp: number,             // Maximum health points
  *   attackRange: 'melee' | 'ranged',  // Attack range type
  *   attackType: 'physical' | 'magic', // Attack damage type
- *   damage: number,            // Base damage dealt
+ *   damageBonus: number,       // Bonus added to card's base damage (can be negative)
  * }
+ *
+ * The key is the unit type (must match key in sprites.js UNIT_SVGS)
  */
 
-const UNIT_DATA = [
+const UNIT_DATA = {
   // ============================================================================
   // PLAYER UNITS
   // ============================================================================
 
-  {
-    type: 'warrior',
+  warrior: {
     maxHp: 90,
     attackRange: 'melee',
     attackType: 'physical',
-    damage: 20
+    damageBonus: 5
   },
 
-  {
-    type: 'archer',
+  archer: {
     maxHp: 70,
     attackRange: 'ranged',
     attackType: 'physical',
-    damage: 15
+    damageBonus: 0
   },
 
-  {
-    type: 'mage',
+  mage: {
     maxHp: 50,
     attackRange: 'ranged',
     attackType: 'magic',
-    damage: 20
+    damageBonus: 5
   },
 
   // ============================================================================
   // ENEMY UNITS
   // ============================================================================
 
-  {
-    type: 'orc',
+  orc: {
     maxHp: 110,
     attackRange: 'melee',
     attackType: 'physical',
-    damage: 25
+    damageBonus: 10
   },
 
-  {
-    type: 'goblin',
+  goblin: {
     maxHp: 50,
     attackRange: 'ranged',
     attackType: 'physical',
-    damage: 10
+    damageBonus: -5
   }
-];
-
-// Build UNIT_STATS object from UNIT_DATA array for engine compatibility
-const UNIT_STATS = {};
-UNIT_DATA.forEach(unit => {
-  UNIT_STATS[unit.type] = {
-    maxHp: unit.maxHp,
-    attackRange: unit.attackRange,
-    attackType: unit.attackType,
-    damage: unit.damage
-  };
-});
+};

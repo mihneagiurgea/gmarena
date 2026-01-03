@@ -100,7 +100,7 @@ function createDeck(team) {
  * @property {number} maxHp
  * @property {'melee' | 'ranged'} attackRange
  * @property {'physical' | 'magic'} attackType
- * @property {number} damage
+ * @property {number} damageBonus - Bonus added to card's base damage
  * @property {number} block - Current block (absorbs damage, resets each turn)
  * @property {boolean} hasAdvanced - True if melee unit has advanced to X
  * @property {Effect[]} effects - Active effects on this unit
@@ -129,10 +129,10 @@ const gameState = {
 // ============================================================================
 
 /**
- * Create a unit with stats from UNIT_STATS
+ * Create a unit with stats from UNIT_DATA
  */
 function createUnit(id, name, type, team) {
-  const stats = UNIT_STATS[type];
+  const stats = UNIT_DATA[type];
   return {
     id,
     name,
@@ -143,7 +143,7 @@ function createUnit(id, name, type, team) {
     maxHp: stats.maxHp,
     attackRange: stats.attackRange,
     attackType: stats.attackType,
-    damage: stats.damage,
+    damageBonus: stats.damageBonus,
     block: 0,
     hasAdvanced: false,
     effects: []
@@ -371,20 +371,9 @@ function executeCardEffects(attacker, target, card) {
 
   const messages = [];
 
-  // Calculate damage
+  // Calculate damage: card base damage + unit's damage bonus
   if (card.effects.damage) {
-    if (card.effects.damage === true) {
-      // Use unit's damage stat
-      result.damage = attacker.damage;
-    } else {
-      // Use fixed damage value
-      result.damage = card.effects.damage;
-    }
-  }
-
-  // Apply damage multiplier
-  if (card.effects.damageMultiplier) {
-    result.damage = Math.floor(attacker.damage * card.effects.damageMultiplier);
+    result.damage = card.effects.damage + (attacker.damageBonus || 0);
   }
 
   // Build message for damage
