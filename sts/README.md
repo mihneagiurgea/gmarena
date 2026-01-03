@@ -1,31 +1,78 @@
-# Fixed Position Zones (Variant 3)
+# Game Engine
 
-There are 4 zones, one next to each other on a line, numbered from left to right as such:
-AR (Team A - Ranged), AM (Team A - Melee), BM (Team B - Melee), BR (Team B - Ranged).
- - Units are assigned to a zone and never move.
- - A zone can have 1 or more units in it, but only from a single team.
+This is a two-player game: "the player" controls team A that contains 2-3 units,
+and "the opponent" controls team B that contains another 2-3 units.
 
-## Start of Combat
-At the start of the game, units are assigned automatically to a zone, as such:
- - Team A ("the player") ranged units will start in AR, and melee units in AM
- - Team B ("the opponent") ranged units will start in BR, and melee units in BM
+Each player has a deck of 10-15 cards that are NOT unique.
+
+## Zones 
+
+There are 3 zones, one next to each other on a line, numbered from left to right as such:
+A - X - B. A zone can have 1 or more units in it, including enemy units.
+
+At the start of the game, all units from Team A are assigned to zone A, and all units
+from Team B are assigned to zone B.
+
+## Unit Stats
+Units have the following stats:
+ - HP (Health Points, when it reaches 0 the unit dies)
+ - Attack Range: melee or range
+ - Attack Type: physical or magic
+ - Damage: how much damage they deal on attack
+
+## Start of game
+At the start of game:
+ - each player's deck is shuffled randomly, then each player draws 5 cards
+ - the ordering of units is done by randomizing all units; the order does not change across
+   the game; then the game starts by the first unit playing their turn, then the 2nd etc.
+ - the game ends when only units from a single team are alive
+
+## Playing your Turn 
+If the current unit is melee, and this is their first turn this game, instead of taking their turn as normal, they will choose a card to discard, then advance to 
+zone X and end their turn. The "at the end of turn" from below applies as normal.
+
+Otherwise, the controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
+
+Then, at the end of the turn:
+ - all effects' duration is decremented by 1; if the duration is 0, the effect ends
+ - the player draws cards up to 5 cards
+
+Once a card is played, it's set aside in a special "Graveyard" zone. When the desk is out of cards, all cards from the Graveyard are shuffled and placed into the deck.
+
+## Attacking
+When a unit ("the attacker") attacks another unit ("the target"),
+the damage is subtracted from the target's HP.
 
 ## Ranged Attacks
-Ranged attacks (including spells) can target any unit from any zone.
-
-TODO: some bugs here; do we really need zones?
-## Taunt X
-Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
-unit ("the taunted"), that unit must attack one of its taunters, if able, for X
-rounds. At the end of the taunted unit's turn, X is decreased by 1.
-
-If a unit is taunted, it can only attack one of the taunter units. It can still
-choose to not attack any unit (skip turn).
-
-If a Melee attack has Taunt X and hits, the defender will be Taunted X by the attacker.
-If it misses, nothing happens.
+Ranged attacks (including spells) can target any unit from any zone, e.g. a unit
+from zone A can attack a unit from zone X or B.
 
 ## Melee Attacks
-Melee attacks can be made against units from the adjacent zone (e.g. if attacker
-is in AM zone, can attack any unit from BM), or against units in the enemy ranged
-zone (e.g. BR) if taunted by a unit there.
+Melee attacks can target any unit from either the same zone, or an adjacent zone,
+e.g. a unit from zone X can attack a unit from zone X or B.
+
+### Effect: Taunt (X)
+Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
+unit ("the taunted"), that unit must attack one of its taunters, if able, for X
+rounds. 
+
+Note: since this is an effect, at the end of the taunted unit's turn, X is decreased by 1.
+
+If a unit is taunted and chooses to attack, it must attack one of the taunter units.
+If a unit is taunted and chooses not to attack, no restrictions.
+
+## Cards
+For starters, we'll have only a single type of card:
+- Attack: perform attack
+
+This card can be played on any unit type.
+
+# UI (User Interface)
+We will rename the "Action Section" to the "Hand Section", where we'll display each card in hand.
+
+# TODO
+- [ ] Block
+- [ ] Absorb / Armor / Magic Resistance
+- [ ] Implement Cards 
+- [ ] Better UI for playing card
+- [ ] Better sprites for cards

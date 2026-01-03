@@ -2,8 +2,8 @@
  * Game UI - Rendering, DOM manipulation, and event handling
  * Depends on engine.js for game logic
  *
- * Fixed position zones: AR, AM, BM, BR
- * Units are assigned at start and never move
+ * 3 zones: A - X - B
+ * Card-based combat system
  */
 
 // ============================================================================
@@ -52,14 +52,6 @@ function renderUnits() {
       unitWrapper.className = `unit-wrapper ${unit.team}`;
       unitWrapper.dataset.unitId = unit.id;
 
-      // Taunt duration indicator (shows if this unit applies taunt on melee)
-      if (unit.tauntDuration > 0) {
-        const tauntEl = document.createElement('div');
-        tauntEl.className = 'taunt-indicator';
-        tauntEl.innerHTML = TAUNT_SHIELD_SVG;
-        unitWrapper.appendChild(tauntEl);
-      }
-
       // Unit sprite
       const el = document.createElement('div');
       el.className = `entity ${unit.team}`;
@@ -90,10 +82,7 @@ function renderUnits() {
         const tauntedEl = document.createElement('div');
         tauntedEl.className = 'taunted-indicator';
         const taunters = getActiveTaunters(unit);
-        const tauntInfo = unit.tauntedBy.map(e => {
-          const taunter = gameState.units.find(u => u.id === e.taunterId);
-          return taunter ? `${taunter.name} (${e.duration})` : `??? (${e.duration})`;
-        }).join(', ');
+        const tauntInfo = taunters.map(t => t.name).join(', ');
         tauntedEl.textContent = '⚔️';
         tauntedEl.title = `Taunted by: ${tauntInfo}`;
         unitWrapper.appendChild(tauntedEl);
@@ -125,10 +114,10 @@ function highlightCurrentUnit() {
   }
 }
 
-function highlightZones() {
+function highlightTargets() {
   // Remove target highlights from units
   document.querySelectorAll('.unit-wrapper').forEach(el => {
-    el.classList.remove('melee-target', 'ranged-target', 'spell-target', 'protected-target');
+    el.classList.remove('melee-target', 'ranged-target');
     el.onclick = null;
   });
 
@@ -139,63 +128,15 @@ function highlightZones() {
 
   if (!isPlayerControlled(currentUnit)) return;
 
-  if (gameState.menuState === 'main') {
-    // Highlight melee targets (adjacent zone or taunters)
-    if (currentUnit.meleeDamage !== null) {
-      const { targets: meleeTargets, mustAttackTaunters } = getValidMeleeTargets(currentUnit);
+  // Only highlight when in targeting phase
+  if (gameState.phase === 'targeting' && gameState.validTargets.length > 0) {
+    const targetClass = isMeleeUnit(currentUnit) ? 'melee-target' : 'ranged-target';
 
-      meleeTargets.forEach(target => {
-        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
-        if (wrapper) {
-          wrapper.classList.add('melee-target');
-          wrapper.onclick = () => {
-            gameState.menuState = 'melee';
-            gameState.validTargets = meleeTargets;
-            const index = meleeTargets.findIndex(t => t.id === target.id);
-            executeAttack(index);
-          };
-        }
-      });
-    }
-
-    // Highlight ranged targets (all enemies)
-    if (currentUnit.rangedDamage !== null) {
-      const allEnemies = getAllEnemies(currentUnit);
-
-      allEnemies.forEach(target => {
-        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
-        if (wrapper && !wrapper.classList.contains('melee-target')) {
-          wrapper.classList.add('ranged-target');
-          wrapper.onclick = () => {
-            gameState.menuState = 'ranged';
-            gameState.validTargets = allEnemies;
-            const index = allEnemies.findIndex(t => t.id === target.id);
-            executeAttack(index);
-          };
-        }
-      });
-    }
-
-    // Highlight spell targets (all enemies)
-    if (currentUnit.spells.length > 0) {
-      const allEnemies = getAllEnemies(currentUnit);
-      allEnemies.forEach(target => {
-        const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
-        if (wrapper && !wrapper.classList.contains('melee-target') && !wrapper.classList.contains('ranged-target')) {
-          wrapper.classList.add('spell-target');
-        }
-      });
-    }
-
-  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
-    // Highlight valid targets with numbers
     gameState.validTargets.forEach((target, index) => {
       const wrapper = document.querySelector(`.unit-wrapper[data-unit-id="${target.id}"]`);
       if (wrapper) {
-        const className = gameState.menuState === 'melee' ? 'melee-target' :
-                          gameState.menuState === 'ranged' ? 'ranged-target' : 'spell-target';
-        wrapper.classList.add(className);
-        wrapper.onclick = () => executeAttack(index);
+        wrapper.classList.add(targetClass);
+        wrapper.onclick = () => executeCardOnTarget(index);
 
         // Add number indicator
         let numEl = wrapper.querySelector('.target-number');
@@ -252,113 +193,147 @@ function renderTurnOrder() {
   });
 }
 
-function renderOptions() {
-  const optionsEl = document.getElementById('options');
+function renderHand() {
+  const handEl = document.getElementById('options');
   const currentUnit = getCurrentUnit();
 
   if (!currentUnit) {
-    optionsEl.innerHTML = '<div class="options-header">Game Over</div>';
+    handEl.innerHTML = '<div class="hand-header">Game Over</div>';
+    return;
+  }
+
+  // Check if melee unit needs to advance (requires discarding a card)
+  if (needsToAdvance(currentUnit)) {
+    if (isPlayerControlled(currentUnit)) {
+      const hand = getCurrentHand();
+      let html = `
+        <div class="hand-header">${currentUnit.name} - Discard to Advance</div>
+        <div class="advance-message">Choose a card to discard, then advance to Zone X.</div>
+      `;
+
+      // Show cards to discard
+      hand.forEach((cardId, index) => {
+        const card = CARDS[cardId];
+        html += `
+          <div class="card discard-card" data-discard-index="${index}">
+            <div class="card-key">${index + 1}</div>
+            <div class="card-name">${card.name}</div>
+            <div class="card-desc">Discard</div>
+          </div>
+        `;
+      });
+
+      handEl.innerHTML = html;
+      bindDiscardEvents();
+    } else {
+      handEl.innerHTML = `<div class="hand-header">${currentUnit.name} is advancing...</div>`;
+    }
     return;
   }
 
   if (!isPlayerControlled(currentUnit)) {
-    optionsEl.innerHTML = `<div class="options-header">${currentUnit.name}'s Turn...</div>`;
+    handEl.innerHTML = `<div class="hand-header">${currentUnit.name}'s Turn...</div>`;
     return;
   }
 
-  if (gameState.menuState === 'main') {
-    let html = `<div class="options-header">${currentUnit.name} - Actions (${ZONE_NAMES[currentUnit.zone]})</div>`;
-    let keyIndex = 1;
+  const hand = getCurrentHand();
 
-    // Melee attack option
-    if (currentUnit.meleeDamage !== null) {
-      const { targets: meleeTargets, mustAttackTaunters } = getValidMeleeTargets(currentUnit);
-      if (meleeTargets.length > 0) {
-        const tauntNote = mustAttackTaunters ? ' [TAUNTED]' : '';
-        const tauntInfo = currentUnit.tauntDuration > 0 ? `, Taunt ${currentUnit.tauntDuration}` : '';
-        html += `<div class="option" data-action="melee">
-          <span class="option-key">${keyIndex++}</span>
-          <span class="option-text">Melee Attack (${currentUnit.meleeDamage} dmg${tauntInfo})${tauntNote}</span>
-        </div>`;
-      }
-    }
+  if (gameState.phase === 'play') {
+    let html = `<div class="hand-header">${currentUnit.name} - Hand (${ZONE_NAMES[currentUnit.zone]})</div>`;
 
-    // Ranged attack option
-    if (currentUnit.rangedDamage !== null) {
-      const enemies = getAllEnemies(currentUnit);
-      if (enemies.length > 0) {
-        html += `<div class="option" data-action="ranged">
-          <span class="option-key">${keyIndex++}</span>
-          <span class="option-text">Ranged Attack (${currentUnit.rangedDamage} dmg)</span>
-        </div>`;
-      }
-    }
-
-    // Spell options
-    currentUnit.spells.forEach(spellId => {
-      const spell = SPELLS[spellId];
-      html += `<div class="option" data-action="spell-${spellId}">
-        <span class="option-key">${keyIndex++}</span>
-        <span class="option-text">${spell.name} (${spell.damage} dmg)</span>
-      </div>`;
+    // Show cards in hand
+    hand.forEach((cardId, index) => {
+      const card = CARDS[cardId];
+      html += `
+        <div class="card" data-card-index="${index}">
+          <div class="card-key">${index + 1}</div>
+          <div class="card-name">${card.name}</div>
+          <div class="card-desc">${card.description}</div>
+        </div>
+      `;
     });
 
-    html += `<div class="option" data-action="wait">
-      <span class="option-key">0</span>
-      <span class="option-text">Skip turn</span>
-    </div>`;
+    // End turn option
+    html += `
+      <div class="card skip-card" data-action="skip">
+        <div class="card-key">E</div>
+        <div class="card-name">End Turn</div>
+        <div class="card-desc">End turn without playing</div>
+      </div>
+    `;
 
-    optionsEl.innerHTML = html;
-    bindMainMenuEvents();
+    handEl.innerHTML = html;
+    bindCardEvents();
 
-  } else if (gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell') {
-    const actionName = gameState.menuState === 'melee' ? 'Melee Attack' :
-                       gameState.menuState === 'ranged' ? 'Ranged Attack' :
-                       SPELLS[gameState.selectedSpell].name;
-    let html = `<div class="options-header">${currentUnit.name} - ${actionName} Target</div>`;
-    html += `<div class="option" data-action="cancel">
-      <span class="option-key">0</span>
-      <span class="option-text">Cancel</span>
-    </div>`;
+  } else if (gameState.phase === 'targeting') {
+    const card = CARDS[gameState.selectedCard];
+    let html = `<div class="hand-header">${currentUnit.name} - Select Target for ${card.name}</div>`;
+
+    html += `
+      <div class="card cancel-card" data-action="cancel">
+        <div class="card-key">0</div>
+        <div class="card-name">Cancel</div>
+        <div class="card-desc">Go back</div>
+      </div>
+    `;
 
     gameState.validTargets.forEach((target, index) => {
-      html += `<div class="option attack-option" data-action="attack-${index}">
-        <span class="option-key">${index + 1}</span>
-        <span class="option-text">${target.name} (${target.hp}/${target.maxHp} HP) - ${ZONE_NAMES[target.zone]}</span>
-      </div>`;
+      html += `
+        <div class="card target-card" data-target-index="${index}">
+          <div class="card-key">${index + 1}</div>
+          <div class="card-name">${target.name}</div>
+          <div class="card-desc">${target.hp}/${target.maxHp} HP - Zone ${ZONE_NAMES[target.zone]}</div>
+        </div>
+      `;
     });
 
-    optionsEl.innerHTML = html;
-    bindAttackMenuEvents();
+    handEl.innerHTML = html;
+    bindTargetEvents();
   }
 }
 
-function bindMainMenuEvents() {
-  const optionsEl = document.getElementById('options');
-  optionsEl.querySelectorAll('.option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const action = opt.dataset.action;
-      if (action === 'melee') enterMeleeMode();
-      else if (action === 'ranged') enterRangedMode();
-      else if (action.startsWith('spell-')) {
-        const spellId = action.replace('spell-', '');
-        enterSpellMode(spellId);
-      }
-      else if (action === 'wait') executeWait();
+function bindDiscardEvents() {
+  const handEl = document.getElementById('options');
+  handEl.querySelectorAll('.card[data-discard-index]').forEach(card => {
+    card.addEventListener('click', () => {
+      const index = parseInt(card.dataset.discardIndex);
+      executeAdvanceWithDiscard(index);
     });
   });
 }
 
-function bindAttackMenuEvents() {
-  const optionsEl = document.getElementById('options');
-  optionsEl.querySelectorAll('.option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const action = opt.dataset.action;
-      if (action === 'cancel') exitToMainMenu();
-      else if (action.startsWith('attack-')) {
-        const index = parseInt(action.split('-')[1]);
-        executeAttack(index);
-      }
+function bindCardEvents() {
+  const handEl = document.getElementById('options');
+
+  // Card selection
+  handEl.querySelectorAll('.card[data-card-index]').forEach(card => {
+    card.addEventListener('click', () => {
+      const index = parseInt(card.dataset.cardIndex);
+      selectCard(index);
+    });
+  });
+
+  // Skip turn
+  const skipCard = handEl.querySelector('[data-action="skip"]');
+  if (skipCard) {
+    skipCard.addEventListener('click', executeSkip);
+  }
+}
+
+function bindTargetEvents() {
+  const handEl = document.getElementById('options');
+
+  // Cancel
+  const cancelCard = handEl.querySelector('[data-action="cancel"]');
+  if (cancelCard) {
+    cancelCard.addEventListener('click', cancelTargeting);
+  }
+
+  // Target selection
+  handEl.querySelectorAll('.card[data-target-index]').forEach(card => {
+    card.addEventListener('click', () => {
+      const index = parseInt(card.dataset.targetIndex);
+      executeCardOnTarget(index);
     });
   });
 }
@@ -373,22 +348,14 @@ function showUnitInfo(unit) {
 
   let statsHtml = `HP: ${unit.hp}/${unit.maxHp}<br>`;
   statsHtml += `Zone: ${ZONE_NAMES[unit.zone]}<br>`;
-  statsHtml += `AC: ${unit.ac} | SR: ${unit.sr}<br>`;
-  if (unit.meleeDamage !== null) {
-    const tauntInfo = unit.tauntDuration > 0 ? ` + Taunt ${unit.tauntDuration}` : '';
-    statsHtml += `Melee: WC ${unit.wc}, ${unit.meleeDamage} dmg${tauntInfo}<br>`;
-  }
-  if (unit.rangedDamage !== null) statsHtml += `Ranged: ${unit.rangedDamage} dmg<br>`;
-  if (unit.spells.length > 0) {
-    const spellNames = unit.spells.map(s => SPELLS[s].name).join(', ');
-    statsHtml += `Spells: ${spellNames}<br>`;
-  }
+  statsHtml += `Range: ${unit.attackRange}<br>`;
+  statsHtml += `Type: ${unit.attackType}<br>`;
+  statsHtml += `Damage: ${unit.damage}<br>`;
+
   // Show taunt effects on this unit
-  if (unit.tauntedBy && unit.tauntedBy.length > 0) {
-    const tauntInfo = unit.tauntedBy.map(e => {
-      const taunter = gameState.units.find(u => u.id === e.taunterId);
-      return taunter ? `${taunter.name} (${e.duration})` : `??? (${e.duration})`;
-    }).join(', ');
+  if (isTaunted(unit)) {
+    const taunters = getActiveTaunters(unit);
+    const tauntInfo = taunters.map(t => t.name).join(', ');
     statsHtml += `<span style="color: #ef4444;">Taunted by: ${tauntInfo}</span>`;
   }
 
@@ -412,128 +379,130 @@ function addLogEntry(message, type = 'neutral') {
 }
 
 /**
- * Show roll result popup
+ * Show damage popup near the target unit
  */
-function showRollResult(roll, hit, critical, damage = 0) {
+function showDamagePopup(damage, targetId) {
   // Remove any existing popup
-  const existing = document.querySelector('.roll-result');
+  const existing = document.querySelector('.damage-popup');
   if (existing) existing.remove();
 
   const popup = document.createElement('div');
-  popup.className = 'roll-result';
+  popup.className = 'damage-popup';
+  popup.innerHTML = `<span class="damage-number">${damage}</span><span class="damage-text">dmg</span>`;
 
-  let resultType, resultText;
-  if (roll === 1) {
-    resultType = 'miss';
-    resultText = 'Critical Miss!';
-  } else if (roll === 20 || critical) {
-    resultType = 'critical';
-    resultText = 'Critical Hit!';
-  } else if (hit) {
-    resultType = 'hit';
-    resultText = 'Hit!';
-  } else {
-    resultType = 'miss';
-    resultText = 'Miss!';
+  // Position near the target unit
+  const targetWrapper = document.querySelector(`.unit-wrapper[data-unit-id="${targetId}"]`);
+  if (targetWrapper) {
+    const rect = targetWrapper.getBoundingClientRect();
+    popup.style.left = `${rect.left + rect.width / 2}px`;
+    popup.style.top = `${rect.top}px`;
+    popup.style.transform = 'translateX(-50%)';
   }
-
-  popup.classList.add(resultType);
-
-  let damageHtml = '';
-  if (hit && damage > 0) {
-    damageHtml = `<span class="roll-damage">${damage} damage</span>`;
-  }
-
-  popup.innerHTML = `
-    <span class="roll-number">${roll}</span>
-    <span class="roll-text">${resultText}</span>
-    ${damageHtml}
-  `;
 
   document.body.appendChild(popup);
 
   // Remove after animation
-  setTimeout(() => popup.remove(), 1600);
+  setTimeout(() => popup.remove(), 1000);
 }
 
 // ============================================================================
 // GAME ACTIONS
 // ============================================================================
 
-function enterMeleeMode() {
+function executeAdvanceWithDiscard(cardIndex) {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
-  gameState.menuState = 'melee';
-  const { targets } = getValidMeleeTargets(currentUnit);
-  gameState.validTargets = targets;
-  highlightZones();
-  renderOptions();
+
+  // Discard the selected card
+  const cardId = playCard(currentUnit.team, cardIndex);
+  const card = CARDS[cardId];
+
+  addLogEntry(`${currentUnit.name} discards ${card.name} and advances to Zone X!`, currentUnit.team);
+  advanceUnit(currentUnit);
+
+  endTurn();
 }
 
-function enterRangedMode() {
+function selectCard(cardIndex) {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
-  gameState.menuState = 'ranged';
-  gameState.validTargets = getAllEnemies(currentUnit);
-  highlightZones();
-  renderOptions();
+
+  const hand = getCurrentHand();
+  if (cardIndex < 0 || cardIndex >= hand.length) return;
+
+  const cardId = hand[cardIndex];
+  const card = CARDS[cardId];
+
+  if (card.requiresTarget) {
+    // Get valid targets
+    const { targets, mustAttackTaunters } = getValidAttackTargets(currentUnit);
+
+    if (targets.length === 0) {
+      addLogEntry('No valid targets!', 'neutral');
+      return;
+    }
+
+    gameState.phase = 'targeting';
+    gameState.selectedCard = cardId;
+    gameState.validTargets = targets;
+
+    if (mustAttackTaunters) {
+      addLogEntry(`${currentUnit.name} is taunted! Must attack taunter.`, 'neutral');
+    }
+
+    highlightTargets();
+    renderHand();
+  }
 }
 
-function enterSpellMode(spellId) {
-  const currentUnit = getCurrentUnit();
-  if (!currentUnit) return;
-  gameState.menuState = 'spell';
-  gameState.selectedSpell = spellId;
-  // For offensive spells, target enemies
-  gameState.validTargets = getAllEnemies(currentUnit);
-  highlightZones();
-  renderOptions();
-}
-
-function exitToMainMenu() {
-  gameState.menuState = 'main';
+function cancelTargeting() {
+  gameState.phase = 'play';
+  gameState.selectedCard = null;
   gameState.validTargets = [];
-  gameState.selectedSpell = null;
 
   // Remove target numbers
   document.querySelectorAll('.target-number').forEach(el => el.remove());
 
-  highlightZones();
-  renderOptions();
+  highlightTargets();
+  renderHand();
 }
 
-function executeAttack(index) {
-  if (index < 0 || index >= gameState.validTargets.length) return;
+function executeCardOnTarget(targetIndex) {
+  if (targetIndex < 0 || targetIndex >= gameState.validTargets.length) return;
+
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
 
-  const target = gameState.validTargets[index];
-  let result;
+  const target = gameState.validTargets[targetIndex];
+  const cardId = gameState.selectedCard;
 
-  if (gameState.menuState === 'melee') {
-    result = performMeleeAttack(currentUnit, target);
-  } else if (gameState.menuState === 'ranged') {
-    result = performRangedAttack(currentUnit, target);
-  } else if (gameState.menuState === 'spell') {
-    result = castSpell(currentUnit, target, gameState.selectedSpell);
+  // Play the card from hand
+  const hand = currentUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+  const cardIndex = hand.indexOf(cardId);
+  if (cardIndex !== -1) {
+    playCard(currentUnit.team, cardIndex);
   }
 
-  // Show roll result popup
-  showRollResult(result.roll, result.hit, result.critical, result.damage);
-
+  // Execute the attack
+  const result = performAttack(currentUnit, target);
   addLogEntry(result.message, currentUnit.team);
 
-  if (result.hit) {
-    applyDamage(target, result.damage);
+  // Show damage popup near target
+  showDamagePopup(result.damage, target.id);
+
+  // Apply damage
+  const died = applyDamage(target, result.damage);
+  if (died) {
     const deadUnits = removeDeadUnits();
     deadUnits.forEach(unit => {
       addLogEntry(`${unit.name} has fallen!`, unit.team);
     });
   }
 
-  gameState.menuState = 'main';
+  // Reset state
+  gameState.phase = 'play';
+  gameState.selectedCard = null;
   gameState.validTargets = [];
-  gameState.selectedSpell = null;
 
   // Remove target numbers
   document.querySelectorAll('.target-number').forEach(el => el.remove());
@@ -549,22 +518,27 @@ function executeAttack(index) {
     }
     renderUnits();
     renderTurnOrder();
-    renderOptions();
+    renderHand();
   }
 }
 
-function executeWait() {
+function executeSkip() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
-  addLogEntry(`${currentUnit.name} waits.`, currentUnit.team);
+  addLogEntry(`${currentUnit.name} ends their turn.`, currentUnit.team);
   endTurn();
 }
 
 function endTurn() {
-  // Decrement taunt durations for the unit that just acted
+  // Decrement effects for the unit that just acted
   const prevUnit = getCurrentUnit();
   if (prevUnit) {
-    decrementTaunts(prevUnit);
+    decrementEffects(prevUnit);
+  }
+
+  // Draw cards for this team
+  if (prevUnit) {
+    drawCards(prevUnit.team);
   }
 
   gameState.currentUnitIndex++;
@@ -575,11 +549,32 @@ function endTurn() {
   }
 
   renderUnits();
-  highlightZones();
+  highlightTargets();
   renderTurnOrder();
-  renderOptions();
+  renderHand();
 
   const currentUnit = getCurrentUnit();
+
+  // Handle melee units needing to advance (must discard a card)
+  if (currentUnit && needsToAdvance(currentUnit)) {
+    if (!isPlayerControlled(currentUnit)) {
+      // AI auto-advances by discarding first card
+      setTimeout(() => {
+        const hand = currentUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+        if (hand.length > 0) {
+          const cardId = playCard(currentUnit.team, 0);
+          const card = CARDS[cardId];
+          addLogEntry(`${currentUnit.name} discards ${card.name} and advances to Zone X!`, currentUnit.team);
+        } else {
+          addLogEntry(`${currentUnit.name} advances to Zone X!`, currentUnit.team);
+        }
+        advanceUnit(currentUnit);
+        endTurn();
+      }, 600);
+    }
+    return;
+  }
+
   if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
     setTimeout(() => runOpponentAI(), 600);
   }
@@ -593,98 +588,59 @@ function runOpponentAI() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit || currentUnit.team === 'player') return;
 
-  const playerUnits = gameState.units.filter(u => u.team === 'player');
-  if (playerUnits.length === 0) {
-    executeWait();
+  const hand = gameState.opponentHand;
+  if (hand.length === 0) {
+    addLogEntry(`${currentUnit.name} has no cards!`, 'opponent');
+    endTurn();
     return;
   }
 
-  // Check for melee targets (adjacent zone or taunters)
-  if (currentUnit.meleeDamage !== null) {
-    const { targets: meleeTargets } = getValidMeleeTargets(currentUnit);
-    if (meleeTargets.length > 0) {
-      // Attack the lowest HP valid target
-      const target = meleeTargets.reduce((a, b) => a.hp < b.hp ? a : b);
-      gameState.menuState = 'melee';
-      gameState.validTargets = meleeTargets;
-      const result = performMeleeAttack(currentUnit, target);
-
-      // Show roll result popup
-      showRollResult(result.roll, result.hit, result.critical, result.damage);
-
-      addLogEntry(result.message, 'opponent');
-
-      if (result.hit) {
-        applyDamage(target, result.damage);
-        const deadUnits = removeDeadUnits();
-        deadUnits.forEach(unit => {
-          addLogEntry(`${unit.name} has fallen!`, unit.team);
-        });
-      }
-
-      gameState.menuState = 'main';
-      gameState.validTargets = [];
-
-      const gameResult = checkGameOver();
-      if (gameResult === 'ongoing') {
-        endTurn();
-      } else {
-        if (gameResult === 'defeat') {
-          addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
-        } else {
-          addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
-        }
-        renderUnits();
-        renderTurnOrder();
-        renderOptions();
-      }
-      return;
-    }
+  const { targets } = getValidAttackTargets(currentUnit);
+  if (targets.length === 0) {
+    addLogEntry(`${currentUnit.name} skips (no targets).`, 'opponent');
+    endTurn();
+    return;
   }
 
-  // Use ranged attack if available
-  if (currentUnit.rangedDamage !== null && playerUnits.length > 0) {
-    // Target the lowest HP enemy
-    const target = playerUnits.reduce((a, b) => a.hp < b.hp ? a : b);
-    gameState.menuState = 'ranged';
-    gameState.validTargets = playerUnits;
-    const result = performRangedAttack(currentUnit, target);
+  // Play the first card (Attack) on the lowest HP target
+  const target = targets.reduce((a, b) => a.hp < b.hp ? a : b);
 
-    // Show roll result popup
-    showRollResult(result.roll, result.hit, result.critical, result.damage);
+  // Play a card from hand
+  const cardId = playCard('opponent', 0);
+  if (!cardId) {
+    endTurn();
+    return;
+  }
 
-    addLogEntry(result.message, 'opponent');
+  // Execute the attack
+  const result = performAttack(currentUnit, target);
+  addLogEntry(result.message, 'opponent');
 
-    if (result.hit) {
-      applyDamage(target, result.damage);
-      const deadUnits = removeDeadUnits();
-      deadUnits.forEach(unit => {
-        addLogEntry(`${unit.name} has fallen!`, unit.team);
-      });
-    }
+  // Show damage popup near target
+  showDamagePopup(result.damage, target.id);
 
-    gameState.menuState = 'main';
-    gameState.validTargets = [];
+  // Apply damage
+  const died = applyDamage(target, result.damage);
+  if (died) {
+    const deadUnits = removeDeadUnits();
+    deadUnits.forEach(unit => {
+      addLogEntry(`${unit.name} has fallen!`, unit.team);
+    });
+  }
 
-    const gameResult = checkGameOver();
-    if (gameResult === 'ongoing') {
-      endTurn();
+  const gameResult = checkGameOver();
+  if (gameResult === 'ongoing') {
+    endTurn();
+  } else {
+    if (gameResult === 'defeat') {
+      addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
     } else {
-      if (gameResult === 'defeat') {
-        addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
-      } else {
-        addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
-      }
-      renderUnits();
-      renderTurnOrder();
-      renderOptions();
+      addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
     }
-    return;
+    renderUnits();
+    renderTurnOrder();
+    renderHand();
   }
-
-  // Can't do anything, wait
-  addLogEntry(`${currentUnit.name} waits.`, 'opponent');
-  endTurn();
 }
 
 // ============================================================================
@@ -697,27 +653,38 @@ document.addEventListener('keydown', (event) => {
 
   const key = event.key;
 
-  if (gameState.menuState === 'main') {
-    if (key === '0') {
-      executeWait();
+  // Handle advance phase (discard a card)
+  if (needsToAdvance(currentUnit)) {
+    const num = parseInt(key);
+    if (!isNaN(num) && num >= 1) {
+      const hand = getCurrentHand();
+      if (num <= hand.length) {
+        executeAdvanceWithDiscard(num - 1);
+      }
+    }
+    return;
+  }
+
+  if (gameState.phase === 'play') {
+    if (key === 'e' || key === 'E') {
+      executeSkip();
     } else {
       const num = parseInt(key);
       if (!isNaN(num) && num >= 1) {
-        const options = document.querySelectorAll('#options .option');
-        if (num <= options.length) {
-          options[num - 1].click();
+        const hand = getCurrentHand();
+        if (num <= hand.length) {
+          selectCard(num - 1);
         }
       }
     }
-  } else {
-    if (key === '0' || key === 'Escape') {
-      exitToMainMenu();
+  } else if (gameState.phase === 'targeting') {
+    if (key === 'Escape') {
+      cancelTargeting();
     } else {
       const num = parseInt(key);
       if (!isNaN(num) && num >= 1) {
-        if ((gameState.menuState === 'melee' || gameState.menuState === 'ranged' || gameState.menuState === 'spell')
-                   && num <= gameState.validTargets.length) {
-          executeAttack(num - 1);
+        if (num <= gameState.validTargets.length) {
+          executeCardOnTarget(num - 1);
         }
       }
     }
@@ -729,25 +696,58 @@ document.addEventListener('keydown', (event) => {
 // ============================================================================
 
 function initGame() {
+  // Initialize units
   gameState.units = createInitialUnits();
   const allUnitIds = gameState.units.map(u => u.id);
   gameState.turnOrder = shuffleArray(allUnitIds);
   gameState.currentUnitIndex = 0;
 
+  // Initialize decks
+  gameState.playerDeck = shuffleArray(createDeck());
+  gameState.opponentDeck = shuffleArray(createDeck());
+  gameState.playerHand = [];
+  gameState.opponentHand = [];
+  gameState.playerGraveyard = [];
+  gameState.opponentGraveyard = [];
+
+  // Draw initial hands
+  drawCards('player');
+  drawCards('opponent');
+
   createZones();
   renderUnits();
-  highlightZones();
+  highlightTargets();
   renderTurnOrder();
-  renderOptions();
+  renderHand();
 
   addLogEntry('Game started. Fight!');
 
   const firstUnit = getCurrentUnit();
+
+  // Handle melee units needing to advance on first turn (must discard a card)
+  if (firstUnit && needsToAdvance(firstUnit)) {
+    if (!isPlayerControlled(firstUnit)) {
+      setTimeout(() => {
+        const hand = firstUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+        if (hand.length > 0) {
+          const cardId = playCard(firstUnit.team, 0);
+          const card = CARDS[cardId];
+          addLogEntry(`${firstUnit.name} discards ${card.name} and advances to Zone X!`, firstUnit.team);
+        } else {
+          addLogEntry(`${firstUnit.name} advances to Zone X!`, firstUnit.team);
+        }
+        advanceUnit(firstUnit);
+        endTurn();
+      }, 600);
+    }
+    return;
+  }
+
   if (firstUnit && firstUnit.team === 'opponent' && !gameState.playerControlsBoth) {
     setTimeout(() => runOpponentAI(), 600);
   }
 
-  console.log('GM Arena (Fixed positions variant) initialized!');
+  console.log('GM Arena (StS variant) initialized!');
 }
 
 // ============================================================================
@@ -805,11 +805,28 @@ function initDebugUI() {
     controlBothCheckbox.addEventListener('change', () => {
       gameState.playerControlsBoth = controlBothCheckbox.checked;
       // Re-render to apply changes immediately
-      highlightZones();
-      renderOptions();
+      highlightTargets();
+      renderHand();
 
       // If it's opponent's turn and we just disabled control, trigger AI
       const currentUnit = getCurrentUnit();
+
+      if (currentUnit && needsToAdvance(currentUnit) && !gameState.playerControlsBoth) {
+        setTimeout(() => {
+          const hand = currentUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+          if (hand.length > 0) {
+            const cardId = playCard(currentUnit.team, 0);
+            const card = CARDS[cardId];
+            addLogEntry(`${currentUnit.name} discards ${card.name} and advances to Zone X!`, currentUnit.team);
+          } else {
+            addLogEntry(`${currentUnit.name} advances to Zone X!`, currentUnit.team);
+          }
+          advanceUnit(currentUnit);
+          endTurn();
+        }, 600);
+        return;
+      }
+
       if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
         setTimeout(() => runOpponentAI(), 600);
       }

@@ -228,61 +228,32 @@ const UNIT_SVGS = {
 const UNIT_STATS = {
   warrior: {
     maxHp: 90,
-    ac: 18,
-    sr: 3,
-    wc: 9,
-    meleeDamage: 20,
-    rangedDamage: null,
-    spells: [],
-    tauntDuration: 2  // Applies Taunt 2 on melee hit
+    attackRange: 'melee',
+    attackType: 'physical',
+    damage: 20
   },
   archer: {
     maxHp: 70,
-    ac: 15,
-    sr: 6,
-    wc: 6,
-    meleeDamage: null,
-    rangedDamage: 15,
-    spells: []
+    attackRange: 'ranged',
+    attackType: 'physical',
+    damage: 15
   },
   mage: {
     maxHp: 50,
-    ac: 12,
-    sr: 9,
-    wc: 0,
-    meleeDamage: null,
-    rangedDamage: null,
-    spells: ['fireball']
+    attackRange: 'ranged',
+    attackType: 'magic',
+    damage: 20
   },
   orc: {
     maxHp: 110,
-    ac: 16,
-    sr: 0,
-    wc: 11,
-    meleeDamage: 25,
-    rangedDamage: null,
-    spells: [],
-    tauntDuration: 2  // Applies Taunt 2 on melee hit
+    attackRange: 'melee',
+    attackType: 'physical',
+    damage: 25
   },
   goblin: {
     maxHp: 50,
-    ac: 13,
-    sr: 6,
-    wc: 3,
-    meleeDamage: null,
-    rangedDamage: 10,
-    spells: []
-  }
-};
-
-// ============================================================================
-// SPELLS
-// ============================================================================
-
-const SPELLS = {
-  fireball: {
-    name: 'Fireball',
-    damage: 20,
-    type: 'offensive'
+    attackRange: 'ranged',
+    attackType: 'physical',
+    damage: 10
   }
 };

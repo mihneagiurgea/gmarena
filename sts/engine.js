@@ -2,33 +2,59 @@
  * Game Engine - Core game logic and state management
  * No DOM dependencies - pure game logic
  *
- * Fixed position zones: 4 zones arranged horizontally
- * - AR (0): Team A Ranged
- * - AM (1): Team A Melee
- * - BM (2): Team B Melee
- * - BR (3): Team B Ranged
- * Units are assigned at game start and never move.
+ * 3 zones: A - X - B
+ * - Zone A: Team A starting zone
+ * - Zone X: Middle zone (melee combat)
+ * - Zone B: Team B starting zone
+ *
+ * Card-based combat system inspired by Slay the Spire
  */
 
-const NUM_ZONES = 4;
+const NUM_ZONES = 3;
 
 // Zone constants
 const ZONES = {
-  AR: 0,  // Player Ranged
-  AM: 1,  // Player Melee
-  BM: 2,  // Opponent Melee
-  BR: 3   // Opponent Ranged
+  A: 0,  // Team A start
+  X: 1,  // Middle (melee)
+  B: 2   // Team B start
 };
 
-const ZONE_NAMES = ['AR', 'AM', 'BM', 'BR'];
+const ZONE_NAMES = ['A', 'X', 'B'];
+
+// ============================================================================
+// CARD DEFINITIONS
+// ============================================================================
+
+const CARDS = {
+  attack: {
+    id: 'attack',
+    name: 'Attack',
+    description: 'Deal damage to target enemy',
+    requiresTarget: true
+  }
+};
+
+/**
+ * Create a deck of cards for a team
+ * @returns {string[]} Array of card IDs
+ */
+function createDeck() {
+  // 12 Attack cards
+  const deck = [];
+  for (let i = 0; i < 12; i++) {
+    deck.push('attack');
+  }
+  return deck;
+}
 
 // ============================================================================
 // GAME STATE
 // ============================================================================
 
 /**
- * @typedef {Object} TauntEffect
- * @property {string} taunterId - ID of the unit that applied taunt
+ * @typedef {Object} Effect
+ * @property {string} type - Effect type (e.g., 'taunt')
+ * @property {string} sourceId - ID of the unit that applied this effect
  * @property {number} duration - Remaining turns
  */
 
@@ -38,17 +64,14 @@ const ZONE_NAMES = ['AR', 'AM', 'BM', 'BR'];
  * @property {string} name
  * @property {string} type
  * @property {'player' | 'opponent'} team
- * @property {number} zone - Zone index (0-3: AR, AM, BM, BR)
+ * @property {number} zone - Zone index (0-2: A, X, B)
  * @property {number} hp
  * @property {number} maxHp
- * @property {number} ac
- * @property {number} sr
- * @property {number} wc
- * @property {number|null} meleeDamage
- * @property {number|null} rangedDamage
- * @property {string[]} spells
- * @property {number} tauntDuration - How many turns of taunt this unit applies on melee hit
- * @property {TauntEffect[]} tauntedBy - Active taunt effects on this unit
+ * @property {'melee' | 'ranged'} attackRange
+ * @property {'physical' | 'magic'} attackType
+ * @property {number} damage
+ * @property {boolean} hasAdvanced - True if melee unit has advanced to X
+ * @property {Effect[]} effects - Active effects on this unit
  */
 
 /** @type {Object} */
@@ -57,10 +80,18 @@ const gameState = {
   units: [],
   turnOrder: [],
   currentUnitIndex: 0,
-  menuState: 'main', // 'main', 'melee', 'ranged', 'spell'
+  phase: 'play', // 'play', 'targeting', 'advancing'
+  selectedCard: null,
   validTargets: [],
-  selectedSpell: null,
-  playerControlsBoth: false // Set to true to control both teams (for testing)
+  playerControlsBoth: false,
+
+  // Card state per team
+  playerDeck: [],
+  playerHand: [],
+  playerGraveyard: [],
+  opponentDeck: [],
+  opponentHand: [],
+  opponentGraveyard: []
 };
 
 // ============================================================================
@@ -80,38 +111,31 @@ function createUnit(id, name, type, team) {
     zone: null,
     hp: stats.maxHp,
     maxHp: stats.maxHp,
-    ac: stats.ac,
-    sr: stats.sr,
-    wc: stats.wc,
-    meleeDamage: stats.meleeDamage,
-    rangedDamage: stats.rangedDamage,
-    spells: [...stats.spells],
-    tauntDuration: stats.tauntDuration || 0,
-    tauntedBy: []  // Active taunt effects: [{taunterId, duration}]
+    attackRange: stats.attackRange,
+    attackType: stats.attackType,
+    damage: stats.damage,
+    hasAdvanced: false,
+    effects: []
   };
 }
 
 /**
- * Determine if a unit is ranged (has ranged attack or spells but no melee)
+ * Check if a unit is melee
  */
-function isRangedUnit(unit) {
-  return unit.meleeDamage === null && (unit.rangedDamage !== null || unit.spells.length > 0);
+function isMeleeUnit(unit) {
+  return unit.attackRange === 'melee';
 }
 
 /**
- * Determine if a unit is melee
+ * Check if a unit is ranged
  */
-function isMeleeUnit(unit) {
-  return unit.meleeDamage !== null;
+function isRangedUnit(unit) {
+  return unit.attackRange === 'ranged';
 }
 
 /**
  * Create initial units for the game
- * Units are placed based on type:
- * - Player ranged → AR (zone 0)
- * - Player melee → AM (zone 1)
- * - Opponent melee → BM (zone 2)
- * - Opponent ranged → BR (zone 3)
+ * All Team A units start in zone A, all Team B units start in zone B
  * @returns {Unit[]}
  */
 function createInitialUnits() {
@@ -127,21 +151,21 @@ function createInitialUnits() {
     createUnit('goblin1', 'Goblin', 'goblin', 'opponent')
   ];
 
-  // Place player units by type
+  // All player units start in zone A
   playerUnits.forEach(unit => {
-    unit.zone = isRangedUnit(unit) ? ZONES.AR : ZONES.AM;
+    unit.zone = ZONES.A;
   });
 
-  // Place opponent units by type
+  // All opponent units start in zone B
   opponentUnits.forEach(unit => {
-    unit.zone = isRangedUnit(unit) ? ZONES.BR : ZONES.BM;
+    unit.zone = ZONES.B;
   });
 
   return [...playerUnits, ...opponentUnits];
 }
 
 // ============================================================================
-// UTILITY FUNCTIONS
+// DECK/CARD FUNCTIONS
 // ============================================================================
 
 /**
@@ -156,6 +180,69 @@ function shuffleArray(array) {
   return arr;
 }
 
+/**
+ * Draw cards for a team up to hand limit (5)
+ */
+function drawCards(team) {
+  const handLimit = 5;
+  const deck = team === 'player' ? gameState.playerDeck : gameState.opponentDeck;
+  const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
+  const graveyard = team === 'player' ? gameState.playerGraveyard : gameState.opponentGraveyard;
+
+  while (hand.length < handLimit) {
+    // If deck is empty, shuffle graveyard into deck
+    if (deck.length === 0) {
+      if (graveyard.length === 0) {
+        break; // No cards left anywhere
+      }
+      // Move all graveyard cards to deck and shuffle
+      const reshuffled = shuffleArray([...graveyard]);
+      if (team === 'player') {
+        gameState.playerDeck.push(...reshuffled);
+        gameState.playerGraveyard = [];
+      } else {
+        gameState.opponentDeck.push(...reshuffled);
+        gameState.opponentGraveyard = [];
+      }
+    }
+
+    // Draw a card
+    const deckRef = team === 'player' ? gameState.playerDeck : gameState.opponentDeck;
+    if (deckRef.length > 0) {
+      const card = deckRef.pop();
+      if (team === 'player') {
+        gameState.playerHand.push(card);
+      } else {
+        gameState.opponentHand.push(card);
+      }
+    }
+  }
+}
+
+/**
+ * Play a card from hand to graveyard
+ */
+function playCard(team, cardIndex) {
+  const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
+  const graveyard = team === 'player' ? gameState.playerGraveyard : gameState.opponentGraveyard;
+
+  if (cardIndex < 0 || cardIndex >= hand.length) return null;
+
+  const cardId = hand.splice(cardIndex, 1)[0];
+  graveyard.push(cardId);
+
+  return cardId;
+}
+
+/**
+ * Get current team's hand
+ */
+function getCurrentHand() {
+  const unit = getCurrentUnit();
+  if (!unit) return [];
+  return unit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+}
+
 // ============================================================================
 // ZONE HELPER FUNCTIONS
 // ============================================================================
@@ -168,27 +255,46 @@ function getUnitsInZone(zone) {
 }
 
 /**
- * Get the adjacent melee zone for a given zone
- * AM ↔ BM are adjacent for melee attacks
+ * Get adjacent zones for a given zone
+ * A ↔ X ↔ B
  */
-function getAdjacentMeleeZone(zone) {
-  if (zone === ZONES.AM) return ZONES.BM;
-  if (zone === ZONES.BM) return ZONES.AM;
-  return null; // Ranged zones have no adjacent melee zone
+function getAdjacentZones(zone) {
+  if (zone === ZONES.A) return [ZONES.X];
+  if (zone === ZONES.X) return [ZONES.A, ZONES.B];
+  if (zone === ZONES.B) return [ZONES.X];
+  return [];
 }
 
 /**
- * Get the enemy ranged zone for a given team
+ * Check if two zones are adjacent
  */
-function getEnemyRangedZone(team) {
-  return team === 'player' ? ZONES.BR : ZONES.AR;
+function areZonesAdjacent(zone1, zone2) {
+  return getAdjacentZones(zone1).includes(zone2);
+}
+
+// ============================================================================
+// EFFECT SYSTEM
+// ============================================================================
+
+/**
+ * Check if a unit has an effect of a specific type
+ */
+function hasEffect(unit, effectType) {
+  return unit.effects.some(e => e.type === effectType);
 }
 
 /**
- * Check if a unit has any active taunt effects
+ * Get all effects of a specific type on a unit
+ */
+function getEffects(unit, effectType) {
+  return unit.effects.filter(e => e.type === effectType);
+}
+
+/**
+ * Check if a unit is taunted
  */
 function isTaunted(unit) {
-  return unit.tauntedBy && unit.tauntedBy.length > 0;
+  return hasEffect(unit, 'taunt');
 }
 
 /**
@@ -196,51 +302,46 @@ function isTaunted(unit) {
  * Returns only taunters that are still alive
  */
 function getActiveTaunters(unit) {
-  if (!unit.tauntedBy || unit.tauntedBy.length === 0) return [];
+  const tauntEffects = getEffects(unit, 'taunt');
+  if (tauntEffects.length === 0) return [];
 
-  return unit.tauntedBy
-    .map(effect => gameState.units.find(u => u.id === effect.taunterId))
+  return tauntEffects
+    .map(effect => gameState.units.find(u => u.id === effect.sourceId))
     .filter(taunter => taunter && taunter.hp > 0);
 }
 
 /**
- * Apply taunt effect from attacker to defender
+ * Apply an effect to a unit
  */
-function applyTaunt(attacker, defender, duration) {
+function applyEffect(unit, effectType, sourceId, duration) {
   if (duration <= 0) return;
 
-  // Check if already taunted by this attacker
-  const existingEffect = defender.tauntedBy.find(e => e.taunterId === attacker.id);
+  // Check if already has this effect from this source
+  const existingEffect = unit.effects.find(e => e.type === effectType && e.sourceId === sourceId);
   if (existingEffect) {
     // Refresh duration if new is longer
     existingEffect.duration = Math.max(existingEffect.duration, duration);
   } else {
-    defender.tauntedBy.push({ taunterId: attacker.id, duration });
+    unit.effects.push({ type: effectType, sourceId, duration });
   }
 }
 
 /**
- * Decrement taunt durations at end of unit's turn and remove expired taunts
+ * Decrement all effect durations at end of unit's turn and remove expired effects
  */
-function decrementTaunts(unit) {
-  if (!unit.tauntedBy) return;
-
-  unit.tauntedBy.forEach(effect => {
+function decrementEffects(unit) {
+  unit.effects.forEach(effect => {
     effect.duration--;
   });
-
-  // Remove expired taunts
-  unit.tauntedBy = unit.tauntedBy.filter(effect => effect.duration > 0);
+  unit.effects = unit.effects.filter(effect => effect.duration > 0);
 }
 
 /**
- * Remove all taunt effects from a specific taunter (called when taunter dies)
+ * Remove all effects from a specific source (called when source dies)
  */
-function removeTaunterEffects(taunterId) {
+function removeEffectsFromSource(sourceId) {
   gameState.units.forEach(unit => {
-    if (unit.tauntedBy) {
-      unit.tauntedBy = unit.tauntedBy.filter(e => e.taunterId !== taunterId);
-    }
+    unit.effects = unit.effects.filter(e => e.sourceId !== sourceId);
   });
 }
 
@@ -249,108 +350,14 @@ function removeTaunterEffects(taunterId) {
 // ============================================================================
 
 /**
- * Roll a d20
+ * Perform an attack (no dice rolls - direct damage)
+ * @returns {{damage: number, message: string}}
  */
-function rollD20() {
-  return Math.floor(Math.random() * 20) + 1;
-}
+function performAttack(attacker, defender) {
+  const damage = attacker.damage;
+  const message = `${attacker.name} attacks ${defender.name} for ${damage} damage!`;
 
-/**
- * Perform a melee attack
- * If hit and attacker has tauntDuration > 0, applies Taunt X to defender
- * @returns {{roll: number, hit: boolean, critical: boolean, damage: number, tauntApplied: number, message: string}}
- */
-function performMeleeAttack(attacker, defender) {
-  const roll = rollD20();
-  let result = { roll, hit: false, critical: false, damage: 0, tauntApplied: 0, message: '' };
-
-  if (roll === 1) {
-    result.message = `${attacker.name} rolls ${roll} - Critical Miss!`;
-  } else if (roll === 20) {
-    result.hit = true;
-    result.critical = true;
-    result.damage = Math.floor(attacker.meleeDamage * 1.5);
-    result.message = `${attacker.name} rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${defender.name}!`;
-  } else {
-    const attackValue = attacker.wc + roll;
-    if (attackValue >= defender.ac) {
-      result.hit = true;
-      result.damage = attacker.meleeDamage;
-      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Hit! Deals ${result.damage} damage to ${defender.name}.`;
-    } else {
-      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Miss!`;
-    }
-  }
-
-  // Apply Taunt X on hit if attacker has tauntDuration
-  if (result.hit && attacker.tauntDuration > 0) {
-    applyTaunt(attacker, defender, attacker.tauntDuration);
-    result.tauntApplied = attacker.tauntDuration;
-    result.message += ` ${defender.name} is Taunted ${attacker.tauntDuration}!`;
-  }
-
-  return result;
-}
-
-/**
- * Perform a ranged attack
- * @returns {{roll: number, hit: boolean, critical: boolean, damage: number, message: string}}
- */
-function performRangedAttack(attacker, defender) {
-  const roll = rollD20();
-  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
-
-  if (roll === 1) {
-    result.message = `${attacker.name} rolls ${roll} - Critical Miss!`;
-  } else if (roll === 20) {
-    result.hit = true;
-    result.critical = true;
-    result.damage = Math.floor(attacker.rangedDamage * 1.5);
-    result.message = `${attacker.name} rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${defender.name}!`;
-  } else {
-    const attackValue = attacker.wc + roll;
-    if (attackValue >= defender.ac) {
-      result.hit = true;
-      result.damage = attacker.rangedDamage;
-      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Hit! Deals ${result.damage} damage to ${defender.name}.`;
-    } else {
-      result.message = `${attacker.name} rolls ${roll} (${attackValue} vs AC ${defender.ac}) - Miss!`;
-    }
-  }
-
-  return result;
-}
-
-/**
- * Cast a spell
- * @returns {{roll: number, hit: boolean, critical: boolean, damage: number, message: string}}
- */
-function castSpell(caster, target, spellId) {
-  const spell = SPELLS[spellId];
-  const roll = rollD20();
-  let result = { roll, hit: false, critical: false, damage: 0, message: '' };
-
-  // Offensive spell against enemy
-  if (spell.type === 'offensive' && caster.team !== target.team) {
-    if (roll === 1) {
-      result.message = `${caster.name} casts ${spell.name}, rolls ${roll} - Critical Miss!`;
-    } else if (roll === 20) {
-      result.hit = true;
-      result.critical = true;
-      result.damage = Math.floor(spell.damage * 1.5);
-      result.message = `${caster.name} casts ${spell.name}, rolls ${roll} - Critical Hit! Deals ${result.damage} damage to ${target.name}!`;
-    } else {
-      if (roll >= target.sr) {
-        result.hit = true;
-        result.damage = spell.damage;
-        result.message = `${caster.name} casts ${spell.name}, rolls ${roll} (vs SR ${target.sr}) - Hit! Deals ${result.damage} damage to ${target.name}.`;
-      } else {
-        result.message = `${caster.name} casts ${spell.name}, rolls ${roll} (vs SR ${target.sr}) - Resisted!`;
-      }
-    }
-  }
-
-  return result;
+  return { damage, message };
 }
 
 /**
@@ -374,14 +381,14 @@ function removeDeadUnits() {
   const deadUnits = gameState.units.filter(u => u.hp <= 0);
   deadUnits.forEach(unit => {
     // Remove from turn order
+    const deadIndex = gameState.turnOrder.indexOf(unit.id);
     gameState.turnOrder = gameState.turnOrder.filter(id => id !== unit.id);
     // Adjust current index if needed
-    const deadIndex = gameState.turnOrder.indexOf(unit.id);
     if (deadIndex !== -1 && deadIndex < gameState.currentUnitIndex) {
       gameState.currentUnitIndex--;
     }
-    // Remove any taunt effects this unit had applied
-    removeTaunterEffects(unit.id);
+    // Remove any effects this unit had applied
+    removeEffectsFromSource(unit.id);
   });
   gameState.units = gameState.units.filter(u => u.hp > 0);
   return deadUnits;
@@ -398,6 +405,46 @@ function checkGameOver() {
   if (!playerAlive) return 'defeat';
   if (!opponentAlive) return 'victory';
   return 'ongoing';
+}
+
+// ============================================================================
+// TARGETING
+// ============================================================================
+
+/**
+ * Get valid attack targets for a unit
+ *
+ * Rules:
+ * - If taunted, must attack one of the taunters
+ * - Ranged: can attack any enemy in any zone
+ * - Melee: can attack enemies in same zone or adjacent zone
+ */
+function getValidAttackTargets(unit) {
+  const activeTaunters = getActiveTaunters(unit);
+
+  // If taunted, can only attack taunters
+  if (activeTaunters.length > 0) {
+    return { targets: activeTaunters, mustAttackTaunters: true };
+  }
+
+  const enemies = gameState.units.filter(u => u.team !== unit.team);
+
+  if (isRangedUnit(unit)) {
+    // Ranged can attack any enemy
+    return { targets: enemies, mustAttackTaunters: false };
+  } else {
+    // Melee can attack same zone or adjacent zone
+    const validZones = [unit.zone, ...getAdjacentZones(unit.zone)];
+    const validEnemies = enemies.filter(e => validZones.includes(e.zone));
+    return { targets: validEnemies, mustAttackTaunters: false };
+  }
+}
+
+/**
+ * Get all enemies
+ */
+function getAllEnemies(unit) {
+  return gameState.units.filter(u => u.team !== unit.team);
 }
 
 // ============================================================================
@@ -419,40 +466,16 @@ function isPlayerControlled(unit) {
 }
 
 /**
- * Get valid melee targets for a unit
- *
- * Rules:
- * - Melee units (in AM or BM) can attack adjacent enemy zone (AM↔BM)
- * - If taunted, can ONLY attack taunters (may include enemies in ranged zone)
- * - If not taunted, can attack any enemy in adjacent melee zone
+ * Check if current unit needs to advance (melee, first turn, not in X)
  */
-function getValidMeleeTargets(unit) {
-  // Must have melee capability
-  if (unit.meleeDamage === null) {
-    return { targets: [], protected: [], mustAttackTaunters: false };
-  }
-
-  const activeTaunters = getActiveTaunters(unit);
-
-  // If taunted, can only attack taunters
-  if (activeTaunters.length > 0) {
-    return { targets: activeTaunters, protected: [], mustAttackTaunters: true };
-  }
-
-  // Not taunted: can attack enemies in adjacent melee zone
-  const adjacentZone = getAdjacentMeleeZone(unit.zone);
-  if (adjacentZone === null) {
-    // Unit is in a ranged zone - can't melee attack (shouldn't have melee anyway)
-    return { targets: [], protected: [], mustAttackTaunters: false };
-  }
-
-  const enemiesInAdjacentZone = getUnitsInZone(adjacentZone);
-  return { targets: enemiesInAdjacentZone, protected: [], mustAttackTaunters: false };
+function needsToAdvance(unit) {
+  return isMeleeUnit(unit) && !unit.hasAdvanced && unit.zone !== ZONES.X;
 }
 
 /**
- * Get all enemies (for ranged attacks and spells)
+ * Advance a melee unit to zone X
  */
-function getAllEnemies(unit) {
-  return gameState.units.filter(u => u.team !== unit.team);
+function advanceUnit(unit) {
+  unit.zone = ZONES.X;
+  unit.hasAdvanced = true;
 }
