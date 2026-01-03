@@ -77,6 +77,15 @@ function renderUnits() {
       nameLabel.textContent = unit.name;
       unitWrapper.appendChild(nameLabel);
 
+      // Block indicator
+      if (unit.block > 0) {
+        const blockEl = document.createElement('div');
+        blockEl.className = 'block-indicator';
+        blockEl.textContent = unit.block;
+        blockEl.title = `Block: ${unit.block}`;
+        unitWrapper.appendChild(blockEl);
+      }
+
       // Taunted status indicator (shows when unit is under taunt effect)
       if (isTaunted(unit)) {
         const tauntedEl = document.createElement('div');
@@ -241,13 +250,17 @@ function renderHand() {
   if (gameState.phase === 'play') {
     let html = `<div class="hand-header">${currentUnit.name} - Hand (${ZONE_NAMES[currentUnit.zone]})</div>`;
 
-    // Show cards in hand
+    // Show cards in hand (playable and unplayable)
     hand.forEach((cardId, index) => {
       const card = CARDS[cardId];
+      const canPlay = canPlayCard(currentUnit, card);
+      const cardClass = canPlay ? 'card' : 'card unplayable-card';
+      const techLabel = card.requires ? ` [${card.requires}]` : '';
+
       html += `
-        <div class="card" data-card-index="${index}">
+        <div class="${cardClass}" data-card-index="${index}">
           <div class="card-key">${index + 1}</div>
-          <div class="card-name">${card.name}</div>
+          <div class="card-name">${card.name}${techLabel}</div>
           <div class="card-desc">${card.description}</div>
         </div>
       `;
@@ -347,15 +360,21 @@ function showUnitInfo(unit) {
   }
 
   let statsHtml = `HP: ${unit.hp}/${unit.maxHp}<br>`;
+  if (unit.block > 0) {
+    statsHtml += `<span style="color: #60a5fa;">Block: ${unit.block}</span><br>`;
+  }
   statsHtml += `Zone: ${ZONE_NAMES[unit.zone]}<br>`;
   statsHtml += `Range: ${unit.attackRange}<br>`;
   statsHtml += `Type: ${unit.attackType}<br>`;
   statsHtml += `Damage: ${unit.damage}<br>`;
 
-  // Show taunt effects on this unit
+  // Show taunt effects on this unit with duration
   if (isTaunted(unit)) {
-    const taunters = getActiveTaunters(unit);
-    const tauntInfo = taunters.map(t => t.name).join(', ');
+    const tauntEffects = getEffects(unit, 'taunt');
+    const tauntInfo = tauntEffects.map(e => {
+      const taunter = gameState.units.find(u => u.id === e.sourceId);
+      return taunter ? `${taunter.name} (${e.duration})` : null;
+    }).filter(Boolean).join(', ');
     statsHtml += `<span style="color: #ef4444;">Taunted by: ${tauntInfo}</span>`;
   }
 
@@ -433,26 +452,37 @@ function selectCard(cardIndex) {
   const cardId = hand[cardIndex];
   const card = CARDS[cardId];
 
-  if (card.requiresTarget) {
-    // Get valid targets
-    const { targets, mustAttackTaunters } = getValidAttackTargets(currentUnit);
-
-    if (targets.length === 0) {
-      addLogEntry('No valid targets!', 'neutral');
-      return;
-    }
-
-    gameState.phase = 'targeting';
-    gameState.selectedCard = cardId;
-    gameState.validTargets = targets;
-
-    if (mustAttackTaunters) {
-      addLogEntry(`${currentUnit.name} is taunted! Must attack taunter.`, 'neutral');
-    }
-
-    highlightTargets();
-    renderHand();
+  // Check if unit can play this card
+  if (!canPlayCard(currentUnit, card)) {
+    addLogEntry(`${currentUnit.name} cannot play ${card.name}!`, 'neutral');
+    return;
   }
+
+  // Get valid targets based on card's target type
+  const { targets, mustAttackTaunters } = getValidCardTargets(currentUnit, card);
+
+  // Self-targeting cards execute immediately
+  if (card.target === 'self') {
+    gameState.selectedCard = cardId;
+    executeCardOnTarget(0); // Target is self (index 0)
+    return;
+  }
+
+  if (targets.length === 0) {
+    addLogEntry('No valid targets!', 'neutral');
+    return;
+  }
+
+  gameState.phase = 'targeting';
+  gameState.selectedCard = cardId;
+  gameState.validTargets = targets;
+
+  if (mustAttackTaunters) {
+    addLogEntry(`${currentUnit.name} is taunted! Must attack taunter.`, 'neutral');
+  }
+
+  highlightTargets();
+  renderHand();
 }
 
 function cancelTargeting() {
@@ -468,13 +498,20 @@ function cancelTargeting() {
 }
 
 function executeCardOnTarget(targetIndex) {
-  if (targetIndex < 0 || targetIndex >= gameState.validTargets.length) return;
-
   const currentUnit = getCurrentUnit();
   if (!currentUnit) return;
 
-  const target = gameState.validTargets[targetIndex];
   const cardId = gameState.selectedCard;
+  const card = CARDS[cardId];
+
+  // For self-targeting, get the target directly
+  let target;
+  if (card.target === 'self') {
+    target = currentUnit;
+  } else {
+    if (targetIndex < 0 || targetIndex >= gameState.validTargets.length) return;
+    target = gameState.validTargets[targetIndex];
+  }
 
   // Play the card from hand
   const hand = currentUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
@@ -483,20 +520,22 @@ function executeCardOnTarget(targetIndex) {
     playCard(currentUnit.team, cardIndex);
   }
 
-  // Execute the attack
-  const result = performAttack(currentUnit, target);
+  // Execute card effects
+  const result = executeCardEffects(currentUnit, target, card);
   addLogEntry(result.message, currentUnit.team);
 
-  // Show damage popup near target
-  showDamagePopup(result.damage, target.id);
+  // Show damage popup near target if damage was dealt
+  if (result.damage > 0) {
+    showDamagePopup(result.damage, target.id);
 
-  // Apply damage
-  const died = applyDamage(target, result.damage);
-  if (died) {
-    const deadUnits = removeDeadUnits();
-    deadUnits.forEach(unit => {
-      addLogEntry(`${unit.name} has fallen!`, unit.team);
-    });
+    // Apply damage
+    const died = applyDamage(target, result.damage);
+    if (died) {
+      const deadUnits = removeDeadUnits();
+      deadUnits.forEach(unit => {
+        addLogEntry(`${unit.name} has fallen!`, unit.team);
+      });
+    }
   }
 
   // Reset state
@@ -548,12 +587,16 @@ function endTurn() {
     gameState.turn++;
   }
 
+  // Reset block for the new current unit (block doesn't persist between turns)
+  const currentUnit = getCurrentUnit();
+  if (currentUnit) {
+    resetBlock(currentUnit);
+  }
+
   renderUnits();
   highlightTargets();
   renderTurnOrder();
   renderHand();
-
-  const currentUnit = getCurrentUnit();
 
   // Handle melee units needing to advance (must discard a card)
   if (currentUnit && needsToAdvance(currentUnit)) {
@@ -595,37 +638,75 @@ function runOpponentAI() {
     return;
   }
 
-  const { targets } = getValidAttackTargets(currentUnit);
-  if (targets.length === 0) {
-    addLogEntry(`${currentUnit.name} skips (no targets).`, 'opponent');
+  // Find a playable card that targets enemies
+  let cardToPlay = null;
+  let cardIndex = -1;
+  for (let i = 0; i < hand.length; i++) {
+    const card = CARDS[hand[i]];
+    if (canPlayCard(currentUnit, card) && card.target === 'enemy') {
+      cardToPlay = card;
+      cardIndex = i;
+      break;
+    }
+  }
+
+  // If no attack card, try self-targeting cards (like Defend)
+  if (!cardToPlay) {
+    for (let i = 0; i < hand.length; i++) {
+      const card = CARDS[hand[i]];
+      if (canPlayCard(currentUnit, card) && card.target === 'self') {
+        cardToPlay = card;
+        cardIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (!cardToPlay) {
+    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
     endTurn();
     return;
   }
 
-  // Play the first card (Attack) on the lowest HP target
+  // Handle self-targeting cards
+  if (cardToPlay.target === 'self') {
+    const cardId = playCard('opponent', cardIndex);
+    const result = executeCardEffects(currentUnit, currentUnit, cardToPlay);
+    addLogEntry(result.message, 'opponent');
+    endTurn();
+    return;
+  }
+
+  // Get valid targets for enemy-targeting cards
+  const { targets } = getValidCardTargets(currentUnit, cardToPlay);
+  if (targets.length === 0) {
+    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    endTurn();
+    return;
+  }
+
+  // Target the lowest HP enemy
   const target = targets.reduce((a, b) => a.hp < b.hp ? a : b);
 
-  // Play a card from hand
-  const cardId = playCard('opponent', 0);
-  if (!cardId) {
-    endTurn();
-    return;
-  }
+  // Play the card
+  const cardId = playCard('opponent', cardIndex);
 
-  // Execute the attack
-  const result = performAttack(currentUnit, target);
+  // Execute card effects
+  const result = executeCardEffects(currentUnit, target, cardToPlay);
   addLogEntry(result.message, 'opponent');
 
-  // Show damage popup near target
-  showDamagePopup(result.damage, target.id);
+  // Show damage popup near target if damage was dealt
+  if (result.damage > 0) {
+    showDamagePopup(result.damage, target.id);
 
-  // Apply damage
-  const died = applyDamage(target, result.damage);
-  if (died) {
-    const deadUnits = removeDeadUnits();
-    deadUnits.forEach(unit => {
-      addLogEntry(`${unit.name} has fallen!`, unit.team);
-    });
+    // Apply damage
+    const died = applyDamage(target, result.damage);
+    if (died) {
+      const deadUnits = removeDeadUnits();
+      deadUnits.forEach(unit => {
+        addLogEntry(`${unit.name} has fallen!`, unit.team);
+      });
+    }
   }
 
   const gameResult = checkGameOver();
@@ -702,9 +783,9 @@ function initGame() {
   gameState.turnOrder = shuffleArray(allUnitIds);
   gameState.currentUnitIndex = 0;
 
-  // Initialize decks
-  gameState.playerDeck = shuffleArray(createDeck());
-  gameState.opponentDeck = shuffleArray(createDeck());
+  // Initialize decks from DECK_DATA
+  gameState.playerDeck = shuffleArray(createDeck('player'));
+  gameState.opponentDeck = shuffleArray(createDeck('opponent'));
   gameState.playerHand = [];
   gameState.opponentHand = [];
   gameState.playerGraveyard = [];

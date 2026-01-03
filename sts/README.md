@@ -62,10 +62,39 @@ If a unit is taunted and chooses to attack, it must attack one of the taunter un
 If a unit is taunted and chooses not to attack, no restrictions.
 
 ## Cards
-For starters, we'll have only a single type of card:
-- Attack: perform attack
 
-This card can be played on any unit type.
+Cards are divided into two categories based on who can play them:
+
+### Basic Cards
+Basic cards have no restrictions and can be played by any unit type.
+
+- **Attack**: Deal damage to target enemy
+
+### Tech Cards
+Tech cards are more powerful but have requirements that restrict which units can play them.
+Requirements are a comma-separated string of: `melee`, `ranged`, `physical`, `magic`
+
+Examples:
+- **Shield Bash** (requires: 'melee'): Deal damage and apply Taunt 2
+- **Fireball** (requires: 'magic'): Deal magic damage to target enemy
+- **Power Shot** (requires: 'ranged'): Deal increased damage
+
+### Card Definition Structure
+See `cards-data.js` for more details, e.g.:
+
+```javascript
+{
+  id: 'shieldBash',
+  name: 'Shield Bash',
+  description: 'Deal damage and apply Taunt 2',
+  type: 'tech',
+  requires: 'melee',  // null for Basic cards, or 'melee, physical' for multiple
+  effects: { damage: true, taunt: 2 },
+  target: 'enemy'
+}
+```
+
+See `cards-data.js` for the full card definition format and examples.
 
 # UI (User Interface)
 We will rename the "Action Section" to the "Hand Section", where we'll display each card in hand.

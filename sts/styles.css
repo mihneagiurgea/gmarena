@@ -318,6 +318,24 @@ html, body {
   background: #b45309;
 }
 
+.card.unplayable-card {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #4b5563;
+  background: var(--bg-tertiary);
+}
+
+.card.unplayable-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #4b5563;
+  background: var(--bg-tertiary);
+}
+
+.card.unplayable-card .card-key {
+  background: #374151;
+}
+
 .advance-message {
   width: 100%;
   font-size: 12px;
@@ -975,6 +993,7 @@ html, body {
   gap: 8px;
   overflow-y: auto;
   align-items: center;
+  padding-top: 16px;
 }
 
 /* Unit wrapper within zones */
@@ -1155,6 +1174,33 @@ html, body {
 @keyframes taunted-pulse {
   0%, 100% { opacity: 0.9; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Block indicator - shows shield with block amount */
+.block-indicator {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 15;
+  border: 2px solid #60a5fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.block-indicator::before {
+  content: '🛡️';
+  font-size: 10px;
+  margin-right: 2px;
 }
 
 /* Turn order zone indicator */

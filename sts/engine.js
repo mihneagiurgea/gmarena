@@ -22,28 +22,59 @@ const ZONES = {
 const ZONE_NAMES = ['A', 'X', 'B'];
 
 // ============================================================================
-// CARD DEFINITIONS
+// CARD DEFINITIONS (built from cards-data.js)
 // ============================================================================
 
-const CARDS = {
-  attack: {
-    id: 'attack',
-    name: 'Attack',
-    description: 'Deal damage to target enemy',
-    requiresTarget: true
-  }
-};
+// Build CARDS object from CARD_DATA array
+const CARDS = {};
+CARD_DATA.forEach(card => {
+  CARDS[card.id] = card;
+});
 
 /**
- * Create a deck of cards for a team
+ * Check if a unit can play a specific card
+ */
+function canPlayCard(unit, card) {
+  if (!card.requires) return true; // Basic card, anyone can play
+
+  // Parse comma-separated requirements
+  const requirements = card.requires.split(',').map(r => r.trim());
+
+  for (const req of requirements) {
+    if (req === 'melee' && unit.attackRange !== 'melee') return false;
+    if (req === 'ranged' && unit.attackRange !== 'ranged') return false;
+    if (req === 'physical' && unit.attackType !== 'physical') return false;
+    if (req === 'magic' && unit.attackType !== 'magic') return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get cards from hand that the unit can play
+ */
+function getPlayableCards(unit) {
+  const hand = unit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+  return hand.filter(cardId => {
+    const card = CARDS[cardId];
+    return card && canPlayCard(unit, card);
+  });
+}
+
+/**
+ * Create a deck of cards for a team from DECK_DATA
  * @returns {string[]} Array of card IDs
  */
-function createDeck() {
-  // 12 Attack cards
+function createDeck(team) {
+  const deckDef = DECK_DATA[team];
   const deck = [];
-  for (let i = 0; i < 12; i++) {
-    deck.push('attack');
+
+  for (const [cardId, count] of Object.entries(deckDef)) {
+    for (let i = 0; i < count; i++) {
+      deck.push(cardId);
+    }
   }
+
   return deck;
 }
 
@@ -70,6 +101,7 @@ function createDeck() {
  * @property {'melee' | 'ranged'} attackRange
  * @property {'physical' | 'magic'} attackType
  * @property {number} damage
+ * @property {number} block - Current block (absorbs damage, resets each turn)
  * @property {boolean} hasAdvanced - True if melee unit has advanced to X
  * @property {Effect[]} effects - Active effects on this unit
  */
@@ -114,6 +146,7 @@ function createUnit(id, name, type, team) {
     attackRange: stats.attackRange,
     attackType: stats.attackType,
     damage: stats.damage,
+    block: 0,
     hasAdvanced: false,
     effects: []
   };
@@ -350,27 +383,95 @@ function removeEffectsFromSource(sourceId) {
 // ============================================================================
 
 /**
- * Perform an attack (no dice rolls - direct damage)
- * @returns {{damage: number, message: string}}
+ * Execute a card's effects
+ * @returns {{damage: number, message: string, effects: string[]}}
  */
-function performAttack(attacker, defender) {
-  const damage = attacker.damage;
-  const message = `${attacker.name} attacks ${defender.name} for ${damage} damage!`;
+function executeCardEffects(attacker, target, card) {
+  const result = {
+    damage: 0,
+    message: '',
+    effects: []
+  };
 
-  return { damage, message };
+  const messages = [];
+
+  // Calculate damage
+  if (card.effects.damage) {
+    if (card.effects.damage === true) {
+      // Use unit's damage stat
+      result.damage = attacker.damage;
+    } else {
+      // Use fixed damage value
+      result.damage = card.effects.damage;
+    }
+  }
+
+  // Apply damage multiplier
+  if (card.effects.damageMultiplier) {
+    result.damage = Math.floor(attacker.damage * card.effects.damageMultiplier);
+  }
+
+  // Build message for damage
+  if (result.damage > 0) {
+    messages.push(`${attacker.name} uses ${card.name} on ${target.name} for ${result.damage} damage`);
+  }
+
+  // Apply taunt effect
+  if (card.effects.taunt) {
+    applyEffect(target, 'taunt', attacker.id, card.effects.taunt);
+    result.effects.push(`Taunt (${card.effects.taunt})`);
+    messages.push(`${target.name} is taunted for ${card.effects.taunt} turns`);
+  }
+
+  // Apply block to self
+  if (card.effects.block) {
+    attacker.block += card.effects.block;
+    result.effects.push(`+${card.effects.block} Block`);
+    messages.push(`${attacker.name} gains ${card.effects.block} Block`);
+  }
+
+  // Apply heal
+  if (card.effects.heal) {
+    const healAmount = Math.min(card.effects.heal, target.maxHp - target.hp);
+    target.hp += healAmount;
+    result.effects.push(`+${healAmount} HP`);
+    messages.push(`${target.name} heals for ${healAmount} HP`);
+  }
+
+  result.message = messages.join('. ') + '!';
+
+  return result;
 }
 
 /**
- * Apply damage to a unit
+ * Apply damage to a unit (block absorbs first)
  * @returns {boolean} True if unit died
  */
 function applyDamage(unit, damage) {
+  // Block absorbs damage first
+  if (unit.block > 0) {
+    if (unit.block >= damage) {
+      unit.block -= damage;
+      return false; // All damage blocked
+    } else {
+      damage -= unit.block;
+      unit.block = 0;
+    }
+  }
+
   unit.hp -= damage;
   if (unit.hp <= 0) {
     unit.hp = 0;
     return true; // Unit died
   }
   return false;
+}
+
+/**
+ * Reset block at start of unit's turn
+ */
+function resetBlock(unit) {
+  unit.block = 0;
 }
 
 /**
@@ -445,6 +546,36 @@ function getValidAttackTargets(unit) {
  */
 function getAllEnemies(unit) {
   return gameState.units.filter(u => u.team !== unit.team);
+}
+
+/**
+ * Get all allies (excluding self)
+ */
+function getAllAllies(unit) {
+  return gameState.units.filter(u => u.team === unit.team && u.id !== unit.id);
+}
+
+/**
+ * Get valid targets for a card based on its target type
+ * @returns {{targets: Unit[], mustAttackTaunters: boolean}}
+ */
+function getValidCardTargets(unit, card) {
+  const targetType = card.target || 'enemy';
+
+  if (targetType === 'self') {
+    return { targets: [unit], mustAttackTaunters: false };
+  }
+
+  if (targetType === 'ally') {
+    return { targets: getAllAllies(unit), mustAttackTaunters: false };
+  }
+
+  if (targetType === 'any') {
+    return { targets: gameState.units, mustAttackTaunters: false };
+  }
+
+  // Default: enemy targeting (respects taunt and range)
+  return getValidAttackTargets(unit);
 }
 
 // ============================================================================
