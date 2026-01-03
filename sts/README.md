@@ -13,11 +13,7 @@ At the start of the game, units are assigned automatically to a zone, as such:
 ## Ranged Attacks
 Ranged attacks (including spells) can target any unit from any zone.
 
-## Melee Attacks
-Melee attacks can be made against units from the adjacent zone (e.g. if attacker
-is in AM zone, can attack any unit from BM), or against units in the enemy ranged
-zone (e.g. BR) if taunted by a unit there.
-
+TODO: some bugs here; do we really need zones?
 ## Taunt X
 Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
 unit ("the taunted"), that unit must attack one of its taunters, if able, for X
@@ -28,3 +24,8 @@ choose to not attack any unit (skip turn).
 
 If a Melee attack has Taunt X and hits, the defender will be Taunted X by the attacker.
 If it misses, nothing happens.
+
+## Melee Attacks
+Melee attacks can be made against units from the adjacent zone (e.g. if attacker
+is in AM zone, can attack any unit from BM), or against units in the enemy ranged
+zone (e.g. BR) if taunted by a unit there.
