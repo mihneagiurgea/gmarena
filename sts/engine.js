@@ -120,10 +120,8 @@ const gameState = {
   // Card state per team
   playerDeck: [],
   playerHand: [],
-  playerGraveyard: [],
   opponentDeck: [],
-  opponentHand: [],
-  opponentGraveyard: []
+  opponentHand: []
 };
 
 // ============================================================================
@@ -220,49 +218,27 @@ function drawCards(team) {
   const handLimit = 5;
   const deck = team === 'player' ? gameState.playerDeck : gameState.opponentDeck;
   const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
-  const graveyard = team === 'player' ? gameState.playerGraveyard : gameState.opponentGraveyard;
 
-  while (hand.length < handLimit) {
-    // If deck is empty, shuffle graveyard into deck
-    if (deck.length === 0) {
-      if (graveyard.length === 0) {
-        break; // No cards left anywhere
-      }
-      // Move all graveyard cards to deck and shuffle
-      const reshuffled = shuffleArray([...graveyard]);
-      if (team === 'player') {
-        gameState.playerDeck.push(...reshuffled);
-        gameState.playerGraveyard = [];
-      } else {
-        gameState.opponentDeck.push(...reshuffled);
-        gameState.opponentGraveyard = [];
-      }
-    }
-
-    // Draw a card
-    const deckRef = team === 'player' ? gameState.playerDeck : gameState.opponentDeck;
-    if (deckRef.length > 0) {
-      const card = deckRef.pop();
-      if (team === 'player') {
-        gameState.playerHand.push(card);
-      } else {
-        gameState.opponentHand.push(card);
-      }
-    }
+  while (hand.length < handLimit && deck.length > 0) {
+    const card = deck.pop();
+    hand.push(card);
   }
 }
 
 /**
- * Play a card from hand to graveyard
+ * Play a card from hand and shuffle it back into the deck
  */
 function playCard(team, cardIndex) {
   const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
-  const graveyard = team === 'player' ? gameState.playerGraveyard : gameState.opponentGraveyard;
+  const deck = team === 'player' ? gameState.playerDeck : gameState.opponentDeck;
 
   if (cardIndex < 0 || cardIndex >= hand.length) return null;
 
   const cardId = hand.splice(cardIndex, 1)[0];
-  graveyard.push(cardId);
+
+  // Shuffle the card back into the deck
+  const insertIndex = Math.floor(Math.random() * (deck.length + 1));
+  deck.splice(insertIndex, 0, cardId);
 
   return cardId;
 }

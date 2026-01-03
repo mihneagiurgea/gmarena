@@ -37,7 +37,7 @@ Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends
  - the player draws cards up to 5 cards
 
-Once a card is played, it's set aside in a special "Graveyard" zone. When the desk is out of cards, all cards from the Graveyard are shuffled and placed into the deck.
+Once a card is played, it is shuffled back into the deck.
 
 ## Attacking
 When a unit ("the attacker") attacks another unit ("the target"),
@@ -105,3 +105,5 @@ We will rename the "Action Section" to the "Hand Section", where we'll display e
 - [ ] Implement Cards 
 - [ ] Better UI for playing card
 - [ ] Better sprites for cards
+- [ ] Fix UI during advance
+- [ ] Refactor units.js into sprits and units-data.js

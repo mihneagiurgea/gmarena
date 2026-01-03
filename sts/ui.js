@@ -215,10 +215,8 @@ function renderHand() {
   if (needsToAdvance(currentUnit)) {
     if (isPlayerControlled(currentUnit)) {
       const hand = getCurrentHand();
-      let html = `
-        <div class="hand-header">${currentUnit.name} - Discard to Advance</div>
-        <div class="advance-message">Choose a card to discard, then advance to Zone X.</div>
-      `;
+      let html = '<div class="hand-cards">';
+      html += '<div class="advance-message">Choose a card to discard, then advance to the middle zone.</div>';
 
       // Show cards to discard
       hand.forEach((cardId, index) => {
@@ -232,6 +230,8 @@ function renderHand() {
         `;
       });
 
+      html += '</div>';
+      html += '<div class="hand-end-turn"></div>';
       handEl.innerHTML = html;
       bindDiscardEvents();
     } else {
@@ -241,37 +241,85 @@ function renderHand() {
   }
 
   if (!isPlayerControlled(currentUnit)) {
-    handEl.innerHTML = `<div class="hand-header">${currentUnit.name}'s Turn...</div>`;
+    // Show player's hand but disabled during opponent's turn
+    const playerHand = gameState.playerHand;
+
+    // Group cards by ID and count duplicates
+    const cardCounts = {};
+    playerHand.forEach(cardId => {
+      cardCounts[cardId] = (cardCounts[cardId] || 0) + 1;
+    });
+
+    let html = '<div class="hand-cards">';
+    let keyNum = 1;
+
+    for (const [cardId, count] of Object.entries(cardCounts)) {
+      const card = CARDS[cardId];
+      const countBadge = count > 1 ? `<div class="card-count">x${count}</div>` : '';
+
+      html += `
+        <div class="card disabled-card">
+          <div class="card-key">${keyNum}</div>
+          <div class="card-name">${card.name}</div>
+          <div class="card-desc">${card.description}</div>
+          ${countBadge}
+        </div>
+      `;
+      keyNum++;
+    }
+
+    html += '</div>';
+    html += `<div class="hand-end-turn"><div class="card disabled-card"><div class="card-key">E</div><div class="card-name">End Turn</div></div></div>`;
+
+    handEl.innerHTML = html;
     return;
   }
 
   const hand = getCurrentHand();
 
   if (gameState.phase === 'play') {
-    let html = `<div class="hand-header">${currentUnit.name} - Hand (${ZONE_NAMES[currentUnit.zone]})</div>`;
-
-    // Show cards in hand (playable and unplayable)
+    // Group cards by ID and count duplicates
+    const cardCounts = {};
+    const cardIndices = {}; // Store first index of each card type
     hand.forEach((cardId, index) => {
+      if (!cardCounts[cardId]) {
+        cardCounts[cardId] = 0;
+        cardIndices[cardId] = index;
+      }
+      cardCounts[cardId]++;
+    });
+
+    let html = '<div class="hand-cards">';
+    let keyNum = 1;
+
+    // Show collapsed cards with count
+    for (const [cardId, count] of Object.entries(cardCounts)) {
       const card = CARDS[cardId];
       const canPlay = canPlayCard(currentUnit, card);
       const cardClass = canPlay ? 'card' : 'card unplayable-card';
       const techLabel = card.requires ? ` [${card.requires}]` : '';
+      const countBadge = count > 1 ? `<div class="card-count">x${count}</div>` : '';
 
       html += `
-        <div class="${cardClass}" data-card-index="${index}">
-          <div class="card-key">${index + 1}</div>
+        <div class="${cardClass}" data-card-index="${cardIndices[cardId]}">
+          <div class="card-key">${keyNum}</div>
           <div class="card-name">${card.name}${techLabel}</div>
           <div class="card-desc">${card.description}</div>
+          ${countBadge}
         </div>
       `;
-    });
+      keyNum++;
+    }
 
-    // End turn option
+    html += '</div>';
+
+    // End turn option (separate section on the right)
     html += `
-      <div class="card skip-card" data-action="skip">
-        <div class="card-key">E</div>
-        <div class="card-name">End Turn</div>
-        <div class="card-desc">End turn without playing</div>
+      <div class="hand-end-turn">
+        <div class="card skip-card" data-action="skip">
+          <div class="card-key">E</div>
+          <div class="card-name">End Turn</div>
+        </div>
       </div>
     `;
 
@@ -279,26 +327,28 @@ function renderHand() {
     bindCardEvents();
 
   } else if (gameState.phase === 'targeting') {
-    const card = CARDS[gameState.selectedCard];
-    let html = `<div class="hand-header">${currentUnit.name} - Select Target for ${card.name}</div>`;
-
-    html += `
-      <div class="card cancel-card" data-action="cancel">
-        <div class="card-key">0</div>
-        <div class="card-name">Cancel</div>
-        <div class="card-desc">Go back</div>
-      </div>
-    `;
+    let html = '<div class="hand-cards">';
 
     gameState.validTargets.forEach((target, index) => {
       html += `
         <div class="card target-card" data-target-index="${index}">
           <div class="card-key">${index + 1}</div>
           <div class="card-name">${target.name}</div>
-          <div class="card-desc">${target.hp}/${target.maxHp} HP - Zone ${ZONE_NAMES[target.zone]}</div>
+          <div class="card-desc">${target.hp}/${target.maxHp} HP</div>
         </div>
       `;
     });
+
+    html += '</div>';
+
+    html += `
+      <div class="hand-end-turn">
+        <div class="card cancel-card" data-action="cancel">
+          <div class="card-key">Esc</div>
+          <div class="card-name">Cancel</div>
+        </div>
+      </div>
+    `;
 
     handEl.innerHTML = html;
     bindTargetEvents();
@@ -421,7 +471,7 @@ function showDamagePopup(damage, targetId) {
   document.body.appendChild(popup);
 
   // Remove after animation
-  setTimeout(() => popup.remove(), 1000);
+  setTimeout(() => popup.remove(), 1150);
 }
 
 // ============================================================================
@@ -613,13 +663,13 @@ function endTurn() {
         }
         advanceUnit(currentUnit);
         endTurn();
-      }, 600);
+      }, 850);
     }
     return;
   }
 
   if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-    setTimeout(() => runOpponentAI(), 600);
+    setTimeout(() => runOpponentAI(), 850);
   }
 }
 
@@ -752,9 +802,17 @@ document.addEventListener('keydown', (event) => {
     } else {
       const num = parseInt(key);
       if (!isNaN(num) && num >= 1) {
+        // Get collapsed card indices
         const hand = getCurrentHand();
-        if (num <= hand.length) {
-          selectCard(num - 1);
+        const cardIndices = {};
+        hand.forEach((cardId, index) => {
+          if (!(cardId in cardIndices)) {
+            cardIndices[cardId] = index;
+          }
+        });
+        const indices = Object.values(cardIndices);
+        if (num <= indices.length) {
+          selectCard(indices[num - 1]);
         }
       }
     }
@@ -788,8 +846,6 @@ function initGame() {
   gameState.opponentDeck = shuffleArray(createDeck('opponent'));
   gameState.playerHand = [];
   gameState.opponentHand = [];
-  gameState.playerGraveyard = [];
-  gameState.opponentGraveyard = [];
 
   // Draw initial hands
   drawCards('player');
@@ -819,13 +875,13 @@ function initGame() {
         }
         advanceUnit(firstUnit);
         endTurn();
-      }, 600);
+      }, 850);
     }
     return;
   }
 
   if (firstUnit && firstUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-    setTimeout(() => runOpponentAI(), 600);
+    setTimeout(() => runOpponentAI(), 850);
   }
 
   console.log('GM Arena (StS variant) initialized!');
@@ -904,12 +960,12 @@ function initDebugUI() {
           }
           advanceUnit(currentUnit);
           endTurn();
-        }, 600);
+        }, 850);
         return;
       }
 
       if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-        setTimeout(() => runOpponentAI(), 600);
+        setTimeout(() => runOpponentAI(), 850);
       }
     });
   }
