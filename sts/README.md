@@ -105,5 +105,3 @@ We will rename the "Action Section" to the "Hand Section", where we'll display e
 - [ ] Implement Cards 
 - [ ] Better UI for playing card
 - [ ] Better sprites for cards
-- [ ] Fix UI during advance
-- [ ] Refactor units.js into sprits and units-data.js

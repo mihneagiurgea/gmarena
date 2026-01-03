@@ -1,10 +1,9 @@
 /**
- * Unit Definitions - SVGs, Stats, and Spells
+ * Unit Sprites - SVG definitions for all units
+ *
+ * This file contains all SVG graphics for units.
+ * Each key in UNIT_SVGS matches a unit type from units-data.js
  */
-
-// ============================================================================
-// SVG TEMPLATES
-// ============================================================================
 
 // Shield watermark for units with Taunt
 const TAUNT_SHIELD_SVG = `
@@ -219,41 +218,4 @@ const UNIT_SVGS = {
   <path d="M42 32 L48 34" stroke="#4a6a3a" stroke-width="1.5"/>
   <path d="M52 34 L58 32" stroke="#4a6a3a" stroke-width="1.5"/>
 </svg>`
-};
-
-// ============================================================================
-// UNIT STATS
-// ============================================================================
-
-const UNIT_STATS = {
-  warrior: {
-    maxHp: 90,
-    attackRange: 'melee',
-    attackType: 'physical',
-    damage: 20
-  },
-  archer: {
-    maxHp: 70,
-    attackRange: 'ranged',
-    attackType: 'physical',
-    damage: 15
-  },
-  mage: {
-    maxHp: 50,
-    attackRange: 'ranged',
-    attackType: 'magic',
-    damage: 20
-  },
-  orc: {
-    maxHp: 110,
-    attackRange: 'melee',
-    attackType: 'physical',
-    damage: 25
-  },
-  goblin: {
-    maxHp: 50,
-    attackRange: 'ranged',
-    attackType: 'physical',
-    damage: 10
-  }
 };
