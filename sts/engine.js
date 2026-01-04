@@ -91,9 +91,9 @@ function createDeck(team) {
 
 /**
  * @typedef {Object} Auras
+ * @property {number} bonus - Added to damage and heal effects
  * @property {number} armor - Reduces incoming physical damage
  * @property {number} resistance - Reduces incoming magic damage
- * @property {number} damageBonus - Extra damage added to attacks
  */
 
 /**
@@ -107,7 +107,6 @@ function createDeck(team) {
  * @property {number} maxHp
  * @property {'melee' | 'ranged'} attackRange
  * @property {'physical' | 'magic'} attackType
- * @property {number} damageBonus - Bonus added to card's base damage
  * @property {number} block - Current block (absorbs damage, resets each turn)
  * @property {boolean} hasAdvanced - True if melee unit has advanced to X
  * @property {Effect[]} effects - Active effects on this unit
@@ -141,6 +140,7 @@ const gameState = {
  */
 function createUnit(id, name, type, team) {
   const stats = UNIT_DATA[type];
+  const unitAuras = stats.auras || {};
   return {
     id,
     name,
@@ -151,14 +151,13 @@ function createUnit(id, name, type, team) {
     maxHp: stats.maxHp,
     attackRange: stats.attackRange,
     attackType: stats.attackType,
-    damageBonus: stats.damageBonus,
     block: 0,
     hasAdvanced: false,
     effects: [],
     auras: {
-      armor: stats.armor || 0,
-      resistance: stats.resistance || 0,
-      damageBonus: 0
+      bonus: unitAuras.bonus || 0,
+      armor: unitAuras.armor || 0,
+      resistance: unitAuras.resistance || 0
     }
   };
 }
@@ -384,9 +383,9 @@ function executeCardEffects(attacker, target, card) {
 
   const messages = [];
 
-  // Calculate damage: card base damage + unit's damage bonus + aura damage bonus
+  // Calculate damage: card base damage + unit's bonus aura
   if (card.effects.damage) {
-    result.damage = card.effects.damage + (attacker.damageBonus || 0) + (attacker.auras.damageBonus || 0);
+    result.damage = card.effects.damage + (attacker.auras.bonus || 0);
   }
 
   // Build message for damage
@@ -408,19 +407,20 @@ function executeCardEffects(attacker, target, card) {
     messages.push(`${target.name} gains ${card.effects.block} Block`);
   }
 
-  // Apply heal
+  // Apply heal (includes caster's bonus aura)
   if (card.effects.heal) {
-    const healAmount = Math.min(card.effects.heal, target.maxHp - target.hp);
+    const baseHeal = card.effects.heal + (attacker.auras.bonus || 0);
+    const healAmount = Math.min(baseHeal, target.maxHp - target.hp);
     target.hp += healAmount;
     result.effects.push(`+${healAmount} HP`);
     messages.push(`${target.name} heals for ${healAmount} HP`);
   }
 
-  // Apply aura damage bonus
-  if (card.effects.auraDamageBonus) {
-    target.auras.damageBonus += card.effects.auraDamageBonus;
-    result.effects.push(`+${card.effects.auraDamageBonus} Damage Aura`);
-    messages.push(`${target.name} gains +${card.effects.auraDamageBonus} damage`);
+  // Apply bonus aura
+  if (card.effects.auraBonus) {
+    target.auras.bonus += card.effects.auraBonus;
+    result.effects.push(`+${card.effects.auraBonus} Bonus`);
+    messages.push(`${target.name} gains +${card.effects.auraBonus} bonus`);
   }
 
   result.message = messages.join('. ') + '!';

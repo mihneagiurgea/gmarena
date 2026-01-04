@@ -47,8 +47,19 @@ describe('units-data.js', () => {
         );
       });
 
-      test('has valid damageBonus', () => {
-        assert.ok(typeof unit.damageBonus === 'number', 'damageBonus should be a number');
+      test('has valid auras (if present)', () => {
+        if (unit.auras) {
+          assert.ok(typeof unit.auras === 'object', 'auras should be an object');
+          if (unit.auras.bonus !== undefined) {
+            assert.ok(typeof unit.auras.bonus === 'number', 'auras.bonus should be a number');
+          }
+          if (unit.auras.armor !== undefined) {
+            assert.ok(typeof unit.auras.armor === 'number', 'auras.armor should be a number');
+          }
+          if (unit.auras.resistance !== undefined) {
+            assert.ok(typeof unit.auras.resistance === 'number', 'auras.resistance should be a number');
+          }
+        }
       });
     });
   }

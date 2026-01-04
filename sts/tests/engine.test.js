@@ -178,8 +178,8 @@ describe('resetBlock', () => {
 });
 
 describe('executeCardEffects', () => {
-  test('calculates damage as card base + unit bonus', () => {
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 bonus
+  test('calculates damage as card base + bonus aura', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 bonus aura
     const target = createUnit('t', 'Target', 'orc', 'opponent');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
 
@@ -188,8 +188,8 @@ describe('executeCardEffects', () => {
     assert.strictEqual(result.damage, 20); // 15 + 5
   });
 
-  test('negative damage bonus reduces damage', () => {
-    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -5 bonus
+  test('negative bonus aura reduces damage', () => {
+    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -5 bonus aura
     const target = createUnit('t', 'Target', 'warrior', 'player');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
 
@@ -228,58 +228,57 @@ describe('executeCardEffects', () => {
     assert.strictEqual(unit.block, 15);
   });
 
-  test('heal restores HP up to max', () => {
-    const mage = createUnit('m', 'Mage', 'mage', 'player');
+  test('heal restores HP (includes caster bonus)', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player'); // +5 bonus
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.hp = 50;
     const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
 
     executeCardEffects(mage, warrior, card);
 
-    assert.strictEqual(warrior.hp, 65);
+    assert.strictEqual(warrior.hp, 70); // 50 + 15 + 5 (mage bonus)
   });
 
   test('heal does not exceed maxHp', () => {
-    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const mage = createUnit('m', 'Mage', 'mage', 'player'); // +5 bonus
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.hp = 85; // maxHp is 90
     const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
 
     executeCardEffects(mage, warrior, card);
 
-    assert.strictEqual(warrior.hp, 90); // Capped at maxHp
+    assert.strictEqual(warrior.hp, 90); // Capped at maxHp (would be 85 + 20 = 105)
   });
 
-  test('auraDamageBonus increases target damage', () => {
+  test('auraBonus increases target bonus', () => {
     const mage = createUnit('m', 'Mage', 'mage', 'player');
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    const buffCard = { name: 'Flaming Blade', effects: { auraDamageBonus: 5 }, target: 'ally' };
+    const archer = createUnit('a', 'Archer', 'archer', 'player'); // 0 bonus
+    const buffCard = { name: 'Flaming Blade', effects: { auraBonus: 5 }, target: 'ally' };
+
+    executeCardEffects(mage, archer, buffCard);
+
+    assert.strictEqual(archer.auras.bonus, 5);
+  });
+
+  test('auraBonus stacks with existing bonus', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 bonus
+    const buffCard = { name: 'Flaming Blade', effects: { auraBonus: 5 }, target: 'ally' };
 
     executeCardEffects(mage, warrior, buffCard);
 
-    assert.strictEqual(warrior.auras.damageBonus, 5);
+    assert.strictEqual(warrior.auras.bonus, 10); // 5 (base) + 5 (card)
   });
 
-  test('auraDamageBonus stacks', () => {
-    const mage = createUnit('m', 'Mage', 'mage', 'player');
+  test('bonus aura affects heal amount', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player'); // +5 bonus
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    warrior.auras.damageBonus = 3;
-    const buffCard = { name: 'Flaming Blade', effects: { auraDamageBonus: 5 }, target: 'ally' };
+    warrior.hp = 50;
+    const healCard = { name: 'Heal', effects: { heal: 10 }, target: 'ally' };
 
-    executeCardEffects(mage, warrior, buffCard);
+    executeCardEffects(mage, warrior, healCard);
 
-    assert.strictEqual(warrior.auras.damageBonus, 8);
-  });
-
-  test('damage includes aura damage bonus', () => {
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 base bonus
-    warrior.auras.damageBonus = 3;
-    const target = createUnit('t', 'Target', 'orc', 'opponent');
-    const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
-
-    const result = executeCardEffects(warrior, target, card);
-
-    assert.strictEqual(result.damage, 23); // 15 + 5 (base) + 3 (aura)
+    assert.strictEqual(warrior.hp, 65); // 50 + 10 + 5 (mage's bonus)
   });
 });
 

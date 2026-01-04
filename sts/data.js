@@ -13,7 +13,11 @@
 //   maxHp: number,             // Maximum health points
 //   attackRange: 'melee' | 'ranged',  // Attack range type
 //   attackType: 'physical' | 'magic', // Attack damage type
-//   damageBonus: number,       // Bonus added to card's base damage (can be negative)
+//   auras: {                   // Permanent auras (all optional)
+//     bonus: number,           // Added to damage and heal effects
+//     armor: number,           // Reduces incoming physical damage
+//     resistance: number,      // Reduces incoming magic damage
+//   }
 // }
 //
 // The key is the unit type (must match key in sprites.js UNIT_SVGS)
@@ -24,21 +28,20 @@ const UNIT_DATA = {
     maxHp: 90,
     attackRange: 'melee',
     attackType: 'physical',
-    damageBonus: 5
+    auras: { bonus: 5 }
   },
 
   archer: {
     maxHp: 70,
     attackRange: 'ranged',
-    attackType: 'physical',
-    damageBonus: 0
+    attackType: 'physical'
   },
 
   mage: {
     maxHp: 50,
     attackRange: 'ranged',
     attackType: 'magic',
-    damageBonus: 5
+    auras: { bonus: 5 }
   },
 
   // Enemy units
@@ -46,14 +49,14 @@ const UNIT_DATA = {
     maxHp: 110,
     attackRange: 'melee',
     attackType: 'physical',
-    damageBonus: 10
+    auras: { bonus: 10 }
   },
 
   goblin: {
     maxHp: 50,
     attackRange: 'ranged',
     attackType: 'physical',
-    damageBonus: -5
+    auras: { bonus: -5 }
   }
 };
 
@@ -69,10 +72,11 @@ const UNIT_DATA = {
 //   requires: null | string,  // null = Basic card, string = Tech card requirements
 //                             // Values: 'melee', 'ranged', 'physical', 'magic' (comma-separated)
 //   effects: {
-//     damage: number,     // Base damage (unit's damageBonus is added)
+//     damage: number,     // Base damage (unit's bonus aura is added)
 //     taunt: number,      // Apply Taunt X to target
-//     heal: number,       // Heal target
+//     heal: number,       // Heal target (unit's bonus aura is added)
 //     block: number,      // Gain block
+//     auraBonus: number,  // Grant permanent bonus aura to target
 //   },
 //   target: 'enemy' | 'ally' | 'self' | 'any',
 // }
@@ -133,9 +137,9 @@ const CARD_DATA = [
   {
     id: 'flamingBlade',
     name: 'Flaming Blade',
-    description: 'Grant +5 damage bonus',
+    description: 'Grant +5 bonus',
     requires: 'magic',
-    effects: { auraDamageBonus: 5 },
+    effects: { auraBonus: 5 },
     target: 'ally'
   }
 ];
