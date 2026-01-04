@@ -12,12 +12,12 @@ const engine = loadEngine();
 const { createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard } = engine;
 
 describe('applyDamage', () => {
-  describe('without block', () => {
+  describe('without block or auras', () => {
     test('reduces HP by damage amount', () => {
       const unit = createUnit('test', 'Test', 'warrior', 'player');
       const initialHp = unit.hp; // 90
 
-      applyDamage(unit, 20);
+      applyDamage(unit, 20, 'physical');
 
       assert.strictEqual(unit.hp, initialHp - 20);
     });
@@ -26,7 +26,7 @@ describe('applyDamage', () => {
       const unit = createUnit('test', 'Test', 'warrior', 'player');
       unit.hp = 10;
 
-      const died = applyDamage(unit, 10);
+      const died = applyDamage(unit, 10, 'physical');
 
       assert.strictEqual(died, true);
       assert.strictEqual(unit.hp, 0);
@@ -36,7 +36,7 @@ describe('applyDamage', () => {
       const unit = createUnit('test', 'Test', 'warrior', 'player');
       unit.hp = 10;
 
-      const died = applyDamage(unit, 50);
+      const died = applyDamage(unit, 50, 'physical');
 
       assert.strictEqual(died, true);
       assert.strictEqual(unit.hp, 0);
@@ -46,7 +46,7 @@ describe('applyDamage', () => {
       const unit = createUnit('test', 'Test', 'warrior', 'player');
       unit.hp = 50;
 
-      const died = applyDamage(unit, 30);
+      const died = applyDamage(unit, 30, 'physical');
 
       assert.strictEqual(died, false);
       assert.strictEqual(unit.hp, 20);
@@ -59,7 +59,7 @@ describe('applyDamage', () => {
       unit.block = 30;
       const initialHp = unit.hp;
 
-      applyDamage(unit, 20);
+      applyDamage(unit, 20, 'physical');
 
       assert.strictEqual(unit.hp, initialHp); // HP unchanged
       assert.strictEqual(unit.block, 10); // Block reduced
@@ -70,7 +70,7 @@ describe('applyDamage', () => {
       unit.hp = 50;
       unit.block = 15;
 
-      applyDamage(unit, 25);
+      applyDamage(unit, 25, 'physical');
 
       assert.strictEqual(unit.hp, 40); // 50 - (25 - 15) = 40
       assert.strictEqual(unit.block, 0); // Block depleted
@@ -81,7 +81,7 @@ describe('applyDamage', () => {
       unit.hp = 10;
       unit.block = 5;
 
-      const died = applyDamage(unit, 20);
+      const died = applyDamage(unit, 20, 'physical');
 
       assert.strictEqual(died, true);
       assert.strictEqual(unit.hp, 0);
@@ -93,9 +93,74 @@ describe('applyDamage', () => {
       unit.block = 25;
       const initialHp = unit.hp;
 
-      applyDamage(unit, 25);
+      applyDamage(unit, 25, 'physical');
 
       assert.strictEqual(unit.hp, initialHp);
+      assert.strictEqual(unit.block, 0);
+    });
+  });
+
+  describe('with auras', () => {
+    test('armor reduces physical damage', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.armor = 10;
+      unit.hp = 50;
+
+      applyDamage(unit, 25, 'physical');
+
+      assert.strictEqual(unit.hp, 35); // 50 - (25 - 10) = 35
+    });
+
+    test('armor does not reduce magic damage', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.armor = 10;
+      unit.hp = 50;
+
+      applyDamage(unit, 25, 'magic');
+
+      assert.strictEqual(unit.hp, 25); // 50 - 25 = 25, armor ignored
+    });
+
+    test('resistance reduces magic damage', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.resistance = 8;
+      unit.hp = 50;
+
+      applyDamage(unit, 20, 'magic');
+
+      assert.strictEqual(unit.hp, 38); // 50 - (20 - 8) = 38
+    });
+
+    test('resistance does not reduce physical damage', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.resistance = 8;
+      unit.hp = 50;
+
+      applyDamage(unit, 20, 'physical');
+
+      assert.strictEqual(unit.hp, 30); // 50 - 20 = 30, resistance ignored
+    });
+
+    test('armor cannot reduce damage below 0', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.armor = 50;
+      unit.hp = 100;
+
+      applyDamage(unit, 20, 'physical');
+
+      assert.strictEqual(unit.hp, 100); // No damage taken
+    });
+
+    test('auras reduce before block absorbs', () => {
+      const unit = createUnit('test', 'Test', 'warrior', 'player');
+      unit.auras.armor = 10;
+      unit.block = 10;
+      unit.hp = 50;
+
+      // 30 damage - 10 armor = 20, then 10 block absorbs, leaving 10 to HP
+      applyDamage(unit, 30, 'physical');
+
+      assert.strictEqual(unit.hp, 40);
       assert.strictEqual(unit.block, 0);
     });
   });

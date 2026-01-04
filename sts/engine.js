@@ -90,6 +90,12 @@ function createDeck(team) {
  */
 
 /**
+ * @typedef {Object} Auras
+ * @property {number} armor - Reduces incoming physical damage
+ * @property {number} resistance - Reduces incoming magic damage
+ */
+
+/**
  * @typedef {Object} Unit
  * @property {string} id
  * @property {string} name
@@ -104,6 +110,7 @@ function createDeck(team) {
  * @property {number} block - Current block (absorbs damage, resets each turn)
  * @property {boolean} hasAdvanced - True if melee unit has advanced to X
  * @property {Effect[]} effects - Active effects on this unit
+ * @property {Auras} auras - Permanent damage reduction auras
  */
 
 /** @type {Object} */
@@ -146,7 +153,11 @@ function createUnit(id, name, type, team) {
     damageBonus: stats.damageBonus,
     block: 0,
     hasAdvanced: false,
-    effects: []
+    effects: [],
+    auras: {
+      armor: stats.armor || 0,
+      resistance: stats.resistance || 0
+    }
   };
 }
 
@@ -409,11 +420,21 @@ function executeCardEffects(attacker, target, card) {
 }
 
 /**
- * Apply damage to a unit (block absorbs first)
+ * Apply damage to a unit (auras reduce, then block absorbs)
+ * @param {Unit} unit - The unit receiving damage
+ * @param {number} damage - The raw damage amount
+ * @param {'physical' | 'magic'} attackType - The type of damage (for aura reduction)
  * @returns {boolean} True if unit died
  */
-function applyDamage(unit, damage) {
-  // Block absorbs damage first
+function applyDamage(unit, damage, attackType) {
+  // Auras reduce damage first
+  if (attackType === 'physical' && unit.auras.armor > 0) {
+    damage = Math.max(0, damage - unit.auras.armor);
+  } else if (attackType === 'magic' && unit.auras.resistance > 0) {
+    damage = Math.max(0, damage - unit.auras.resistance);
+  }
+
+  // Block absorbs remaining damage
   if (unit.block > 0) {
     if (unit.block >= damage) {
       unit.block -= damage;

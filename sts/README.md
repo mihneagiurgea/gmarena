@@ -51,15 +51,38 @@ from zone A can attack a unit from zone X or B.
 Melee attacks can target any unit from either the same zone, or an adjacent zone,
 e.g. a unit from zone X can attack a unit from zone X or B.
 
+## Effects
+
 ### Effect: Taunt (X)
 Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
 unit ("the taunted"), that unit must attack one of its taunters, if able, for X
-rounds. 
+rounds.
 
 Note: since this is an effect, at the end of the taunted unit's turn, X is decreased by 1.
 
 If a unit is taunted and chooses to attack, it must attack one of the taunter units.
 If a unit is taunted and chooses not to attack, no restrictions.
+
+### Effect: Block
+Block is a temporary shield that absorbs incoming damage before HP is affected.
+
+- When a unit takes damage, block absorbs it first
+- If block >= damage: all damage is blocked, HP unchanged, block is reduced by the damage amount
+- If block < damage: block is depleted to 0, remaining damage is subtracted from HP
+- Block resets to 0 at the start of the unit's next turn
+- Block from multiple sources stacks (e.g., playing Defend twice gives 20 block)
+
+Example: A unit with 50 HP and 15 Block takes 25 damage.
+Block absorbs 15, leaving 10 damage. HP is reduced to 40. Block becomes 0.
+
+## Auras
+Auras are like effects but last until end of combat.
+
+Some units might have static Aura that are always active, since start of combat.
+
+Example of some Aura:s
+  - Armor (X): Reduce incoming physical damage by X
+  - Resistance (X): Reduce incoming magic damage by X
 
 ## Cards
 
@@ -80,29 +103,28 @@ Examples:
 - **Power Shot** (requires: 'ranged'): Deal increased damage
 
 ### Card Definition Structure
-See `cards-data.js` for more details, e.g.:
+See `data.js` for more details, e.g.:
 
 ```javascript
 {
   id: 'shieldBash',
   name: 'Shield Bash',
-  description: 'Deal damage and apply Taunt 2',
-  type: 'tech',
+  description: 'Deal 10 damage and Taunt (2)',
   requires: 'melee',  // null for Basic cards, or 'melee, physical' for multiple
-  effects: { damage: true, taunt: 2 },
+  effects: { damage: 10, taunt: 2 },
   target: 'enemy'
 }
 ```
 
-See `cards-data.js` for the full card definition format and examples.
+See `data.js` for the full card definition format and examples.
 
 # UI (User Interface)
 We will rename the "Action Section" to the "Hand Section", where we'll display each card in hand.
 
 # TODO
-- [ ] Block
-- [ ] Absorb / Armor / Magic Resistance
-- [ ] Implement Cards 
+- [x] Block
+- [x] Absorb / Armor / Magic Resistance
+- [ ] Implement Cards
 - [ ] Better UI for playing card
 - [ ] Better sprites for cards
-- [x] Add some unit tests for foo-data.js and engine.js 
+- [x] Add some unit tests for data.js and engine.js 

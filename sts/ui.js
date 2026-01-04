@@ -578,8 +578,8 @@ function executeCardOnTarget(targetIndex) {
   if (result.damage > 0) {
     showDamagePopup(result.damage, target.id);
 
-    // Apply damage
-    const died = applyDamage(target, result.damage);
+    // Apply damage (pass attacker's attackType for aura reduction)
+    const died = applyDamage(target, result.damage, currentUnit.attackType);
     if (died) {
       const deadUnits = removeDeadUnits();
       deadUnits.forEach(unit => {
@@ -749,8 +749,8 @@ function runOpponentAI() {
   if (result.damage > 0) {
     showDamagePopup(result.damage, target.id);
 
-    // Apply damage
-    const died = applyDamage(target, result.damage);
+    // Apply damage (pass attacker's attackType for aura reduction)
+    const died = applyDamage(target, result.damage, currentUnit.attackType);
     if (died) {
       const deadUnits = removeDeadUnits();
       deadUnits.forEach(unit => {
