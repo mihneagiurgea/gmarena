@@ -7,6 +7,46 @@
  */
 
 // ============================================================================
+// CARD HELPERS
+// ============================================================================
+
+/**
+ * Get the card type class and label based on requires
+ */
+function getCardTypeInfo(card) {
+  if (!card.requires) {
+    return { typeClass: 'card-basic', typeLabel: 'Basic', colorClass: 'type-basic' };
+  }
+  // Use first requirement for styling
+  const firstReq = card.requires.split(',')[0].trim();
+  const typeMap = {
+    melee: { typeClass: 'card-melee', typeLabel: 'Melee', colorClass: 'type-melee' },
+    ranged: { typeClass: 'card-ranged', typeLabel: 'Ranged', colorClass: 'type-ranged' },
+    magic: { typeClass: 'card-magic', typeLabel: 'Magic', colorClass: 'type-magic' },
+    physical: { typeClass: 'card-physical', typeLabel: 'Physical', colorClass: 'type-physical' }
+  };
+  return typeMap[firstReq] || { typeClass: 'card-basic', typeLabel: card.requires, colorClass: 'type-basic' };
+}
+
+/**
+ * Generate HTML for a game card
+ */
+function renderCardHTML(card, keyNum, options = {}) {
+  const { extraClasses = '', dataAttr = '', count = 0 } = options;
+  const typeInfo = getCardTypeInfo(card);
+  const countAttr = count > 1 ? `data-count="${count}"` : '';
+
+  return `
+    <div class="card ${typeInfo.typeClass} ${extraClasses}" ${dataAttr} ${countAttr}>
+      <div class="card-key">${keyNum}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-type ${typeInfo.colorClass}">${typeInfo.typeLabel}</div>
+      <div class="card-desc">${card.description}</div>
+    </div>
+  `;
+}
+
+// ============================================================================
 // RENDERING
 // ============================================================================
 
@@ -221,13 +261,10 @@ function renderHand() {
       // Show cards to discard
       hand.forEach((cardId, index) => {
         const card = CARDS[cardId];
-        html += `
-          <div class="card discard-card" data-discard-index="${index}">
-            <div class="card-key">${index + 1}</div>
-            <div class="card-name">${card.name}</div>
-            <div class="card-desc">Discard</div>
-          </div>
-        `;
+        html += renderCardHTML(card, index + 1, {
+          extraClasses: 'discard-card',
+          dataAttr: `data-discard-index="${index}"`
+        });
       });
 
       html += '</div>';
@@ -255,21 +292,20 @@ function renderHand() {
 
     for (const [cardId, count] of Object.entries(cardCounts)) {
       const card = CARDS[cardId];
-      const countBadge = count > 1 ? `<div class="card-count">x${count}</div>` : '';
-
-      html += `
-        <div class="card disabled-card">
-          <div class="card-key">${keyNum}</div>
-          <div class="card-name">${card.name}</div>
-          <div class="card-desc">${card.description}</div>
-          ${countBadge}
-        </div>
-      `;
+      html += renderCardHTML(card, keyNum, {
+        extraClasses: 'disabled-card',
+        count
+      });
       keyNum++;
     }
 
     html += '</div>';
-    html += `<div class="hand-end-turn"><div class="card disabled-card"><div class="card-key">E</div><div class="card-name">End Turn</div></div></div>`;
+    html += `<div class="hand-end-turn">
+      <div class="card skip-card disabled-card">
+        <div class="card-key">E</div>
+        <div class="card-name">End Turn</div>
+      </div>
+    </div>`;
 
     handEl.innerHTML = html;
     return;
@@ -296,18 +332,13 @@ function renderHand() {
     for (const [cardId, count] of Object.entries(cardCounts)) {
       const card = CARDS[cardId];
       const canPlay = canPlayCard(currentUnit, card);
-      const cardClass = canPlay ? 'card' : 'card unplayable-card';
-      const techLabel = card.requires ? ` [${card.requires}]` : '';
-      const countBadge = count > 1 ? `<div class="card-count">x${count}</div>` : '';
+      const extraClasses = canPlay ? '' : 'unplayable-card';
 
-      html += `
-        <div class="${cardClass}" data-card-index="${cardIndices[cardId]}">
-          <div class="card-key">${keyNum}</div>
-          <div class="card-name">${card.name}${techLabel}</div>
-          <div class="card-desc">${card.description}</div>
-          ${countBadge}
-        </div>
-      `;
+      html += renderCardHTML(card, keyNum, {
+        extraClasses,
+        dataAttr: `data-card-index="${cardIndices[cardId]}"`,
+        count
+      });
       keyNum++;
     }
 
@@ -334,6 +365,7 @@ function renderHand() {
         <div class="card target-card" data-target-index="${index}">
           <div class="card-key">${index + 1}</div>
           <div class="card-name">${target.name}</div>
+          <div class="card-type type-basic">${target.team === 'player' ? 'Ally' : 'Enemy'}</div>
           <div class="card-desc">${target.hp}/${target.maxHp} HP</div>
         </div>
       `;

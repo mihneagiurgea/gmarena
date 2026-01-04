@@ -174,8 +174,8 @@ html, body {
 .hand-cards {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 12px;
   flex: 1;
 }
 
@@ -183,6 +183,8 @@ html, body {
   margin-left: auto;
   padding-left: 20px;
   border-left: 1px solid var(--border-color);
+  display: flex;
+  align-items: flex-end;
 }
 
 .options-header,
@@ -230,56 +232,124 @@ html, body {
   color: var(--text-secondary);
 }
 
-/* Card styling */
+/* Card styling - vertical card layout */
 .card {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(42, 58, 90, 0.8) 100%);
+  flex-direction: column;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(42, 58, 90, 0.9) 100%);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 140px;
+  width: 138px;
+  height: 140px;
 }
 
 .card:hover {
-  border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(74, 158, 255, 0.15) 0%, rgba(74, 158, 255, 0.05) 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Card type borders */
+.card.card-basic {
+  border-color: #6b7280;
+  border-top: 3px solid #6b7280;
+}
+.card.card-basic:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 6px 16px rgba(156, 163, 175, 0.3);
+}
+
+.card.card-melee {
+  border-color: #ef4444;
+  border-top: 3px solid #ef4444;
+}
+.card.card-melee:hover {
+  border-color: #f87171;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
+
+.card.card-ranged {
+  border-color: #22c55e;
+  border-top: 3px solid #22c55e;
+}
+.card.card-ranged:hover {
+  border-color: #4ade80;
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.3);
+}
+
+.card.card-magic {
+  border-color: #a855f7;
+  border-top: 3px solid #a855f7;
+}
+.card.card-magic:hover {
+  border-color: #c084fc;
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.3);
+}
+
+.card.card-physical {
+  border-color: #f97316;
+  border-top: 3px solid #f97316;
+}
+.card.card-physical:hover {
+  border-color: #fb923c;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
 }
 
 .card-key {
-  width: 28px;
-  height: 28px;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
   background: var(--accent-dim);
-  border-radius: 4px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-primary);
-  flex-shrink: 0;
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 10;
 }
 
 .card-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.3;
+  margin-bottom: 4px;
 }
+
+.card-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 0;
+  margin-bottom: 6px;
+}
+
+.card-type.type-basic { color: #9ca3af; }
+.card-type.type-melee { color: #f87171; }
+.card-type.type-ranged { color: #4ade80; }
+.card-type.type-magic { color: #c084fc; }
+.card-type.type-physical { color: #fb923c; }
 
 .card-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-left: auto;
+  line-height: 1.4;
+  margin-top: auto;
 }
 
+/* Special card types */
 .card.skip-card {
-  border-color: var(--border-color);
+  border-color: #4b5563;
+  border-top: 3px solid #4b5563;
   background: var(--bg-tertiary);
 }
 
@@ -293,12 +363,13 @@ html, body {
 }
 
 .card.cancel-card {
-  border-color: #f87171;
+  border-color: #ef4444;
+  border-top: 3px solid #ef4444;
   background: rgba(248, 113, 113, 0.1);
 }
 
 .card.cancel-card:hover {
-  border-color: #ef4444;
+  border-color: #f87171;
   background: rgba(239, 68, 68, 0.2);
 }
 
@@ -307,23 +378,25 @@ html, body {
 }
 
 .card.target-card {
-  border-left: 4px solid var(--opponent-color);
+  border-color: var(--opponent-color);
+  border-top: 3px solid var(--opponent-color);
 }
 
 .card.target-card:hover {
-  border-color: var(--opponent-color);
+  border-color: #fca5a5;
   background: rgba(248, 113, 113, 0.15);
 }
 
 .card.discard-card {
   border-color: #f59e0b;
+  border-top: 3px solid #f59e0b;
   background: rgba(245, 158, 11, 0.1);
 }
 
 .card.discard-card:hover {
-  border-color: #f59e0b;
+  border-color: #fbbf24;
   background: rgba(245, 158, 11, 0.25);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
 }
 
 .card.discard-card .card-key {
@@ -333,15 +406,11 @@ html, body {
 .card.unplayable-card {
   opacity: 0.5;
   cursor: not-allowed;
-  border-color: #4b5563;
-  background: var(--bg-tertiary);
 }
 
 .card.unplayable-card:hover {
   transform: none;
   box-shadow: none;
-  border-color: #4b5563;
-  background: var(--bg-tertiary);
 }
 
 .card.unplayable-card .card-key {
@@ -351,7 +420,8 @@ html, body {
 .card.disabled-card {
   opacity: 0.4;
   cursor: not-allowed;
-  border-color: #374151;
+  border-color: #374151 !important;
+  border-top-color: #374151 !important;
   background: rgba(55, 65, 81, 0.3);
   pointer-events: none;
 }
@@ -360,23 +430,25 @@ html, body {
   background: #1f2937;
 }
 
-.card-count {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 5px;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-  color: white;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  border: 2px solid var(--bg-primary);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+/* Stacked cards effect for duplicates */
+.card[data-count="2"] {
+  box-shadow:
+    5px 5px 0 -2px #1e293b,
+    5px 5px 0 0 #475569;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.card[data-count="3"],
+.card[data-count="4"],
+.card[data-count="5"] {
+  box-shadow:
+    5px 5px 0 -2px #1e293b,
+    5px 5px 0 0 #475569,
+    10px 10px 0 -2px #1e293b,
+    10px 10px 0 0 #475569;
+  margin-right: 12px;
+  margin-bottom: 12px;
 }
 
 .advance-message {
