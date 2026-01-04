@@ -448,6 +448,19 @@ function addLogEntry(message, type = 'neutral') {
 }
 
 /**
+ * Show game over banner (victory or defeat)
+ */
+function showGameOverBanner(isVictory) {
+  const banner = document.createElement('div');
+  banner.className = `game-over-banner ${isVictory ? 'victory' : 'defeat'}`;
+  banner.innerHTML = `
+    <div class="banner-text">${isVictory ? 'Victory!' : 'Defeat'}</div>
+    <div class="banner-subtext">${isVictory ? 'All enemies have been defeated!' : 'All your units have fallen.'}</div>
+  `;
+  document.body.appendChild(banner);
+}
+
+/**
  * Show damage popup near the target unit
  */
 function showDamagePopup(damage, targetId) {
@@ -600,11 +613,9 @@ function executeCardOnTarget(targetIndex) {
   if (gameResult === 'ongoing') {
     endTurn();
   } else {
-    if (gameResult === 'defeat') {
-      addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
-    } else {
-      addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
-    }
+    const isVictory = gameResult === 'victory';
+    addLogEntry(isVictory ? 'VICTORY! All enemies have been defeated!' : 'DEFEAT! All your units have fallen.', 'neutral');
+    showGameOverBanner(isVictory);
     renderUnits();
     renderTurnOrder();
     renderHand();
@@ -763,11 +774,9 @@ function runOpponentAI() {
   if (gameResult === 'ongoing') {
     endTurn();
   } else {
-    if (gameResult === 'defeat') {
-      addLogEntry('DEFEAT! All your units have fallen.', 'neutral');
-    } else {
-      addLogEntry('VICTORY! All enemies have been defeated!', 'neutral');
-    }
+    const isVictory = gameResult === 'victory';
+    addLogEntry(isVictory ? 'VICTORY! All enemies have been defeated!' : 'DEFEAT! All your units have fallen.', 'neutral');
+    showGameOverBanner(isVictory);
     renderUnits();
     renderTurnOrder();
     renderHand();
