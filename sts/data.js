@@ -104,6 +104,40 @@ const CARD_DATA = [
     effects: { damage: 10, taunt: 2 },
     target: 'enemy'
   },
+
+  // Tech cards - Magic
+  {
+    id: 'fireball',
+    name: 'Fireball',
+    description: 'Deal 20 damage',
+    requires: 'magic',
+    effects: { damage: 20 },
+    target: 'enemy'
+  },
+  {
+    id: 'heal',
+    name: 'Heal',
+    description: 'Heal 15 HP',
+    requires: 'magic',
+    effects: { heal: 15 },
+    target: 'ally'
+  },
+  {
+    id: 'magicShield',
+    name: 'Magic Shield',
+    description: 'Gain 15 Block',
+    requires: 'magic',
+    effects: { block: 15 },
+    target: 'ally'
+  },
+  {
+    id: 'flamingBlade',
+    name: 'Flaming Blade',
+    description: 'Grant +5 damage bonus',
+    requires: 'magic',
+    effects: { auraDamageBonus: 5 },
+    target: 'ally'
+  }
 ];
 
 // ============================================================================

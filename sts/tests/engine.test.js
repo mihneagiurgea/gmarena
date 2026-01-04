@@ -198,13 +198,24 @@ describe('executeCardEffects', () => {
     assert.strictEqual(result.damage, 10); // 15 - 5
   });
 
-  test('applies block to attacker', () => {
+  test('applies block to self (self-target card)', () => {
     const unit = createUnit('u', 'Unit', 'warrior', 'player');
     const card = { name: 'Defend', effects: { block: 10 }, target: 'self' };
 
     executeCardEffects(unit, unit, card);
 
     assert.strictEqual(unit.block, 10);
+  });
+
+  test('applies block to ally (ally-target card)', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    const card = { name: 'Magic Shield', effects: { block: 15 }, target: 'ally' };
+
+    executeCardEffects(mage, warrior, card);
+
+    assert.strictEqual(warrior.block, 15); // Block on target, not caster
+    assert.strictEqual(mage.block, 0);
   });
 
   test('block stacks', () => {
@@ -215,6 +226,60 @@ describe('executeCardEffects', () => {
     executeCardEffects(unit, unit, card);
 
     assert.strictEqual(unit.block, 15);
+  });
+
+  test('heal restores HP up to max', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.hp = 50;
+    const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
+
+    executeCardEffects(mage, warrior, card);
+
+    assert.strictEqual(warrior.hp, 65);
+  });
+
+  test('heal does not exceed maxHp', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.hp = 85; // maxHp is 90
+    const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
+
+    executeCardEffects(mage, warrior, card);
+
+    assert.strictEqual(warrior.hp, 90); // Capped at maxHp
+  });
+
+  test('auraDamageBonus increases target damage', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    const buffCard = { name: 'Flaming Blade', effects: { auraDamageBonus: 5 }, target: 'ally' };
+
+    executeCardEffects(mage, warrior, buffCard);
+
+    assert.strictEqual(warrior.auras.damageBonus, 5);
+  });
+
+  test('auraDamageBonus stacks', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.auras.damageBonus = 3;
+    const buffCard = { name: 'Flaming Blade', effects: { auraDamageBonus: 5 }, target: 'ally' };
+
+    executeCardEffects(mage, warrior, buffCard);
+
+    assert.strictEqual(warrior.auras.damageBonus, 8);
+  });
+
+  test('damage includes aura damage bonus', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 base bonus
+    warrior.auras.damageBonus = 3;
+    const target = createUnit('t', 'Target', 'orc', 'opponent');
+    const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+
+    const result = executeCardEffects(warrior, target, card);
+
+    assert.strictEqual(result.damage, 23); // 15 + 5 (base) + 3 (aura)
   });
 });
 

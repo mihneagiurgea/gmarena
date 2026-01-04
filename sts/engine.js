@@ -93,6 +93,7 @@ function createDeck(team) {
  * @typedef {Object} Auras
  * @property {number} armor - Reduces incoming physical damage
  * @property {number} resistance - Reduces incoming magic damage
+ * @property {number} damageBonus - Extra damage added to attacks
  */
 
 /**
@@ -156,7 +157,8 @@ function createUnit(id, name, type, team) {
     effects: [],
     auras: {
       armor: stats.armor || 0,
-      resistance: stats.resistance || 0
+      resistance: stats.resistance || 0,
+      damageBonus: 0
     }
   };
 }
@@ -382,9 +384,9 @@ function executeCardEffects(attacker, target, card) {
 
   const messages = [];
 
-  // Calculate damage: card base damage + unit's damage bonus
+  // Calculate damage: card base damage + unit's damage bonus + aura damage bonus
   if (card.effects.damage) {
-    result.damage = card.effects.damage + (attacker.damageBonus || 0);
+    result.damage = card.effects.damage + (attacker.damageBonus || 0) + (attacker.auras.damageBonus || 0);
   }
 
   // Build message for damage
@@ -399,11 +401,11 @@ function executeCardEffects(attacker, target, card) {
     messages.push(`${target.name} is taunted for ${card.effects.taunt} turns`);
   }
 
-  // Apply block to self
+  // Apply block to target (for self/ally targeting cards)
   if (card.effects.block) {
-    attacker.block += card.effects.block;
+    target.block += card.effects.block;
     result.effects.push(`+${card.effects.block} Block`);
-    messages.push(`${attacker.name} gains ${card.effects.block} Block`);
+    messages.push(`${target.name} gains ${card.effects.block} Block`);
   }
 
   // Apply heal
@@ -412,6 +414,13 @@ function executeCardEffects(attacker, target, card) {
     target.hp += healAmount;
     result.effects.push(`+${healAmount} HP`);
     messages.push(`${target.name} heals for ${healAmount} HP`);
+  }
+
+  // Apply aura damage bonus
+  if (card.effects.auraDamageBonus) {
+    target.auras.damageBonus += card.effects.auraDamageBonus;
+    result.effects.push(`+${card.effects.auraDamageBonus} Damage Aura`);
+    messages.push(`${target.name} gains +${card.effects.auraDamageBonus} damage`);
   }
 
   result.message = messages.join('. ') + '!';
