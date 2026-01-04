@@ -105,4 +105,4 @@ We will rename the "Action Section" to the "Hand Section", where we'll display e
 - [ ] Implement Cards 
 - [ ] Better UI for playing card
 - [ ] Better sprites for cards
-- [ ] Add some unit tests for foo-data.js and engine.js
+- [x] Add some unit tests for foo-data.js and engine.js 
