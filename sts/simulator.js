@@ -29,7 +29,7 @@ function loadGame() {
     ${engineCode}
     ${aiCode}
     return {
-      UNIT_DATA, CARD_DATA, DECK_DATA, CARDS,
+      UNIT_DATA, CARD_DATA, DECK_DATA, TEAM_DATA, CARDS,
       createUnit, applyDamage, resetBlock, executeCardEffects,
       canPlayCard, getValidCardTargets, applyEffect, hasEffect,
       shuffleArray, createDeck, drawCards,
@@ -43,7 +43,7 @@ function loadGame() {
 
 const game = loadGame();
 const {
-  UNIT_DATA, CARD_DATA, DECK_DATA, CARDS,
+  UNIT_DATA, CARD_DATA, DECK_DATA, TEAM_DATA, CARDS,
   createUnit, applyDamage, executeCardEffects,
   canPlayCard, getValidCardTargets, applyEffect,
   shuffleArray, createDeck, drawCards,
@@ -54,19 +54,31 @@ const {
 // GAME STATE INITIALIZATION
 // ============================================================================
 
-function createInitialState() {
-  // Create units
-  const playerUnits = [
-    createUnit('warrior', 'Warrior', 'warrior', 'player'),
-    createUnit('mage', 'Mage', 'mage', 'player'),
-    createUnit('archer', 'Archer', 'archer', 'player'),
-  ];
+function createUnitsFromTypes(types, team) {
+  const typeCounts = {};
+  types.forEach(type => {
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+  });
 
-  const opponentUnits = [
-    createUnit('orc1', 'Orc #1', 'orc', 'opponent'),
-    createUnit('orc2', 'Orc #2', 'orc', 'opponent'),
-    createUnit('goblin1', 'Goblin', 'goblin', 'opponent'),
-  ];
+  const typeIndex = {};
+
+  return types.map(type => {
+    const count = typeCounts[type];
+    typeIndex[type] = (typeIndex[type] || 0) + 1;
+    const idx = typeIndex[type];
+
+    const baseName = type.charAt(0).toUpperCase() + type.slice(1);
+    const id = count > 1 ? `${type}${idx}` : type;
+    const name = count > 1 ? `${baseName} #${idx}` : baseName;
+
+    return createUnit(id, name, type, team);
+  });
+}
+
+function createInitialState() {
+  // Create units from TEAM_DATA
+  const playerUnits = createUnitsFromTypes(TEAM_DATA.player, 'player');
+  const opponentUnits = createUnitsFromTypes(TEAM_DATA.opponent, 'opponent');
 
   // Set zones
   playerUnits.forEach(u => u.zone = 0);    // Zone A

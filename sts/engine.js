@@ -179,22 +179,45 @@ function isRangedUnit(unit) {
 }
 
 /**
- * Create initial units for the game
+ * Create units from an array of types, generating unique ids and names
+ * @param {string[]} types - Array of unit type strings
+ * @param {string} team - Team name ('player' or 'opponent')
+ * @returns {Unit[]}
+ */
+function createUnitsFromTypes(types, team) {
+  // Count occurrences of each type
+  const typeCounts = {};
+  types.forEach(type => {
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+  });
+
+  // Track current index for each type
+  const typeIndex = {};
+
+  return types.map(type => {
+    const count = typeCounts[type];
+    typeIndex[type] = (typeIndex[type] || 0) + 1;
+    const idx = typeIndex[type];
+
+    // Capitalize first letter for name
+    const baseName = type.charAt(0).toUpperCase() + type.slice(1);
+
+    // If multiple of same type, add number suffix
+    const id = count > 1 ? `${type}${idx}` : type;
+    const name = count > 1 ? `${baseName} #${idx}` : baseName;
+
+    return createUnit(id, name, type, team);
+  });
+}
+
+/**
+ * Create initial units for the game from TEAM_DATA
  * All Team A units start in zone A, all Team B units start in zone B
  * @returns {Unit[]}
  */
 function createInitialUnits() {
-  const playerUnits = [
-    createUnit('warrior', 'Warrior', 'warrior', 'player'),
-    createUnit('mage', 'Mage', 'mage', 'player'),
-    createUnit('archer', 'Archer', 'archer', 'player')
-  ];
-
-  const opponentUnits = [
-    createUnit('orc1', 'Orc #1', 'orc', 'opponent'),
-    createUnit('orc2', 'Orc #2', 'orc', 'opponent'),
-    createUnit('goblin1', 'Goblin', 'goblin', 'opponent')
-  ];
+  const playerUnits = createUnitsFromTypes(TEAM_DATA.player, 'player');
+  const opponentUnits = createUnitsFromTypes(TEAM_DATA.opponent, 'opponent');
 
   // All player units start in zone A
   playerUnits.forEach(unit => {

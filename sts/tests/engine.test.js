@@ -179,23 +179,23 @@ describe('resetBlock', () => {
 
 describe('executeCardEffects', () => {
   test('calculates damage as card base + bonus aura', () => {
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 bonus aura
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus aura
     const target = createUnit('t', 'Target', 'orc', 'opponent');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
 
     const result = executeCardEffects(warrior, target, card);
 
-    assert.strictEqual(result.damage, 20); // 15 + 5
+    assert.strictEqual(result.damage, 18); // 15 + 3
   });
 
   test('negative bonus aura reduces damage', () => {
-    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -5 bonus aura
+    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -2 bonus aura
     const target = createUnit('t', 'Target', 'warrior', 'player');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
 
     const result = executeCardEffects(goblin, target, card);
 
-    assert.strictEqual(result.damage, 10); // 15 - 5
+    assert.strictEqual(result.damage, 13); // 15 - 2
   });
 
   test('applies block to self (self-target card)', () => {
@@ -262,12 +262,12 @@ describe('executeCardEffects', () => {
 
   test('auraBonus stacks with existing bonus', () => {
     const mage = createUnit('m', 'Mage', 'mage', 'player');
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +5 bonus
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus
     const buffCard = { name: 'Flaming Blade', effects: { auraBonus: 5 }, target: 'ally' };
 
     executeCardEffects(mage, warrior, buffCard);
 
-    assert.strictEqual(warrior.auras.bonus, 10); // 5 (base) + 5 (card)
+    assert.strictEqual(warrior.auras.bonus, 8); // 3 (base) + 5 (card)
   });
 
   test('bonus aura affects heal amount', () => {

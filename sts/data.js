@@ -29,7 +29,7 @@ const UNIT_DATA = {
     maxHp: 90,
     attackRange: 'melee',
     attackType: 'physical',
-    auras: { bonus: 5, taunt: 1 }
+    auras: { bonus: 3, taunt: 1 }
   },
 
   archer: {
@@ -50,14 +50,14 @@ const UNIT_DATA = {
     maxHp: 110,
     attackRange: 'melee',
     attackType: 'physical',
-    auras: { bonus: 10 }
+    auras: { bonus: 6 }
   },
 
   goblin: {
     maxHp: 50,
     attackRange: 'ranged',
     attackType: 'physical',
-    auras: { bonus: -5 }
+    auras: { bonus: -2 }
   }
 };
 
@@ -167,4 +167,17 @@ const DECK_DATA = {
   opponent: {
     attack: 10
   }
+};
+
+// ============================================================================
+// TEAMS
+// ============================================================================
+//
+// Define starting team compositions as arrays of unit types.
+// Unit types must match keys in UNIT_DATA.
+// IDs and names are auto-generated (e.g., ['orc', 'orc'] -> Orc #1, Orc #2)
+
+const TEAM_DATA = {
+  player: ['warrior', 'mage', 'mage'],
+  opponent: ['orc', 'orc', 'goblin']
 };
