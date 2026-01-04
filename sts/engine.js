@@ -94,6 +94,7 @@ function createDeck(team) {
  * @property {number} bonus - Added to damage and heal effects
  * @property {number} armor - Reduces incoming physical damage
  * @property {number} resistance - Reduces incoming magic damage
+ * @property {number} taunt - All attacks apply Taunt (X)
  */
 
 /**
@@ -157,7 +158,8 @@ function createUnit(id, name, type, team) {
     auras: {
       bonus: unitAuras.bonus || 0,
       armor: unitAuras.armor || 0,
-      resistance: unitAuras.resistance || 0
+      resistance: unitAuras.resistance || 0,
+      taunt: unitAuras.taunt || 0
     }
   };
 }
@@ -393,11 +395,15 @@ function executeCardEffects(attacker, target, card) {
     messages.push(`${attacker.name} uses ${card.name} on ${target.name} for ${result.damage} damage`);
   }
 
-  // Apply taunt effect
-  if (card.effects.taunt) {
-    applyEffect(target, 'taunt', attacker.id, card.effects.taunt);
-    result.effects.push(`Taunt (${card.effects.taunt})`);
-    messages.push(`${target.name} is taunted for ${card.effects.taunt} turns`);
+  // Apply taunt effect (from card or attacker's aura when dealing damage)
+  const cardTaunt = card.effects.taunt || 0;
+  const auraTaunt = (result.damage > 0 && attacker.auras.taunt) ? attacker.auras.taunt : 0;
+  const totalTaunt = Math.max(cardTaunt, auraTaunt);
+
+  if (totalTaunt > 0) {
+    applyEffect(target, 'taunt', attacker.id, totalTaunt);
+    result.effects.push(`Taunt (${totalTaunt})`);
+    messages.push(`${target.name} is taunted for ${totalTaunt} turns`);
   }
 
   // Apply block to target (for self/ally targeting cards)

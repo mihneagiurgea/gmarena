@@ -9,7 +9,7 @@ const assert = require('node:assert');
 const { loadEngine } = require('./loader');
 
 const engine = loadEngine();
-const { createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard } = engine;
+const { createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard, hasEffect } = engine;
 
 describe('applyDamage', () => {
   describe('without block or auras', () => {
@@ -279,6 +279,26 @@ describe('executeCardEffects', () => {
     executeCardEffects(mage, warrior, healCard);
 
     assert.strictEqual(warrior.hp, 65); // 50 + 10 + 5 (mage's bonus)
+  });
+
+  test('taunt aura applies taunt on damage', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // has taunt: 1
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    const attackCard = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+
+    executeCardEffects(warrior, orc, attackCard);
+
+    assert.strictEqual(hasEffect(orc, 'taunt'), true);
+  });
+
+  test('taunt aura does not apply without damage', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // has taunt: 1
+    const ally = createUnit('a', 'Archer', 'archer', 'player');
+    const blockCard = { name: 'Defend', effects: { block: 10 }, target: 'self' };
+
+    executeCardEffects(warrior, ally, blockCard);
+
+    assert.strictEqual(hasEffect(ally, 'taunt'), false);
   });
 });
 

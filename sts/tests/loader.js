@@ -30,7 +30,7 @@ function loadEngine() {
     return {
       UNIT_DATA, CARD_DATA, DECK_DATA,
       createUnit, applyDamage, resetBlock, executeCardEffects,
-      isMeleeUnit, isRangedUnit, canPlayCard
+      isMeleeUnit, isRangedUnit, canPlayCard, hasEffect
     };
   `;
 

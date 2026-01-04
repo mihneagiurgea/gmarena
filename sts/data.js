@@ -17,6 +17,7 @@
 //     bonus: number,           // Added to damage and heal effects
 //     armor: number,           // Reduces incoming physical damage
 //     resistance: number,      // Reduces incoming magic damage
+//     taunt: number,           // All attacks apply Taunt (X)
 //   }
 // }
 //
@@ -28,7 +29,7 @@ const UNIT_DATA = {
     maxHp: 90,
     attackRange: 'melee',
     attackType: 'physical',
-    auras: { bonus: 5 }
+    auras: { bonus: 5, taunt: 1 }
   },
 
   archer: {
@@ -154,9 +155,13 @@ const CARD_DATA = [
 
 const DECK_DATA = {
   player: {
-    attack: 6,
+    attack: 5,
     defend: 4,
-    shieldBash: 5
+    shieldBash: 2,
+    fireball: 1,
+    heal: 1,
+    magicShield: 1,
+    flamingBlade: 1,
   },
 
   opponent: {
