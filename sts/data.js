@@ -87,7 +87,7 @@ const CARD_DATA = [
   {
     id: 'attack',
     name: 'Attack',
-    description: 'Deal 15 damage',
+    description: 'Deal {damage} damage',
     effects: { damage: 15 },
     target: 'enemy'
   },
@@ -95,7 +95,7 @@ const CARD_DATA = [
   {
     id: 'defend',
     name: 'Defend',
-    description: 'Gain 10 Block',
+    description: 'Gain {block} Block',
     effects: { block: 10 },
     target: 'self'
   },
@@ -104,7 +104,7 @@ const CARD_DATA = [
   {
     id: 'shieldBash',
     name: 'Shield Bash',
-    description: 'Deal 10 damage and Taunt (2)',
+    description: 'Deal {damage} damage and Taunt ({taunt})',
     requires: 'melee',
     effects: { damage: 10, taunt: 2 },
     target: 'enemy'
@@ -114,7 +114,7 @@ const CARD_DATA = [
   {
     id: 'fireball',
     name: 'Fireball',
-    description: 'Deal 20 damage',
+    description: 'Deal {damage} damage',
     requires: 'magic',
     effects: { damage: 20 },
     target: 'enemy'
@@ -122,7 +122,7 @@ const CARD_DATA = [
   {
     id: 'heal',
     name: 'Heal',
-    description: 'Heal 15 HP',
+    description: 'Heal {heal} HP',
     requires: 'magic',
     effects: { heal: 15 },
     target: 'ally'
@@ -130,7 +130,7 @@ const CARD_DATA = [
   {
     id: 'magicShield',
     name: 'Magic Shield',
-    description: 'Gain 15 Block',
+    description: 'Gain {block} Block',
     requires: 'magic',
     effects: { block: 15 },
     target: 'ally'
@@ -138,7 +138,7 @@ const CARD_DATA = [
   {
     id: 'flamingBlade',
     name: 'Flaming Blade',
-    description: 'Grant +5 bonus',
+    description: 'Grant +{auraBonus} bonus',
     requires: 'magic',
     effects: { auraBonus: 5 },
     target: 'ally'

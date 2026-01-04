@@ -29,19 +29,41 @@ function getCardTypeInfo(card) {
 }
 
 /**
+ * Format card description by replacing {effect} templates with calculated values
+ * @param {Object} card - The card definition
+ * @param {Object} unit - The unit playing the card (for bonus calculation)
+ * @returns {string} Formatted description with actual values
+ */
+function formatCardDescription(card, unit) {
+  const bonus = unit?.auras?.bonus || 0;
+
+  return card.description.replace(/\{(\w+)\}/g, (match, effect) => {
+    const baseValue = card.effects[effect] || 0;
+
+    // Bonus applies to damage and heal
+    if (effect === 'damage' || effect === 'heal') {
+      return baseValue + bonus;
+    }
+
+    return baseValue;
+  });
+}
+
+/**
  * Generate HTML for a game card
  */
 function renderCardHTML(card, keyNum, options = {}) {
-  const { extraClasses = '', dataAttr = '', count = 0 } = options;
+  const { extraClasses = '', dataAttr = '', count = 0, unit = null } = options;
   const typeInfo = getCardTypeInfo(card);
   const countAttr = count > 1 ? `data-count="${count}"` : '';
+  const description = formatCardDescription(card, unit);
 
   return `
     <div class="card ${typeInfo.typeClass} ${extraClasses}" ${dataAttr} ${countAttr}>
       <div class="card-key">${keyNum}</div>
       <div class="card-name">${card.name}</div>
       <div class="card-type ${typeInfo.colorClass}">${typeInfo.typeLabel}</div>
-      <div class="card-desc">${card.description}</div>
+      <div class="card-desc">${description}</div>
     </div>
   `;
 }
@@ -263,7 +285,8 @@ function renderHand() {
         const card = CARDS[cardId];
         html += renderCardHTML(card, index + 1, {
           extraClasses: 'discard-card',
-          dataAttr: `data-discard-index="${index}"`
+          dataAttr: `data-discard-index="${index}"`,
+          unit: currentUnit
         });
       });
 
@@ -337,7 +360,8 @@ function renderHand() {
       html += renderCardHTML(card, keyNum, {
         extraClasses,
         dataAttr: `data-card-index="${cardIndices[cardId]}"`,
-        count
+        count,
+        unit: currentUnit
       });
       keyNum++;
     }
