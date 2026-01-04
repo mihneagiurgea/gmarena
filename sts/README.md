@@ -120,11 +120,3 @@ See `data.js` for the full card definition format and examples.
 
 # UI (User Interface)
 We will rename the "Action Section" to the "Hand Section", where we'll display each card in hand.
-
-# TODO
-- [x] Block
-- [x] Absorb / Armor / Magic Resistance
-- [ ] Implement Cards
-- [ ] Better UI for playing card
-- [ ] Better sprites for cards
-- [x] Add some unit tests for data.js and engine.js 
