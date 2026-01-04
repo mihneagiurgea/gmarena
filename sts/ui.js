@@ -724,68 +724,48 @@ function runOpponentAI() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit || currentUnit.team === 'player') return;
 
-  const hand = gameState.opponentHand;
-  if (hand.length === 0) {
-    addLogEntry(`${currentUnit.name} has no cards!`, 'opponent');
-    endTurn();
-    return;
-  }
+  // Use the Minimax AI to get the best move
+  const gameFns = {
+    CARDS,
+    canPlayCard,
+    getValidCardTargets,
+    executeCardEffects,
+    applyDamage,
+    applyEffect,
+  };
 
-  // Find a playable card that targets enemies
-  let cardToPlay = null;
-  let cardIndex = -1;
-  for (let i = 0; i < hand.length; i++) {
-    const card = CARDS[hand[i]];
-    if (canPlayCard(currentUnit, card) && card.target === 'enemy') {
-      cardToPlay = card;
-      cardIndex = i;
-      break;
-    }
-  }
+  const move = getBestMove(gameState, gameFns);
 
-  // If no attack card, try self-targeting cards (like Defend)
-  if (!cardToPlay) {
-    for (let i = 0; i < hand.length; i++) {
-      const card = CARDS[hand[i]];
-      if (canPlayCard(currentUnit, card) && card.target === 'self') {
-        cardToPlay = card;
-        cardIndex = i;
-        break;
-      }
-    }
-  }
-
-  if (!cardToPlay) {
+  if (move.type === 'skip') {
     addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
     endTurn();
     return;
   }
-
-  // Handle self-targeting cards
-  if (cardToPlay.target === 'self') {
-    const cardId = playCard('opponent', cardIndex);
-    const result = executeCardEffects(currentUnit, currentUnit, cardToPlay);
-    addLogEntry(result.message, 'opponent');
-    endTurn();
-    return;
-  }
-
-  // Get valid targets for enemy-targeting cards
-  const { targets } = getValidCardTargets(currentUnit, cardToPlay);
-  if (targets.length === 0) {
-    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
-    endTurn();
-    return;
-  }
-
-  // Target the lowest HP enemy
-  const target = targets.reduce((a, b) => a.hp < b.hp ? a : b);
 
   // Play the card
-  const cardId = playCard('opponent', cardIndex);
+  const card = CARDS[move.cardId];
+  const target = gameState.units.find(u => u.id === move.targetId);
+
+  if (!card || !target) {
+    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    endTurn();
+    return;
+  }
+
+  // Find card index in hand
+  const hand = gameState.opponentHand;
+  const cardIndex = hand.indexOf(move.cardId);
+  if (cardIndex === -1) {
+    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    endTurn();
+    return;
+  }
+
+  // Play the card from hand
+  playCard('opponent', cardIndex);
 
   // Execute card effects
-  const result = executeCardEffects(currentUnit, target, cardToPlay);
+  const result = executeCardEffects(currentUnit, target, card);
   addLogEntry(result.message, 'opponent');
 
   // Show damage popup near target if damage was dealt
