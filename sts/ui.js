@@ -32,22 +32,17 @@ function getCardTypeInfo(card) {
  * Format card description by replacing {effect} templates with calculated values
  * @param {Object} card - The card definition
  * @param {Object} unit - The unit playing the card (for bonus calculation)
- * @param {Object} options - Optional parameters
- * @param {boolean} options.isAdvanceAttack - True if this is an advance attack (applies penalty)
  * @returns {string} Formatted description with actual values
  */
-function formatCardDescription(card, unit, options = {}) {
-  const { isAdvanceAttack: advanceAttack = false } = options;
+function formatCardDescription(card, unit) {
   const bonus = unit?.auras?.bonus || 0;
-  const penalty = advanceAttack ? ADVANCE_ATTACK_PENALTY : 0;
 
   return card.description.replace(/\{(\w+)\}/g, (match, effect) => {
     const baseValue = card.effects[effect] || 0;
 
-    // Bonus applies to damage and heal (minus penalty for advance attacks)
+    // Bonus applies to damage and heal
     if (effect === 'damage' || effect === 'heal') {
-      const effectiveBonus = bonus - penalty;
-      return Math.max(0, baseValue + effectiveBonus);
+      return Math.max(0, baseValue + bonus);
     }
 
     return baseValue;
@@ -58,20 +53,16 @@ function formatCardDescription(card, unit, options = {}) {
  * Generate HTML for a game card
  */
 function renderCardHTML(card, keyNum, options = {}) {
-  const { extraClasses = '', dataAttr = '', count = 0, unit = null, isAdvanceAttack = false } = options;
+  const { extraClasses = '', dataAttr = '', count = 0, unit = null } = options;
   const typeInfo = getCardTypeInfo(card);
   const countAttr = count > 1 ? `data-count="${count}"` : '';
-  const description = formatCardDescription(card, unit, { isAdvanceAttack });
-
-  // Add advance indicator for attack cards when advancing
-  const advanceLabel = isAdvanceAttack ? '<div class="card-advance-label">Advance</div>' : '';
+  const description = formatCardDescription(card, unit);
 
   return `
     <div class="card ${typeInfo.typeClass} ${extraClasses}" ${dataAttr} ${countAttr}>
       <div class="card-key">${keyNum}</div>
       <div class="card-name">${card.name}</div>
       <div class="card-type ${typeInfo.colorClass}">${typeInfo.typeLabel}</div>
-      ${advanceLabel}
       <div class="card-desc">${description}</div>
     </div>
   `;
@@ -340,23 +331,13 @@ function renderHand() {
     for (const [cardId, count] of Object.entries(cardCounts)) {
       const card = CARDS[cardId];
       const canPlay = canPlayCard(currentUnit, card);
-      const advanceAttack = unitCanAdvance && isAttackCard(card);
-
-      // Check if card has valid targets
-      let hasValidTargets = true;
-      if (canPlay && advanceAttack) {
-        const { targets } = getAdvanceAttackTargets(currentUnit);
-        hasValidTargets = targets.length > 0;
-      }
-
-      const extraClasses = (!canPlay || (advanceAttack && !hasValidTargets)) ? 'unplayable-card' : '';
+      const extraClasses = !canPlay ? 'unplayable-card' : '';
 
       html += renderCardHTML(card, keyNum, {
         extraClasses,
         dataAttr: `data-card-index="${cardIndices[cardId]}"`,
         count,
-        unit: currentUnit,
-        isAdvanceAttack: advanceAttack
+        unit: currentUnit
       });
       keyNum++;
     }
@@ -372,7 +353,7 @@ function renderHand() {
         <div class="card advance-option" data-action="advance">
           <div class="card-key">A</div>
           <div class="card-name">Advance</div>
-          <div class="card-desc">Move to Zone X</div>
+          <div class="card-desc">Move to next zone and Weaken (1)</div>
         </div>
       `;
     }
@@ -449,9 +430,13 @@ function executeAdvance() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit || !canAdvance(currentUnit)) return;
 
-  addLogEntry(`${currentUnit.name} advances to Zone X!`, currentUnit.team);
+  const nextZone = ZONE_NAMES[currentUnit.zone + 1];
+  addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, currentUnit.team);
   advanceUnit(currentUnit);
-  endTurn();
+
+  // Re-render to show updated state (advance does NOT end turn)
+  renderUnits();
+  renderHand();
 }
 
 function bindTargetEvents() {
@@ -578,16 +563,12 @@ function selectCard(cardIndex) {
     return;
   }
 
-  // Check if this is an advance attack
-  const advanceAttack = isAdvanceAttack(currentUnit, card);
-
   // Get valid targets based on card's target type
   const { targets, mustAttackTaunters } = getValidCardTargets(currentUnit, card);
 
   // Self-targeting cards execute immediately
   if (card.target === 'self') {
     gameState.selectedCard = cardId;
-    gameState.isAdvanceAttack = false;
     executeCardOnTarget(0); // Target is self (index 0)
     return;
   }
@@ -600,11 +581,8 @@ function selectCard(cardIndex) {
   gameState.phase = 'targeting';
   gameState.selectedCard = cardId;
   gameState.validTargets = targets;
-  gameState.isAdvanceAttack = advanceAttack;
 
-  if (advanceAttack) {
-    addLogEntry(`${currentUnit.name} will advance and attack with -${ADVANCE_ATTACK_PENALTY} penalty.`, 'neutral');
-  } else if (mustAttackTaunters) {
+  if (mustAttackTaunters) {
     addLogEntry(`${currentUnit.name} is taunted! Must attack taunter.`, 'neutral');
   }
 
@@ -616,7 +594,6 @@ function cancelTargeting() {
   gameState.phase = 'play';
   gameState.selectedCard = null;
   gameState.validTargets = [];
-  gameState.isAdvanceAttack = false;
 
   // Remove target numbers
   document.querySelectorAll('.target-number').forEach(el => el.remove());
@@ -631,7 +608,6 @@ function executeCardOnTarget(targetIndex) {
 
   const cardId = gameState.selectedCard;
   const card = CARDS[cardId];
-  const advanceAttack = gameState.isAdvanceAttack;
 
   // For self-targeting, get the target directly
   let target;
@@ -642,12 +618,6 @@ function executeCardOnTarget(targetIndex) {
     target = gameState.validTargets[targetIndex];
   }
 
-  // If this is an advance attack, advance first
-  if (advanceAttack) {
-    addLogEntry(`${currentUnit.name} advances to Zone X!`, currentUnit.team);
-    advanceUnit(currentUnit);
-  }
-
   // Play the card from hand
   const hand = currentUnit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
   const cardIndex = hand.indexOf(cardId);
@@ -655,9 +625,8 @@ function executeCardOnTarget(targetIndex) {
     playCard(currentUnit.team, cardIndex);
   }
 
-  // Execute card effects (with penalty if advance attack)
-  const options = advanceAttack ? { bonusPenalty: ADVANCE_ATTACK_PENALTY } : {};
-  const result = executeCardEffects(currentUnit, target, card, options);
+  // Execute card effects
+  const result = executeCardEffects(currentUnit, target, card);
   addLogEntry(result.message, currentUnit.team);
 
   // Show damage popup near target if damage was dealt
@@ -678,7 +647,6 @@ function executeCardOnTarget(targetIndex) {
   gameState.phase = 'play';
   gameState.selectedCard = null;
   gameState.validTargets = [];
-  gameState.isAdvanceAttack = false;
 
   // Remove target numbers
   document.querySelectorAll('.target-number').forEach(el => el.remove());
@@ -765,9 +733,13 @@ function runOpponentAI() {
   }
 
   if (move.type === 'advance') {
-    addLogEntry(`${currentUnit.name} advances to Zone X!`, 'opponent');
+    const nextZone = ZONE_NAMES[currentUnit.zone + 1];
+    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, 'opponent');
     advanceUnit(currentUnit);
-    endTurn();
+    // Advance doesn't end turn - re-render and run AI again after a delay
+    renderUnits();
+    renderHand();
+    setTimeout(() => runOpponentAI(), 500);
     return;
   }
 
@@ -790,18 +762,11 @@ function runOpponentAI() {
     return;
   }
 
-  // If this is an advance attack, advance first
-  if (move.isAdvanceAttack) {
-    addLogEntry(`${currentUnit.name} advances to Zone X!`, 'opponent');
-    advanceUnit(currentUnit);
-  }
-
   // Play the card from hand
   playCard('opponent', cardIndex);
 
-  // Execute card effects (with penalty if advance attack)
-  const options = move.isAdvanceAttack ? { bonusPenalty: ADVANCE_ATTACK_PENALTY } : {};
-  const result = executeCardEffects(currentUnit, target, card, options);
+  // Execute card effects
+  const result = executeCardEffects(currentUnit, target, card);
   addLogEntry(result.message, 'opponent');
 
   // Show damage popup near target if damage was dealt
@@ -845,7 +810,7 @@ document.addEventListener('keydown', (event) => {
     if (key === 'e' || key === 'E') {
       executeSkip();
     } else if (key === 'a' || key === 'A') {
-      // Advance action (for melee units in starting zone)
+      // Advance action (any unit not at Zone B)
       if (canAdvance(currentUnit)) {
         executeAdvance();
       }

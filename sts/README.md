@@ -30,19 +30,15 @@ At the start of game:
 ## Playing your Turn
 The controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
 
-### Advance (Melee Only)
-When a melee unit is in their starting zone (Zone A for player units, Zone B for opponent units) and hasn't advanced yet this game, they have special options:
+### Advance (Key: A)
+Any unit can play Advance to move to the next zone:
+- Zone A → Zone X
+- Zone X → Zone B
 
-1. **Advance without attacking (Key: A)**: Move to Zone X without playing a card. This ends the turn.
-
-2. **Advance Attack**: Play an attack card targeting an enemy in Zone X. The unit will:
-   - First advance to Zone X
-   - Then execute the attack with a **-3 bonus penalty** (damage is reduced by 3)
-   - This counts as playing a card normally
-
-3. **Play non-attack cards**: Can play any non-attack card (Defend, Heal, etc.) as normal without advancing.
-
-Once a melee unit has advanced, they can no longer use the Advance options and play normally.
+Playing Advance:
+- Does **not** end the turn (the unit can still play a card)
+- Applies **Weaken (1)** to the unit (expires at end of turn)
+- Cannot advance beyond Zone B
 
 Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends
@@ -85,6 +81,25 @@ Block is a temporary shield that absorbs incoming damage before HP is affected.
 
 Example: A unit with 50 HP and 15 Block takes 25 damage.
 Block absorbs 15, leaving 10 damage. HP is reduced to 40. Block becomes 0.
+
+### Effect: Weaken (X)
+Weaken is a debuff effect that lasts X turns. A weakened unit deals 25% less damage (rounded down).
+
+- Only affects damage dealt by attack cards
+- Does not affect block, healing, or aura effects
+- Multiple stacks do not increase the reduction (still 25%)
+
+Example: A unit with 20 base damage that is Weakened deals 15 damage (20 × 0.75 = 15).
+
+### Effect: Cripple (X)
+Cripple is a stronger debuff effect that lasts X turns. A crippled unit deals 50% less damage (rounded down).
+
+- Only affects damage dealt by attack cards
+- Does not affect block, healing, or aura effects
+- Multiple stacks do not increase the reduction (still 50%)
+- If a unit has both Weaken and Cripple, only Cripple applies (the stronger effect)
+
+Example: A unit with 20 base damage that is Crippled deals 10 damage (20 × 0.50 = 10).
 
 ## Auras
 Auras are like effects but last until end of combat.

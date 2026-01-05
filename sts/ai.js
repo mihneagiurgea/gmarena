@@ -83,33 +83,14 @@ function cloneGameState(state) {
  * @property {string} [cardId] - Card to play
  * @property {number} [cardIndex] - Index in hand
  * @property {string} [targetId] - Target unit ID
- * @property {boolean} [isAdvanceAttack] - True if this is an advance attack (with penalty)
  */
 
-// Advance attack penalty constant (must match engine.js)
-const AI_ADVANCE_ATTACK_PENALTY = 3;
-
 /**
- * Check if a card is an attack card (deals damage)
- */
-function aiIsAttackCard(card) {
-  return card.effects.damage > 0;
-}
-
-/**
- * Check if melee unit can advance (in starting zone, hasn't advanced)
+ * Check if unit can advance to the next zone
+ * Any unit can advance if not at Zone B (zone 2)
  */
 function aiCanAdvance(unit) {
-  const startingZone = unit.team === 'player' ? 0 : 2; // Zone A or B
-  return unit.attackRange === 'melee' && !unit.hasAdvanced && unit.zone === startingZone;
-}
-
-/**
- * Get valid targets for an advance attack (enemies in zone X)
- */
-function aiGetAdvanceAttackTargets(state, unit) {
-  const enemies = state.units.filter(u => u.team !== unit.team && u.zone === 1); // Zone X
-  return enemies;
+  return unit.zone < 2; // Zone B = 2
 }
 
 /**
@@ -122,10 +103,9 @@ function aiGetAdvanceAttackTargets(state, unit) {
 function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTargets) {
   const moves = [];
   const hand = currentUnit.team === 'player' ? state.playerHand : state.opponentHand;
-  const unitCanAdvance = aiCanAdvance(currentUnit);
 
-  // Add advance move (without playing a card) if available
-  if (unitCanAdvance) {
+  // Add advance move if available (any unit not at Zone B)
+  if (aiCanAdvance(currentUnit)) {
     moves.push({ type: 'advance' });
   }
 
@@ -140,33 +120,14 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
     const card = CARDS[cardId];
     if (!card || !canPlayCard(currentUnit, card)) continue;
 
-    // Check if this would be an advance attack
-    const isAdvanceAttack = unitCanAdvance && aiIsAttackCard(card);
-
-    if (isAdvanceAttack) {
-      // For advance attacks, targets are enemies in zone X
-      const targets = aiGetAdvanceAttackTargets(state, currentUnit);
-      for (const target of targets) {
-        moves.push({
-          type: 'play',
-          cardId,
-          cardIndex: i,
-          targetId: target.id,
-          isAdvanceAttack: true,
-        });
-      }
-    } else {
-      // Normal card play
-      const { targets } = getValidCardTargets(currentUnit, card);
-      for (const target of targets) {
-        moves.push({
-          type: 'play',
-          cardId,
-          cardIndex: i,
-          targetId: target.id,
-          isAdvanceAttack: false,
-        });
-      }
+    const { targets } = getValidCardTargets(currentUnit, card);
+    for (const target of targets) {
+      moves.push({
+        type: 'play',
+        cardId,
+        cardIndex: i,
+        targetId: target.id,
+      });
     }
   }
 
@@ -181,11 +142,14 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 // ============================================================================
 
 /**
- * Advance a unit to zone X
+ * Advance a unit to the next zone and apply Weaken (1)
  */
-function aiAdvanceUnit(unit) {
-  unit.zone = 1; // Zone X
-  unit.hasAdvanced = true;
+function aiAdvanceUnit(unit, applyEffect) {
+  if (unit.zone < 2) { // Zone B = 2
+    unit.zone++;
+    // Apply Weaken (1) - self-inflicted
+    applyEffect(unit, 'weaken', unit.id, 1);
+  }
 }
 
 /**
@@ -206,8 +170,9 @@ function applyMove(state, move, CARDS, executeCardEffects, applyDamage, applyEff
   }
 
   if (move.type === 'advance') {
-    // Advance to zone X without playing a card
-    aiAdvanceUnit(currentUnit);
+    // Advance to next zone and apply Weaken
+    aiAdvanceUnit(currentUnit, applyEffect);
+    // In AI simulation, treat advance as ending turn for simplicity
     advanceTurn(state);
     return state;
   }
@@ -221,14 +186,8 @@ function applyMove(state, move, CARDS, executeCardEffects, applyDamage, applyEff
     return state;
   }
 
-  // If this is an advance attack, advance first
-  if (move.isAdvanceAttack) {
-    aiAdvanceUnit(currentUnit);
-  }
-
-  // Execute card effects (with penalty if advance attack)
-  const options = move.isAdvanceAttack ? { bonusPenalty: AI_ADVANCE_ATTACK_PENALTY } : {};
-  const result = executeCardEffects(currentUnit, target, card, options);
+  // Execute card effects
+  const result = executeCardEffects(currentUnit, target, card);
 
   // Apply damage if any
   if (result.damage > 0) {

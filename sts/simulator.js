@@ -270,9 +270,12 @@ function simulateGame(verbose = false) {
     }
 
     if (move.type === 'advance') {
-      if (verbose) console.log(`  -> Advances to Zone X`);
-      currentUnit.zone = 1; // Zone X
-      currentUnit.hasAdvanced = true;
+      const nextZone = currentUnit.zone + 1;
+      if (verbose) console.log(`  -> Advances to Zone ${['A', 'X', 'B'][nextZone]} and is Weakened`);
+      currentUnit.zone = nextZone;
+      // Apply Weaken (1)
+      applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
+      // In simulator, treat advance as ending turn for simplicity
       advanceTurn(state);
       continue;
     }
@@ -294,18 +297,10 @@ function simulateGame(verbose = false) {
       continue;
     }
 
-    // Handle advance attack
-    if (move.isAdvanceAttack) {
-      if (verbose) console.log(`  -> Advances to Zone X (attack with -3 penalty)`);
-      currentUnit.zone = 1; // Zone X
-      currentUnit.hasAdvanced = true;
-    }
-
     playCard(state, currentUnit.team, cardIndex);
 
-    // Execute effects (with penalty if advance attack)
-    const options = move.isAdvanceAttack ? { bonusPenalty: 3 } : {};
-    const effectResult = executeCardEffects(currentUnit, target, card, options);
+    // Execute effects
+    const effectResult = executeCardEffects(currentUnit, target, card);
 
     if (verbose) {
       console.log(`  -> ${card.name} on ${target.name}: ${effectResult.message}`);

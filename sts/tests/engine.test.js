@@ -11,7 +11,7 @@ const { loadEngine } = require('./loader');
 const engine = loadEngine();
 const {
   createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard, hasEffect,
-  isAttackCard, canAdvance, ADVANCE_ATTACK_PENALTY
+  isAttackCard, canAdvance, applyEffect
 } = engine;
 
 describe('applyDamage', () => {
@@ -362,48 +362,33 @@ describe('isAttackCard', () => {
 });
 
 describe('canAdvance', () => {
-  test('melee unit in starting zone can advance', () => {
+  test('unit in Zone A can advance', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    warrior.zone = 0; // Zone A (player starting zone)
-    warrior.hasAdvanced = false;
+    warrior.zone = 0; // Zone A
     assert.strictEqual(canAdvance(warrior), true);
   });
 
-  test('melee unit that has already advanced cannot advance again', () => {
+  test('unit in Zone X can advance', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 1; // Zone X
-    warrior.hasAdvanced = true;
+    assert.strictEqual(canAdvance(warrior), true);
+  });
+
+  test('unit in Zone B cannot advance', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 2; // Zone B
     assert.strictEqual(canAdvance(warrior), false);
   });
 
-  test('melee unit in zone X cannot advance', () => {
-    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    warrior.zone = 1; // Zone X
-    warrior.hasAdvanced = false;
-    assert.strictEqual(canAdvance(warrior), false);
-  });
-
-  test('ranged unit cannot advance', () => {
+  test('ranged unit can advance', () => {
     const archer = createUnit('a', 'Archer', 'archer', 'player');
     archer.zone = 0; // Zone A
-    archer.hasAdvanced = false;
-    assert.strictEqual(canAdvance(archer), false);
-  });
-
-  test('opponent melee unit in zone B can advance', () => {
-    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
-    orc.zone = 2; // Zone B (opponent starting zone)
-    orc.hasAdvanced = false;
-    assert.strictEqual(canAdvance(orc), true);
+    assert.strictEqual(canAdvance(archer), true);
   });
 });
 
-describe('advance attack penalty', () => {
-  test('ADVANCE_ATTACK_PENALTY is 3', () => {
-    assert.strictEqual(ADVANCE_ATTACK_PENALTY, 3);
-  });
-
-  test('executeCardEffects applies bonus penalty to damage', () => {
+describe('Weaken and Cripple effects', () => {
+  test('Weaken reduces damage by 25%', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus
     const target = createUnit('t', 'Target', 'orc', 'opponent');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
@@ -412,12 +397,15 @@ describe('advance attack penalty', () => {
     const normalResult = executeCardEffects(warrior, target, card);
     assert.strictEqual(normalResult.damage, 18);
 
-    // Advance attack: 15 + 3 - 3 = 15
-    const advanceResult = executeCardEffects(warrior, target, card, { bonusPenalty: 3 });
-    assert.strictEqual(advanceResult.damage, 15);
+    // Apply Weaken
+    applyEffect(warrior, 'weaken', 'test', 1);
+
+    // Weakened attack: (15 + 3) * 0.75 = 13.5 -> 13
+    const weakenedResult = executeCardEffects(warrior, target, card);
+    assert.strictEqual(weakenedResult.damage, 13);
   });
 
-  test('bonus penalty reduces damage by penalty amount', () => {
+  test('Cripple reduces damage by 50%', () => {
     const orc = createUnit('o', 'Orc', 'orc', 'opponent'); // +6 bonus
     const target = createUnit('t', 'Target', 'warrior', 'player');
     const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
@@ -426,44 +414,46 @@ describe('advance attack penalty', () => {
     const normalResult = executeCardEffects(orc, target, card);
     assert.strictEqual(normalResult.damage, 21);
 
-    // Advance attack: 15 + 6 - 3 = 18
-    const advanceResult = executeCardEffects(orc, target, card, { bonusPenalty: ADVANCE_ATTACK_PENALTY });
-    assert.strictEqual(advanceResult.damage, 18);
+    // Apply Cripple
+    applyEffect(orc, 'cripple', 'test', 1);
+
+    // Crippled attack: (15 + 6) * 0.5 = 10.5 -> 10
+    const crippledResult = executeCardEffects(orc, target, card);
+    assert.strictEqual(crippledResult.damage, 10);
   });
 
-  test('bonus penalty can make damage lower than base', () => {
-    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -2 bonus
-    const target = createUnit('t', 'Target', 'warrior', 'player');
-    const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+  test('Cripple takes precedence over Weaken', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus
+    const target = createUnit('t', 'Target', 'orc', 'opponent');
+    const card = { name: 'Attack', effects: { damage: 20 }, target: 'enemy' };
 
-    // Normal attack: 15 - 2 = 13
-    const normalResult = executeCardEffects(goblin, target, card);
-    assert.strictEqual(normalResult.damage, 13);
+    // Apply both effects
+    applyEffect(warrior, 'weaken', 'test', 1);
+    applyEffect(warrior, 'cripple', 'test', 1);
 
-    // Advance attack: 15 - 2 - 3 = 10
-    const advanceResult = executeCardEffects(goblin, target, card, { bonusPenalty: ADVANCE_ATTACK_PENALTY });
-    assert.strictEqual(advanceResult.damage, 10);
+    // Base: 20 + 3 = 23, Cripple: 23 * 0.5 = 11.5 -> 11
+    const result = executeCardEffects(warrior, target, card);
+    assert.strictEqual(result.damage, 11);
   });
 
-  test('bonus penalty does not reduce damage below 0', () => {
-    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent'); // -2 bonus
-    const target = createUnit('t', 'Target', 'warrior', 'player');
-    const card = { name: 'Weak Attack', effects: { damage: 3 }, target: 'enemy' };
-
-    // Normal attack: 3 - 2 = 1
-    const normalResult = executeCardEffects(goblin, target, card);
-    assert.strictEqual(normalResult.damage, 1);
-
-    // Advance attack: 3 - 2 - 3 = -2 -> clamped to 0
-    const advanceResult = executeCardEffects(goblin, target, card, { bonusPenalty: ADVANCE_ATTACK_PENALTY });
-    assert.strictEqual(advanceResult.damage, 0);
-  });
-
-  test('bonus penalty does not affect non-damage effects', () => {
+  test('Weaken does not affect block', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     const card = { name: 'Defend', effects: { block: 18 }, target: 'self' };
 
-    executeCardEffects(warrior, warrior, card, { bonusPenalty: ADVANCE_ATTACK_PENALTY });
-    assert.strictEqual(warrior.block, 18); // Block unchanged by penalty
+    applyEffect(warrior, 'weaken', 'test', 1);
+    executeCardEffects(warrior, warrior, card);
+    assert.strictEqual(warrior.block, 18); // Block unchanged
+  });
+
+  test('Weaken does not affect heal', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player'); // +5 bonus
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.hp = 50;
+    const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
+
+    applyEffect(mage, 'weaken', 'test', 1);
+    executeCardEffects(mage, warrior, card);
+    // Heal: 15 + 5 = 20, not affected by Weaken
+    assert.strictEqual(warrior.hp, 70);
   });
 });

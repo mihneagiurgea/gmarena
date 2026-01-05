@@ -21,9 +21,6 @@ const ZONES = {
 
 const ZONE_NAMES = ['A', 'X', 'B'];
 
-// Advance attack penalty (melee attacking from starting zone)
-const ADVANCE_ATTACK_PENALTY = 3;
-
 // ============================================================================
 // CARD DEFINITIONS (built from cards-data.js)
 // ============================================================================
@@ -126,7 +123,6 @@ const gameState = {
   phase: 'play', // 'play', 'targeting'
   selectedCard: null,
   validTargets: [],
-  isAdvanceAttack: false, // True if current card selection is an advance attack
   playerControlsBoth: false,
 
   // Card state per team
@@ -411,13 +407,9 @@ function isAttackCard(card) {
  * @param {Unit} attacker - The unit playing the card
  * @param {Unit} target - The target unit
  * @param {Object} card - The card being played
- * @param {Object} options - Optional parameters
- * @param {number} options.bonusPenalty - Penalty to subtract from bonus (e.g., for advance attacks)
  * @returns {{damage: number, message: string, effects: string[]}}
  */
-function executeCardEffects(attacker, target, card, options = {}) {
-  const { bonusPenalty = 0 } = options;
-
+function executeCardEffects(attacker, target, card) {
   const result = {
     damage: 0,
     message: '',
@@ -426,10 +418,20 @@ function executeCardEffects(attacker, target, card, options = {}) {
 
   const messages = [];
 
-  // Calculate damage: card base damage + unit's bonus aura - penalty
+  // Calculate damage: card base damage + unit's bonus aura
   if (card.effects.damage) {
-    const effectiveBonus = (attacker.auras.bonus || 0) - bonusPenalty;
-    result.damage = Math.max(0, card.effects.damage + effectiveBonus);
+    const baseDamage = Math.max(0, card.effects.damage + (attacker.auras.bonus || 0));
+
+    // Apply Weaken (25% reduction) or Cripple (50% reduction)
+    // Cripple takes precedence if both are present
+    let damageMultiplier = 1.0;
+    if (hasEffect(attacker, 'cripple')) {
+      damageMultiplier = 0.5;
+    } else if (hasEffect(attacker, 'weaken')) {
+      damageMultiplier = 0.75;
+    }
+
+    result.damage = Math.floor(baseDamage * damageMultiplier);
   }
 
   // Build message for damage
@@ -618,11 +620,6 @@ function getValidCardTargets(unit, card) {
   }
 
   // Default: enemy targeting (respects taunt and range)
-  // Special case: melee advance attacks can only target zone X
-  if (isAdvanceAttack(unit, card)) {
-    return getAdvanceAttackTargets(unit);
-  }
-
   return getValidAttackTargets(unit);
 }
 
@@ -645,52 +642,21 @@ function isPlayerControlled(unit) {
 }
 
 /**
- * Check if melee unit can advance (in starting zone, hasn't advanced)
+ * Check if unit can advance to the next zone
+ * Any unit can advance if not at Zone B
  */
 function canAdvance(unit) {
-  return isMeleeUnit(unit) && !unit.hasAdvanced && unit.zone !== ZONES.X;
+  return unit.zone < ZONES.B;
 }
 
 /**
- * Check if this is an advance attack (melee attacking from starting zone)
- * @param {Unit} unit - The attacking unit
- * @param {Object} card - The card being played
- * @returns {boolean} True if this attack would trigger an advance
- */
-function isAdvanceAttack(unit, card) {
-  return canAdvance(unit) && isAttackCard(card);
-}
-
-/**
- * Get valid targets for an advance attack (enemies in zone X)
- * @param {Unit} unit - The melee unit in starting zone
- * @returns {{targets: Unit[], mustAttackTaunters: boolean}}
- */
-function getAdvanceAttackTargets(unit) {
-  // Check for taunters first (even for advance attacks)
-  const activeTaunters = getActiveTaunters(unit);
-  if (activeTaunters.length > 0) {
-    // Only taunters in zone X are valid
-    const tauntersInX = activeTaunters.filter(t => t.zone === ZONES.X);
-    if (tauntersInX.length > 0) {
-      return { targets: tauntersInX, mustAttackTaunters: true };
-    }
-  }
-
-  // Enemies in zone X only
-  const enemies = gameState.units.filter(u => u.team !== unit.team && u.zone === ZONES.X);
-  return { targets: enemies, mustAttackTaunters: false };
-}
-
-/**
- * Advance a melee unit to zone X
+ * Advance a unit to the next zone and apply Weaken (1)
+ * A -> X, X -> B
  */
 function advanceUnit(unit) {
-  unit.zone = ZONES.X;
-  unit.hasAdvanced = true;
-}
-
-// Backwards compatibility alias
-function needsToAdvance(unit) {
-  return canAdvance(unit);
+  if (unit.zone < ZONES.B) {
+    unit.zone++;
+    // Apply Weaken (1) - self-inflicted, expires at end of turn
+    applyEffect(unit, 'weaken', unit.id, 1);
+  }
 }
