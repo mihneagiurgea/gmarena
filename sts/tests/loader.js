@@ -28,9 +28,10 @@ function loadEngine() {
     ${dataCode}
     ${engineCode}
     return {
-      UNIT_DATA, CARD_DATA, DECK_DATA,
+      UNIT_DATA, CARD_DATA, DECK_DATA, ADVANCE_ATTACK_PENALTY,
       createUnit, applyDamage, resetBlock, executeCardEffects,
-      isMeleeUnit, isRangedUnit, canPlayCard, hasEffect
+      isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
+      isAttackCard, canAdvance
     };
   `;
 

@@ -96,7 +96,7 @@ const CARD_DATA = [
     id: 'defend',
     name: 'Defend',
     description: 'Gain {block} Block',
-    effects: { block: 10 },
+    effects: { block: 18 },
     target: 'self'
   },
 
@@ -132,7 +132,7 @@ const CARD_DATA = [
     name: 'Magic Shield',
     description: 'Gain {block} Block',
     requires: 'magic',
-    effects: { block: 15 },
+    effects: { block: 20 },
     target: 'ally'
   },
   {
@@ -140,7 +140,7 @@ const CARD_DATA = [
     name: 'Flaming Blade',
     description: 'Grant +{auraBonus} bonus',
     requires: 'magic',
-    effects: { auraBonus: 5 },
+    effects: { auraBonus: 6 },
     target: 'ally'
   }
 ];

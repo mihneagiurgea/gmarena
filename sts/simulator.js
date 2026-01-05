@@ -112,14 +112,6 @@ function createInitialState() {
   drawCardsForTeam(state, 'player');
   drawCardsForTeam(state, 'opponent');
 
-  // Handle initial melee advance (simplified - just mark as advanced)
-  state.units.forEach(u => {
-    if (u.attackRange === 'melee') {
-      u.hasAdvanced = true;
-      u.zone = 1; // Move to middle zone
-    }
-  });
-
   return state;
 }
 
@@ -277,6 +269,14 @@ function simulateGame(verbose = false) {
       continue;
     }
 
+    if (move.type === 'advance') {
+      if (verbose) console.log(`  -> Advances to Zone X`);
+      currentUnit.zone = 1; // Zone X
+      currentUnit.hasAdvanced = true;
+      advanceTurn(state);
+      continue;
+    }
+
     // Execute move
     const card = CARDS[move.cardId];
     const target = state.units.find(u => u.id === move.targetId);
@@ -294,10 +294,18 @@ function simulateGame(verbose = false) {
       continue;
     }
 
+    // Handle advance attack
+    if (move.isAdvanceAttack) {
+      if (verbose) console.log(`  -> Advances to Zone X (attack with -3 penalty)`);
+      currentUnit.zone = 1; // Zone X
+      currentUnit.hasAdvanced = true;
+    }
+
     playCard(state, currentUnit.team, cardIndex);
 
-    // Execute effects
-    const effectResult = executeCardEffects(currentUnit, target, card);
+    // Execute effects (with penalty if advance attack)
+    const options = move.isAdvanceAttack ? { bonusPenalty: 3 } : {};
+    const effectResult = executeCardEffects(currentUnit, target, card, options);
 
     if (verbose) {
       console.log(`  -> ${card.name} on ${target.name}: ${effectResult.message}`);

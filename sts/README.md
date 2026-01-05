@@ -27,11 +27,22 @@ At the start of game:
    the game; then the game starts by the first unit playing their turn, then the 2nd etc.
  - the game ends when only units from a single team are alive
 
-## Playing your Turn 
-If the current unit is melee, and this is their first turn this game, instead of taking their turn as normal, they will choose a card to discard, then advance to 
-zone X and end their turn. The "at the end of turn" from below applies as normal.
+## Playing your Turn
+The controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
 
-Otherwise, the controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
+### Advance (Melee Only)
+When a melee unit is in their starting zone (Zone A for player units, Zone B for opponent units) and hasn't advanced yet this game, they have special options:
+
+1. **Advance without attacking (Key: A)**: Move to Zone X without playing a card. This ends the turn.
+
+2. **Advance Attack**: Play an attack card targeting an enemy in Zone X. The unit will:
+   - First advance to Zone X
+   - Then execute the attack with a **-3 bonus penalty** (damage is reduced by 3)
+   - This counts as playing a card normally
+
+3. **Play non-attack cards**: Can play any non-attack card (Defend, Heal, etc.) as normal without advancing.
+
+Once a melee unit has advanced, they can no longer use the Advance options and play normally.
 
 Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends
