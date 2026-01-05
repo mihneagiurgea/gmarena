@@ -185,6 +185,7 @@ html, body {
   border-left: 1px solid var(--border-color);
   display: flex;
   align-items: flex-end;
+  gap: 12px;
 }
 
 .options-header,
@@ -346,6 +347,19 @@ html, body {
   margin-top: auto;
 }
 
+/* Advance label shown on attack cards when advance attack is available */
+.card-advance-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
 /* Special card types */
 .card.skip-card {
   border-color: #4b5563;
@@ -375,6 +389,22 @@ html, body {
 
 .card.cancel-card .card-key {
   background: #dc2626;
+}
+
+/* Advance option - distinctive dashed border to show it's not a card */
+.card.advance-option {
+  border: 2px dashed #f59e0b;
+  border-top: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.card.advance-option:hover {
+  border-color: #fbbf24;
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.card.advance-option .card-key {
+  background: #d97706;
 }
 
 .card.target-card {

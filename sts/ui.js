@@ -71,8 +71,8 @@ function renderCardHTML(card, keyNum, options = {}) {
       <div class="card-key">${keyNum}</div>
       <div class="card-name">${card.name}</div>
       <div class="card-type ${typeInfo.colorClass}">${typeInfo.typeLabel}</div>
-      <div class="card-desc">${description}</div>
       ${advanceLabel}
+      <div class="card-desc">${description}</div>
     </div>
   `;
 }
@@ -336,18 +336,6 @@ function renderHand() {
     let html = '<div class="hand-cards">';
     let keyNum = 1;
 
-    // Show Advance option first if available (key: A)
-    if (unitCanAdvance) {
-      html += `
-        <div class="card advance-card" data-action="advance">
-          <div class="card-key">A</div>
-          <div class="card-name">Advance</div>
-          <div class="card-type type-melee">Melee</div>
-          <div class="card-desc">Move to Zone X</div>
-        </div>
-      `;
-    }
-
     // Show collapsed cards with count
     for (const [cardId, count] of Object.entries(cardCounts)) {
       const card = CARDS[cardId];
@@ -375,9 +363,21 @@ function renderHand() {
 
     html += '</div>';
 
-    // End turn option (separate section on the right)
+    // Right section: Advance option (if available) and End Turn
+    html += '<div class="hand-end-turn">';
+
+    // Show Advance option on the right if available (key: A)
+    if (unitCanAdvance) {
+      html += `
+        <div class="card advance-option" data-action="advance">
+          <div class="card-key">A</div>
+          <div class="card-name">Advance</div>
+          <div class="card-desc">Move to Zone X</div>
+        </div>
+      `;
+    }
+
     html += `
-      <div class="hand-end-turn">
         <div class="card skip-card" data-action="skip">
           <div class="card-key">E</div>
           <div class="card-name">End Turn</div>
