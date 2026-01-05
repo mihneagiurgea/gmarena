@@ -31,14 +31,14 @@ At the start of game:
 The controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
 
 ### Advance (Key: A)
-Any unit can play Advance to move to the next zone:
-- Zone A → Zone X
-- Zone X → Zone B
+Any unit can play Advance to move toward the enemy zone:
+- Player units (Team A): Zone A → Zone X → Zone B
+- Opponent units (Team B): Zone B → Zone X → Zone A
 
 Playing Advance:
 - Does **not** end the turn (the unit can still play a card)
 - Applies **Weaken (1)** to the unit (expires at end of turn)
-- Cannot advance beyond Zone B
+- Cannot advance past the enemy's starting zone
 
 Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends

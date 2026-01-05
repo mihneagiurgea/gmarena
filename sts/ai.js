@@ -39,6 +39,10 @@ const AI_CONFIG = {
 
     // Card advantage (having more playable options)
     cardInHand: 0.5,
+
+    // Zone positioning (critical for melee units)
+    meleeCanAttack: 8.0,     // Bonus when melee unit has enemies in range
+    meleeNoTargets: -15.0,   // Penalty when melee unit has no valid targets
   },
 
   // Debug mode - logs evaluation details
@@ -79,18 +83,34 @@ function cloneGameState(state) {
 
 /**
  * @typedef {Object} Move
- * @property {'play' | 'skip' | 'advance'} type
+ * @property {'play' | 'skip' | 'advance' | 'advanceAndPlay'} type
  * @property {string} [cardId] - Card to play
  * @property {number} [cardIndex] - Index in hand
  * @property {string} [targetId] - Target unit ID
  */
 
 /**
- * Check if unit can advance to the next zone
- * Any unit can advance if not at Zone B (zone 2)
+ * Check if unit can advance toward the enemy zone
+ * Player: can advance if not at Zone B (zone < 2)
+ * Opponent: can advance if not at Zone A (zone > 0)
  */
 function aiCanAdvance(unit) {
-  return unit.zone < 2; // Zone B = 2
+  if (unit.team === 'player') {
+    return unit.zone < 2; // Zone B = 2
+  } else {
+    return unit.zone > 0; // Zone A = 0
+  }
+}
+
+/**
+ * Get the zone a unit will move to when advancing
+ */
+function aiGetAdvanceTargetZone(unit) {
+  if (unit.team === 'player') {
+    return unit.zone + 1;
+  } else {
+    return unit.zone - 1;
+  }
 }
 
 /**
@@ -103,11 +123,6 @@ function aiCanAdvance(unit) {
 function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTargets) {
   const moves = [];
   const hand = currentUnit.team === 'player' ? state.playerHand : state.opponentHand;
-
-  // Add advance move if available (any unit not at Zone B)
-  if (aiCanAdvance(currentUnit)) {
-    moves.push({ type: 'advance' });
-  }
 
   // Get unique cards in hand (we only need to consider each card type once)
   const seenCards = new Set();
@@ -131,6 +146,37 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
     }
   }
 
+  // Add advance move and "advance + card" compound moves if unit can advance
+  if (aiCanAdvance(currentUnit)) {
+    // Simple advance (just move, no card play)
+    moves.push({ type: 'advance' });
+
+    // Generate compound moves: advance first, then play a card
+    // This simulates the real game where advance doesn't end turn
+    const advancedUnit = { ...currentUnit, zone: aiGetAdvanceTargetZone(currentUnit) };
+    const seenCardsAfterAdvance = new Set();
+
+    for (let i = 0; i < hand.length; i++) {
+      const cardId = hand[i];
+      if (seenCardsAfterAdvance.has(cardId)) continue;
+      seenCardsAfterAdvance.add(cardId);
+
+      const card = CARDS[cardId];
+      if (!card || !canPlayCard(advancedUnit, card)) continue;
+
+      // Get targets from the advanced position
+      const { targets } = getValidCardTargets(advancedUnit, card);
+      for (const target of targets) {
+        moves.push({
+          type: 'advanceAndPlay',
+          cardId,
+          cardIndex: i,
+          targetId: target.id,
+        });
+      }
+    }
+  }
+
   // Always can skip turn
   moves.push({ type: 'skip' });
 
@@ -142,11 +188,11 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 // ============================================================================
 
 /**
- * Advance a unit to the next zone and apply Weaken (1)
+ * Advance a unit toward the enemy zone and apply Weaken (1)
  */
 function aiAdvanceUnit(unit, applyEffect) {
-  if (unit.zone < 2) { // Zone B = 2
-    unit.zone++;
+  if (aiCanAdvance(unit)) {
+    unit.zone = aiGetAdvanceTargetZone(unit);
     // Apply Weaken (1) - self-inflicted
     applyEffect(unit, 'weaken', unit.id, 1);
   }
@@ -170,11 +216,16 @@ function applyMove(state, move, CARDS, executeCardEffects, applyDamage, applyEff
   }
 
   if (move.type === 'advance') {
-    // Advance to next zone and apply Weaken
+    // Advance to next zone and apply Weaken, then end turn
     aiAdvanceUnit(currentUnit, applyEffect);
-    // In AI simulation, treat advance as ending turn for simplicity
     advanceTurn(state);
     return state;
+  }
+
+  if (move.type === 'advanceAndPlay') {
+    // Advance first (applies Weaken), then play a card
+    aiAdvanceUnit(currentUnit, applyEffect);
+    // Fall through to play card logic below
   }
 
   // Play card
@@ -289,6 +340,17 @@ function evaluateState(state, team) {
     if (ally.effects.some(e => e.type === 'taunt')) {
       score += w.allyTaunted;
     }
+
+    // Zone positioning for melee units
+    if (ally.attackRange === 'melee') {
+      const validZones = [ally.zone, ally.zone - 1, ally.zone + 1].filter(z => z >= 0 && z <= 2);
+      const hasTargetsInRange = enemies.some(e => validZones.includes(e.zone));
+      if (hasTargetsInRange) {
+        score += w.meleeCanAttack;
+      } else {
+        score += w.meleeNoTargets;
+      }
+    }
   }
 
   for (const enemy of enemies) {
@@ -306,6 +368,15 @@ function evaluateState(state, team) {
     // Focus fire bonus - reward having enemies at low HP
     if (enemy.hp < enemy.maxHp * 0.3) {
       score += w.focusFireBonus * (1 - enemy.hp / enemy.maxHp);
+    }
+
+    // Bonus when enemy melee units can't reach us (they're stuck)
+    if (enemy.attackRange === 'melee') {
+      const enemyValidZones = [enemy.zone, enemy.zone - 1, enemy.zone + 1].filter(z => z >= 0 && z <= 2);
+      const enemyHasTargets = allies.some(a => enemyValidZones.includes(a.zone));
+      if (!enemyHasTargets) {
+        score += w.meleeCanAttack; // Enemy is stuck, good for us
+      }
     }
   }
 

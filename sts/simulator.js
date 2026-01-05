@@ -270,17 +270,25 @@ function simulateGame(verbose = false) {
     }
 
     if (move.type === 'advance') {
-      const nextZone = currentUnit.zone + 1;
+      const nextZone = currentUnit.team === 'player' ? currentUnit.zone + 1 : currentUnit.zone - 1;
       if (verbose) console.log(`  -> Advances to Zone ${['A', 'X', 'B'][nextZone]} and is Weakened`);
       currentUnit.zone = nextZone;
       // Apply Weaken (1)
       applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
-      // In simulator, treat advance as ending turn for simplicity
       advanceTurn(state);
       continue;
     }
 
-    // Execute move
+    // Handle advanceAndPlay: advance first, then play card
+    if (move.type === 'advanceAndPlay') {
+      const nextZone = currentUnit.team === 'player' ? currentUnit.zone + 1 : currentUnit.zone - 1;
+      if (verbose) console.log(`  -> Advances to Zone ${['A', 'X', 'B'][nextZone]} and is Weakened`);
+      currentUnit.zone = nextZone;
+      applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
+      // Fall through to card execution below
+    }
+
+    // Execute move (play or advanceAndPlay)
     const card = CARDS[move.cardId];
     const target = state.units.find(u => u.id === move.targetId);
 

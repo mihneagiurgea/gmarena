@@ -362,28 +362,46 @@ describe('isAttackCard', () => {
 });
 
 describe('canAdvance', () => {
-  test('unit in Zone A can advance', () => {
+  test('player unit in Zone A can advance', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 0; // Zone A
     assert.strictEqual(canAdvance(warrior), true);
   });
 
-  test('unit in Zone X can advance', () => {
+  test('player unit in Zone X can advance', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 1; // Zone X
     assert.strictEqual(canAdvance(warrior), true);
   });
 
-  test('unit in Zone B cannot advance', () => {
+  test('player unit in Zone B cannot advance', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 2; // Zone B
     assert.strictEqual(canAdvance(warrior), false);
   });
 
-  test('ranged unit can advance', () => {
+  test('ranged player unit can advance', () => {
     const archer = createUnit('a', 'Archer', 'archer', 'player');
     archer.zone = 0; // Zone A
     assert.strictEqual(canAdvance(archer), true);
+  });
+
+  test('opponent unit in Zone B can advance', () => {
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 2; // Zone B
+    assert.strictEqual(canAdvance(orc), true);
+  });
+
+  test('opponent unit in Zone X can advance', () => {
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 1; // Zone X
+    assert.strictEqual(canAdvance(orc), true);
+  });
+
+  test('opponent unit in Zone A cannot advance', () => {
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 0; // Zone A
+    assert.strictEqual(canAdvance(orc), false);
   });
 });
 

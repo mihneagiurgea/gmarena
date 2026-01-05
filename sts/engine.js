@@ -642,20 +642,39 @@ function isPlayerControlled(unit) {
 }
 
 /**
- * Check if unit can advance to the next zone
- * Any unit can advance if not at Zone B
+ * Check if unit can advance toward the enemy zone
+ * Player: can advance if not at Zone B (zone < 2)
+ * Opponent: can advance if not at Zone A (zone > 0)
  */
 function canAdvance(unit) {
-  return unit.zone < ZONES.B;
+  if (unit.team === 'player') {
+    return unit.zone < ZONES.B;
+  } else {
+    return unit.zone > ZONES.A;
+  }
 }
 
 /**
- * Advance a unit to the next zone and apply Weaken (1)
- * A -> X, X -> B
+ * Get the zone a unit will move to when advancing
+ * Player: zone++ (A→X→B)
+ * Opponent: zone-- (B→X→A)
+ */
+function getAdvanceTargetZone(unit) {
+  if (unit.team === 'player') {
+    return unit.zone + 1;
+  } else {
+    return unit.zone - 1;
+  }
+}
+
+/**
+ * Advance a unit toward the enemy zone and apply Weaken (1)
+ * Player: A -> X -> B
+ * Opponent: B -> X -> A
  */
 function advanceUnit(unit) {
-  if (unit.zone < ZONES.B) {
-    unit.zone++;
+  if (canAdvance(unit)) {
+    unit.zone = getAdvanceTargetZone(unit);
     // Apply Weaken (1) - self-inflicted, expires at end of turn
     applyEffect(unit, 'weaken', unit.id, 1);
   }
