@@ -746,6 +746,15 @@ function runAI() {
     return;
   }
 
+  // Handle advanceAndPlay: advance first, then play the card
+  if (move.type === 'advanceAndPlay') {
+    const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
+    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, team);
+    advanceUnit(currentUnit);
+    renderUnits();
+    // Continue to play the card below
+  }
+
   // Play the card
   const card = CARDS[move.cardId];
   const target = gameState.units.find(u => u.id === move.targetId);
