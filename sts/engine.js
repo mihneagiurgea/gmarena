@@ -437,10 +437,8 @@ function executeCardEffects(attacker, target, card) {
     result.damage = Math.floor(baseDamage * damageMultiplier);
   }
 
-  // Build message for damage
-  if (result.damage > 0) {
-    messages.push(`${attacker.name} uses ${card.name} on ${target.name} for ${result.damage} damage`);
-  }
+  // Build effect tags for message
+  const effects = [];
 
   // Apply taunt effect (from card or attacker's aura when dealing damage)
   const cardTaunt = card.effects.taunt || 0;
@@ -450,33 +448,44 @@ function executeCardEffects(attacker, target, card) {
   if (totalTaunt > 0) {
     applyEffect(target, 'taunt', attacker.id, totalTaunt);
     result.effects.push(`Taunt (${totalTaunt})`);
-    messages.push(`${target.name} is taunted for ${totalTaunt} turns`);
+    effects.push(`Taunt ${totalTaunt}`);
   }
 
   // Apply block to target (for self/ally targeting cards)
   if (card.effects.block) {
     target.block += card.effects.block;
     result.effects.push(`+${card.effects.block} Block`);
-    messages.push(`${target.name} gains ${card.effects.block} Block`);
   }
 
   // Apply heal (includes caster's bonus aura)
+  let healAmount = 0;
   if (card.effects.heal) {
     const baseHeal = card.effects.heal + (attacker.auras.bonus || 0);
-    const healAmount = Math.min(baseHeal, target.maxHp - target.hp);
+    healAmount = Math.min(baseHeal, target.maxHp - target.hp);
     target.hp += healAmount;
     result.effects.push(`+${healAmount} HP`);
-    messages.push(`${target.name} heals for ${healAmount} HP`);
   }
 
   // Apply bonus aura
   if (card.effects.auraBonus) {
     target.auras.bonus += card.effects.auraBonus;
     result.effects.push(`+${card.effects.auraBonus} Bonus`);
-    messages.push(`${target.name} gains +${card.effects.auraBonus} bonus`);
   }
 
-  result.message = messages.join('. ') + '!';
+  // Build concise message
+  const effectStr = effects.length > 0 ? ` [${effects.join(', ')}]` : '';
+
+  if (result.damage > 0) {
+    result.message = `${attacker.name} hits ${target.name} for ${result.damage}${effectStr}`;
+  } else if (card.effects.block) {
+    result.message = `${target.name} blocks ${card.effects.block}`;
+  } else if (card.effects.heal) {
+    result.message = `${target.name} heals ${healAmount}`;
+  } else if (card.effects.auraBonus) {
+    result.message = `${target.name} gains +${card.effects.auraBonus} bonus`;
+  } else {
+    result.message = `${attacker.name} plays ${card.name}`;
+  }
 
   return result;
 }

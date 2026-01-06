@@ -430,8 +430,8 @@ function executeAdvance() {
   const currentUnit = getCurrentUnit();
   if (!currentUnit || !canAdvance(currentUnit)) return;
 
-  const nextZone = ZONE_NAMES[currentUnit.zone + 1];
-  addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, currentUnit.team);
+  const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
+  addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, currentUnit.team);
   advanceUnit(currentUnit);
 
   // Re-render to show updated state (advance does NOT end turn)
@@ -559,7 +559,7 @@ function selectCard(cardIndex) {
 
   // Check if unit can play this card
   if (!canPlayCard(currentUnit, card)) {
-    addLogEntry(`${currentUnit.name} cannot play ${card.name}!`, 'neutral');
+    addLogEntry(`${currentUnit.name} can't play ${card.name}`, 'neutral');
     return;
   }
 
@@ -574,7 +574,7 @@ function selectCard(cardIndex) {
   }
 
   if (targets.length === 0) {
-    addLogEntry('No valid targets!', 'neutral');
+    addLogEntry('No valid targets', 'neutral');
     return;
   }
 
@@ -583,7 +583,7 @@ function selectCard(cardIndex) {
   gameState.validTargets = targets;
 
   if (mustAttackTaunters) {
-    addLogEntry(`${currentUnit.name} is taunted! Must attack taunter.`, 'neutral');
+    addLogEntry(`${currentUnit.name} must attack taunter`, 'neutral');
   }
 
   highlightTargets();
@@ -638,7 +638,7 @@ function executeCardOnTarget(targetIndex) {
     if (died) {
       const deadUnits = removeDeadUnits();
       deadUnits.forEach(unit => {
-        addLogEntry(`${unit.name} has fallen!`, unit.team);
+        addLogEntry(`${unit.name} falls!`, unit.team);
       });
     }
   }
@@ -656,7 +656,7 @@ function executeCardOnTarget(targetIndex) {
     endTurn();
   } else {
     const isVictory = gameResult === 'victory';
-    addLogEntry(isVictory ? 'VICTORY! All enemies have been defeated!' : 'DEFEAT! All your units have fallen.', 'neutral');
+    addLogEntry(isVictory ? 'VICTORY!' : 'DEFEAT!', 'neutral');
     showGameOverBanner(isVictory);
     renderUnits();
     renderTurnOrder();
@@ -730,14 +730,14 @@ function runAI() {
   const move = getBestMove(gameState, gameFns);
 
   if (move.type === 'skip') {
-    addLogEntry(`${currentUnit.name} ends their turn.`, team);
+    addLogEntry(`${currentUnit.name} passes`, team);
     endTurn();
     return;
   }
 
   if (move.type === 'advance') {
     const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
-    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, team);
+    addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, team);
     advanceUnit(currentUnit);
     // Advance doesn't end turn - re-render and run AI again after a delay
     renderUnits();
@@ -749,7 +749,7 @@ function runAI() {
   // Handle advanceAndPlay: advance first, then play the card
   if (move.type === 'advanceAndPlay') {
     const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
-    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, team);
+    addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, team);
     advanceUnit(currentUnit);
     renderUnits();
     // Continue to play the card below
@@ -760,7 +760,7 @@ function runAI() {
   const target = gameState.units.find(u => u.id === move.targetId);
 
   if (!card || !target) {
-    addLogEntry(`${currentUnit.name} ends their turn.`, team);
+    addLogEntry(`${currentUnit.name} passes`, team);
     endTurn();
     return;
   }
@@ -769,7 +769,7 @@ function runAI() {
   const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
   const cardIndex = hand.indexOf(move.cardId);
   if (cardIndex === -1) {
-    addLogEntry(`${currentUnit.name} ends their turn.`, team);
+    addLogEntry(`${currentUnit.name} passes`, team);
     endTurn();
     return;
   }
@@ -790,7 +790,7 @@ function runAI() {
     if (died) {
       const deadUnits = removeDeadUnits();
       deadUnits.forEach(unit => {
-        addLogEntry(`${unit.name} has fallen!`, unit.team);
+        addLogEntry(`${unit.name} falls!`, unit.team);
       });
     }
   }
@@ -800,7 +800,7 @@ function runAI() {
     endTurn();
   } else {
     const isVictory = gameResult === 'victory';
-    addLogEntry(isVictory ? 'VICTORY! All enemies have been defeated!' : 'DEFEAT! All your units have fallen.', 'neutral');
+    addLogEntry(isVictory ? 'VICTORY!' : 'DEFEAT!', 'neutral');
     showGameOverBanner(isVictory);
     renderUnits();
     renderTurnOrder();
