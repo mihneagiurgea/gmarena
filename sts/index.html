@@ -45,17 +45,27 @@
             <div class="log-entry">Game started.</div>
           </div>
         </div>
-        <div class="debug-panel" id="debug-panel">
-          <div class="debug-header">
-            <span class="debug-icon">⚙</span>
-            <span class="debug-title">Debug</span>
-            <button class="panel-toggle" id="debug-toggle" title="Minimize">−</button>
+        <div class="options-panel" id="options-panel">
+          <div class="options-header">
+            <span class="options-icon">⚙</span>
+            <span class="options-title">Options</span>
+            <button class="panel-toggle" id="options-toggle" title="Minimize">−</button>
           </div>
-          <div class="debug-content" id="debug-content">
-            <label class="debug-option">
-              <input type="checkbox" id="debug-control-both">
-              <span>Control both teams</span>
-            </label>
+          <div class="options-content" id="options-content">
+            <div class="control-row">
+              <span class="control-label">Player</span>
+              <div class="toggle-switch" id="player-control">
+                <button class="toggle-btn active" data-value="human">Human</button>
+                <button class="toggle-btn" data-value="ai">AI</button>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="control-label">Opponent</span>
+              <div class="toggle-switch" id="opponent-control">
+                <button class="toggle-btn" data-value="human">Human</button>
+                <button class="toggle-btn active" data-value="ai">AI</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

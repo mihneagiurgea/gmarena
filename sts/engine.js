@@ -123,7 +123,10 @@ const gameState = {
   phase: 'play', // 'play', 'targeting'
   selectedCard: null,
   validTargets: [],
-  playerControlsBoth: false,
+
+  // Control settings: 'human' or 'ai'
+  playerControl: 'human',
+  opponentControl: 'ai',
 
   // Card state per team
   playerDeck: [],
@@ -638,7 +641,11 @@ function getCurrentUnit() {
  */
 function isPlayerControlled(unit) {
   if (!unit) return false;
-  return unit.team === 'player' || gameState.playerControlsBoth;
+  if (unit.team === 'player') {
+    return gameState.playerControl === 'human';
+  } else {
+    return gameState.opponentControl === 'human';
+  }
 }
 
 /**

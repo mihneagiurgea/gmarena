@@ -701,18 +701,21 @@ function endTurn() {
   renderTurnOrder();
   renderHand();
 
-  if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-    setTimeout(() => runOpponentAI(), 850);
+  // Trigger AI if current unit is AI-controlled
+  if (currentUnit && !isPlayerControlled(currentUnit)) {
+    setTimeout(() => runAI(), 850);
   }
 }
 
 // ============================================================================
-// OPPONENT AI
+// AI CONTROL
 // ============================================================================
 
-function runOpponentAI() {
+function runAI() {
   const currentUnit = getCurrentUnit();
-  if (!currentUnit || currentUnit.team === 'player') return;
+  if (!currentUnit || isPlayerControlled(currentUnit)) return;
+
+  const team = currentUnit.team;
 
   // Use the Minimax AI to get the best move
   const gameFns = {
@@ -727,19 +730,19 @@ function runOpponentAI() {
   const move = getBestMove(gameState, gameFns);
 
   if (move.type === 'skip') {
-    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    addLogEntry(`${currentUnit.name} ends their turn.`, team);
     endTurn();
     return;
   }
 
   if (move.type === 'advance') {
-    const nextZone = ZONE_NAMES[currentUnit.zone + 1];
-    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, 'opponent');
+    const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
+    addLogEntry(`${currentUnit.name} advances to Zone ${nextZone} and is Weakened!`, team);
     advanceUnit(currentUnit);
     // Advance doesn't end turn - re-render and run AI again after a delay
     renderUnits();
     renderHand();
-    setTimeout(() => runOpponentAI(), 500);
+    setTimeout(() => runAI(), 500);
     return;
   }
 
@@ -748,26 +751,26 @@ function runOpponentAI() {
   const target = gameState.units.find(u => u.id === move.targetId);
 
   if (!card || !target) {
-    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    addLogEntry(`${currentUnit.name} ends their turn.`, team);
     endTurn();
     return;
   }
 
   // Find card index in hand
-  const hand = gameState.opponentHand;
+  const hand = team === 'player' ? gameState.playerHand : gameState.opponentHand;
   const cardIndex = hand.indexOf(move.cardId);
   if (cardIndex === -1) {
-    addLogEntry(`${currentUnit.name} ends their turn.`, 'opponent');
+    addLogEntry(`${currentUnit.name} ends their turn.`, team);
     endTurn();
     return;
   }
 
   // Play the card from hand
-  playCard('opponent', cardIndex);
+  playCard(team, cardIndex);
 
   // Execute card effects
   const result = executeCardEffects(currentUnit, target, card);
-  addLogEntry(result.message, 'opponent');
+  addLogEntry(result.message, team);
 
   // Show damage popup near target if damage was dealt
   if (result.damage > 0) {
@@ -874,19 +877,20 @@ function initGame() {
 
   addLogEntry('Game started. Fight!');
 
+  // If first unit is AI-controlled, start AI
   const firstUnit = getCurrentUnit();
-  if (firstUnit && firstUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-    setTimeout(() => runOpponentAI(), 850);
+  if (firstUnit && !isPlayerControlled(firstUnit)) {
+    setTimeout(() => runAI(), 850);
   }
 
   console.log('GM Arena (StS variant) initialized!');
 }
 
 // ============================================================================
-// DEBUG UI
+// OPTIONS UI
 // ============================================================================
 
-function initDebugUI() {
+function initOptionsUI() {
   // Log panel toggle
   const logPanel = document.getElementById('log');
   const logToggle = document.getElementById('log-toggle');
@@ -908,47 +912,65 @@ function initDebugUI() {
     });
   }
 
-  // Debug panel toggle
-  const debugPanel = document.getElementById('debug-panel');
-  const debugToggle = document.getElementById('debug-toggle');
-  const debugHeader = document.querySelector('.debug-header');
+  // Options panel toggle
+  const optionsPanel = document.getElementById('options-panel');
+  const optionsToggle = document.getElementById('options-toggle');
+  const optionsHeader = document.querySelector('.options-header');
 
-  if (debugToggle && debugPanel) {
-    debugToggle.addEventListener('click', (e) => {
+  if (optionsToggle && optionsPanel) {
+    optionsToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      debugPanel.classList.toggle('minimized');
-      debugToggle.textContent = debugPanel.classList.contains('minimized') ? '+' : '−';
-      debugToggle.title = debugPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+      optionsPanel.classList.toggle('minimized');
+      optionsToggle.textContent = optionsPanel.classList.contains('minimized') ? '+' : '−';
+      optionsToggle.title = optionsPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
     });
 
-    debugHeader.addEventListener('click', () => {
-      debugPanel.classList.toggle('minimized');
-      debugToggle.textContent = debugPanel.classList.contains('minimized') ? '+' : '−';
-      debugToggle.title = debugPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
+    optionsHeader.addEventListener('click', () => {
+      optionsPanel.classList.toggle('minimized');
+      optionsToggle.textContent = optionsPanel.classList.contains('minimized') ? '+' : '−';
+      optionsToggle.title = optionsPanel.classList.contains('minimized') ? 'Expand' : 'Minimize';
     });
   }
 
-  // Control both teams checkbox
-  const controlBothCheckbox = document.getElementById('debug-control-both');
-  if (controlBothCheckbox) {
-    // Initialize checkbox state from gameState
-    controlBothCheckbox.checked = gameState.playerControlsBoth;
-
-    controlBothCheckbox.addEventListener('change', () => {
-      gameState.playerControlsBoth = controlBothCheckbox.checked;
-      // Re-render to apply changes immediately
-      highlightTargets();
-      renderHand();
-
-      // If it's opponent's turn and we just disabled control, trigger AI
-      const currentUnit = getCurrentUnit();
-      if (currentUnit && currentUnit.team === 'opponent' && !gameState.playerControlsBoth) {
-        setTimeout(() => runOpponentAI(), 850);
-      }
+  // Player control toggle
+  const playerControl = document.getElementById('player-control');
+  if (playerControl) {
+    playerControl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        playerControl.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameState.playerControl = btn.dataset.value;
+        onControlChanged();
+      });
     });
+  }
+
+  // Opponent control toggle
+  const opponentControl = document.getElementById('opponent-control');
+  if (opponentControl) {
+    opponentControl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        opponentControl.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameState.opponentControl = btn.dataset.value;
+        onControlChanged();
+      });
+    });
+  }
+}
+
+function onControlChanged() {
+  // Re-render to apply changes immediately
+  highlightTargets();
+  renderHand();
+
+  // If current unit is now AI-controlled, trigger AI
+  const currentUnit = getCurrentUnit();
+  if (currentUnit && !isPlayerControlled(currentUnit)) {
+    setTimeout(() => runAI(), 500);
   }
 }
 
 // Start the game
 initGame();
-initDebugUI();
+initOptionsUI();
