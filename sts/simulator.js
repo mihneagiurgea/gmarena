@@ -21,11 +21,15 @@ function loadFile(filename) {
 
 function loadGame() {
   const dataCode = loadFile('data.js');
+  const zonesCode = loadFile('zones.js');
+  const gamestateCode = loadFile('gamestate.js');
   const engineCode = loadFile('engine.js');
   const aiCode = loadFile('ai.js');
 
   const wrappedCode = `
     ${dataCode}
+    ${zonesCode}
+    ${gamestateCode}
     ${engineCode}
     ${aiCode}
     return {
