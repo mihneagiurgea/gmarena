@@ -157,7 +157,7 @@ function renderUnits() {
       }
 
       // Taunted status indicator (shows when unit is under taunt effect)
-      if (isTaunted(unit)) {
+      if (hasEffect(unit, 'taunt')) {
         const tauntedEl = document.createElement('div');
         tauntedEl.className = 'taunted-indicator';
         const taunters = getActiveTaunters(unit);
@@ -593,7 +593,7 @@ function showUnitInfo(unit) {
   statsHtml += `Damage Bonus: ${unit.damageBonus >= 0 ? '+' : ''}${unit.damageBonus}<br>`;
 
   // Show taunt effects on this unit with duration
-  if (isTaunted(unit)) {
+  if (hasEffect(unit, 'taunt')) {
     const tauntEffects = getEffects(unit, 'taunt');
     const tauntInfo = tauntEffects.map(e => {
       const taunter = gameState.units.find(u => u.id === e.sourceId);

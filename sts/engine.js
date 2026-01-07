@@ -280,28 +280,9 @@ function playCard(team, cardIndex) {
   return cardId;
 }
 
-/**
- * Get current team's hand
- */
-function getCurrentHand() {
-  return gameState.getCurrentHand();
-}
-
-// ============================================================================
-// ZONE HELPER FUNCTIONS (delegating to ZoneUtils from zones.js)
-// ============================================================================
-
-function getUnitsInZone(zone) {
-  return ZoneUtils.getUnitsInZone(gameState.units, zone);
-}
-
-function getAdjacentZones(zone) {
-  return ZoneUtils.getAdjacentZones(zone);
-}
-
-function areZonesAdjacent(zone1, zone2) {
-  return ZoneUtils.areAdjacent(zone1, zone2);
-}
+// Helpers used by ui.js
+function getCurrentHand() { return gameState.getCurrentHand(); }
+function getUnitsInZone(zone) { return ZoneUtils.getUnitsInZone(gameState.units, zone); }
 
 // ============================================================================
 // EFFECT SYSTEM
@@ -319,13 +300,6 @@ function hasEffect(unit, effectType) {
  */
 function getEffects(unit, effectType) {
   return unit.effects.filter(e => e.type === effectType);
-}
-
-/**
- * Check if a unit is taunted
- */
-function isTaunted(unit) {
-  return hasEffect(unit, 'taunt');
 }
 
 /**
@@ -527,13 +501,7 @@ function removeDeadUnits() {
   return deadUnits;
 }
 
-/**
- * Check if game is over
- * @returns {'ongoing' | 'victory' | 'defeat'}
- */
-function checkGameOver() {
-  return gameState.checkGameOver();
-}
+function checkGameOver() { return gameState.checkGameOver(); }
 
 // ============================================================================
 // TARGETING
@@ -568,20 +536,6 @@ function getValidAttackTargets(unit) {
 }
 
 /**
- * Get all enemies
- */
-function getAllEnemies(unit) {
-  return gameState.getEnemies(unit);
-}
-
-/**
- * Get all allies (excluding self)
- */
-function getAllAllies(unit) {
-  return gameState.getAllies(unit);
-}
-
-/**
  * Get valid targets for a card based on its target type
  * @returns {{targets: Unit[], mustAttackTaunters: boolean}}
  */
@@ -593,7 +547,7 @@ function getValidCardTargets(unit, card) {
   }
 
   if (targetType === 'ally') {
-    return { targets: getAllAllies(unit), mustAttackTaunters: false };
+    return { targets: gameState.getAllies(unit), mustAttackTaunters: false };
   }
 
   if (targetType === 'any') {
@@ -605,66 +559,25 @@ function getValidCardTargets(unit, card) {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (used by ui.js)
 // ============================================================================
 
-function getCurrentUnit() {
-  return gameState.getCurrentUnit();
-}
-
-/**
- * Check if a unit is controlled by the player (human)
- */
-function isPlayerControlled(unit) {
-  return gameState.isHumanControlled(unit);
-}
-
-function getTauntCountInZone(zone, team) {
-  return ZoneUtils.getTauntCount(gameState.units, zone, team);
-}
-
-function getTeamCountInZone(zone, team) {
-  return ZoneUtils.getTeamCount(gameState.units, zone, team);
-}
-
-function isPinned(unit) {
-  return ZoneUtils.isPinned(gameState.units, unit);
-}
-
-function getValidMoveZones(unit) {
-  return ZoneUtils.getValidMoveZones(gameState.units, unit);
-}
-
-function canMove(unit) {
-  return ZoneUtils.canMove(gameState.units, unit, hasEffect);
-}
+function getCurrentUnit() { return gameState.getCurrentUnit(); }
+function isPlayerControlled(unit) { return gameState.isHumanControlled(unit); }
+function isPinned(unit) { return ZoneUtils.isPinned(gameState.units, unit); }
+function getValidMoveZones(unit) { return ZoneUtils.getValidMoveZones(gameState.units, unit); }
+function canMove(unit) { return ZoneUtils.canMove(gameState.units, unit, hasEffect); }
+function canAdvance(unit) { return canMove(unit); } // Legacy alias for tests
 
 /**
  * Move a unit to a target zone and apply Fatigued (1)
- * Fatigued includes Weaken + cannot play complex cards + cannot move again
  */
 function moveUnit(unit, targetZone) {
   const validZones = getValidMoveZones(unit);
   if (validZones.includes(targetZone)) {
     unit.zone = targetZone;
-    // Apply Fatigued (1) - self-inflicted, expires at end of turn
     applyEffect(unit, 'fatigued', unit.id, 1);
     return true;
   }
   return false;
-}
-
-// Legacy aliases for backward compatibility during transition
-function canAdvance(unit) {
-  return canMove(unit);
-}
-
-function getAdvanceTargetZone(unit) {
-  const validZones = getValidMoveZones(unit);
-  return validZones.length > 0 ? validZones[0] : unit.zone;
-}
-
-function advanceUnit(unit) {
-  const targetZone = getAdvanceTargetZone(unit);
-  moveUnit(unit, targetZone);
 }
