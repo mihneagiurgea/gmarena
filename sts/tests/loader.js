@@ -40,4 +40,27 @@ function loadEngine() {
   return fn();
 }
 
-module.exports = { loadData, loadEngine };
+function loadEngineWithAI() {
+  const dataCode = loadFile('data.js');
+  const engineCode = loadFile('engine.js');
+  const aiCode = loadFile('ai.js');
+
+  const wrappedCode = `
+    ${dataCode}
+    ${engineCode}
+    ${aiCode}
+    return {
+      UNIT_DATA, CARD_DATA, DECK_DATA, CARDS,
+      createUnit, applyDamage, resetBlock, executeCardEffects,
+      isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
+      isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
+      applyEffect, gameState, isSimpleCard, moveUnit, getValidCardTargets,
+      generateMoves, getBestMove
+    };
+  `;
+
+  const fn = new Function(wrappedCode);
+  return fn();
+}
+
+module.exports = { loadData, loadEngine, loadEngineWithAI };
