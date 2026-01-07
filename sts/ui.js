@@ -110,12 +110,20 @@ function renderUnits() {
   document.querySelectorAll('.zone-units').forEach(container => {
     container.innerHTML = '';
   });
+  // Clear expanded state
+  document.querySelectorAll('.zone.expanded').forEach(z => z.classList.remove('expanded'));
 
   // Group units by zone
   for (let zone = 0; zone < NUM_ZONES; zone++) {
     const unitsInZone = getUnitsInZone(zone);
-    const container = document.querySelector(`.zone[data-zone="${zone}"] .zone-units`);
+    const zoneEl = document.querySelector(`.zone[data-zone="${zone}"]`);
+    const container = zoneEl?.querySelector('.zone-units');
     if (!container) continue;
+
+    // Expand lane zones (X=1, Y=2) horizontally if > 2 units
+    if ((zone === 1 || zone === 2) && unitsInZone.length > 2) {
+      zoneEl.classList.add('expanded');
+    }
 
     unitsInZone.forEach(unit => {
       const unitWrapper = document.createElement('div');
@@ -464,11 +472,12 @@ function cancelMove() {
   gameState.phase = 'play';
   gameState.validMoveZones = [];
 
-  // Clear zone highlights
+  // Clear zone highlights and move numbers
   document.querySelectorAll('.zone.move-target').forEach(z => {
     z.classList.remove('move-target');
     z.onclick = null;
   });
+  document.querySelectorAll('.zone-move-number').forEach(n => n.remove());
 
   renderHand();
 }
@@ -514,19 +523,26 @@ function enterMovePhase() {
  * Highlight valid move destination zones
  */
 function highlightMoveZones() {
-  // Clear previous highlights
+  // Clear previous highlights and move numbers
   document.querySelectorAll('.zone.move-target').forEach(z => {
     z.classList.remove('move-target');
     z.onclick = null;
   });
+  document.querySelectorAll('.zone-move-number').forEach(n => n.remove());
 
   if (gameState.phase !== 'moving') return;
 
-  gameState.validMoveZones.forEach(zoneId => {
+  gameState.validMoveZones.forEach((zoneId, index) => {
     const zoneEl = document.querySelector(`.zone[data-zone="${zoneId}"]`);
     if (zoneEl) {
       zoneEl.classList.add('move-target');
       zoneEl.onclick = () => executeMove(zoneId);
+
+      // Add move number indicator
+      const numEl = document.createElement('div');
+      numEl.className = 'zone-move-number';
+      numEl.textContent = index + 1;
+      zoneEl.appendChild(numEl);
     }
   });
 }
@@ -546,11 +562,12 @@ function executeMove(targetZone) {
   gameState.phase = 'play';
   gameState.validMoveZones = [];
 
-  // Clear zone highlights
+  // Clear zone highlights and move numbers
   document.querySelectorAll('.zone.move-target').forEach(z => {
     z.classList.remove('move-target');
     z.onclick = null;
   });
+  document.querySelectorAll('.zone-move-number').forEach(n => n.remove());
 
   // Move does NOT end turn - unit can still play Simple cards while Fatigued
   renderUnits();
