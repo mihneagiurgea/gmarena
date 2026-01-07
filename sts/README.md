@@ -5,6 +5,13 @@ and "the opponent" controls team B that contains another 2-3 units.
 
 Each player has a deck of 10-15 cards that are NOT unique.
 
+## Unit Stats
+Units have the following stats:
+ - HP (Health Points, when it reaches 0 the unit dies)
+ - Attack Range: melee or range
+ - Attack Type: physical or magic
+ - Damage: how much damage they deal on attack
+
 ## Zones 
 
 There are 4 zones: 
@@ -20,20 +27,6 @@ A zone can have 1 or more units in it, including enemy units.
 At the start of the game, all units from Team A are assigned to zone A, and all units
 from Team B are assigned to zone B.
 
-### Action: Move
-During a "Move" action, a unit can move to any adjacent zone, if the unit not "Pinned".
-If a team has N units in a zone and their opponent has T units with Taunt:
- - if N > T: the team is not Pinned in that zone
- - if N <= T: the team is Pinned in that zone
-If a team is Pinned in a zone, then no units from that team and that zone are "Pinned".   
-
-## Unit Stats
-Units have the following stats:
- - HP (Health Points, when it reaches 0 the unit dies)
- - Attack Range: melee or range
- - Attack Type: physical or magic
- - Damage: how much damage they deal on attack
-
 ## Start of game
 At the start of game:
  - each player's deck is shuffled randomly, then each player draws 5 cards
@@ -43,23 +36,26 @@ At the start of game:
 
 ## Playing your Turn
 The controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
-
-### Move (Key: A)
-Any unit can play Move to move to an adjacent zone.
-
-Playing Move:
-- Does **not** end the turn (the unit can still play a card)
-- Applies **Weaken (1)** to the unit (expires at end of turn)
+Once a card is played, it is shuffled back into the deck.
 
 Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends
  - the player draws cards up to 5 cards
 
-Once a card is played, it is shuffled back into the deck.
+### Action: Move (Hot-Key: M)
+Any unit can Move to move to any adjacent zone, unless the unit is "Pinned".
+
+Playing Move:
+- Does **not** end the turn (the unit can still play a card)
+- Applies **Fatigued (1)** to the unit (expires at end of turn)
+
+If a team has N units in a zone and their opponent has T units with Taunt:
+ - if N > T: the team is not Pinned in that zone
+ - if N <= T: the team is Pinned in that zone
+If a team is Pinned in a zone, then no units from that team and that zone are "Pinned".   
 
 ## Attacking
-When a unit ("the attacker") attacks another unit ("the target"),
-the damage is subtracted from the target's HP.
+When a unit ("the attacker") attacks another unit ("the target"), the damage is subtracted from the target's HP.
 
 ## Ranged Attacks
 Ranged attacks (including spells) can target any unit from any zone, e.g. a unit
@@ -70,16 +66,6 @@ Melee attacks can target any unit from the same zone, but NOT from an adjacent z
 e.g. a unit from A can target other units from A, but no units from zone X.
 
 ## Effects
-
-### Effect: Taunt (X)
-Taunt X is a debuff effect that lasts X turns. When an attacker applies it on a
-unit ("the taunted"), that unit must attack one of its taunters, if able, for X
-rounds.
-
-Note: since this is an effect, at the end of the taunted unit's turn, X is decreased by 1.
-
-If a unit is taunted and chooses to attack, it must attack one of the taunter units.
-If a unit is taunted and chooses not to attack, no restrictions.
 
 ### Effect: Block
 Block is a temporary shield that absorbs incoming damage before HP is affected.
@@ -111,6 +97,16 @@ Cripple is a stronger debuff effect that lasts X turns. A crippled unit deals 50
 - If a unit has both Weaken and Cripple, only Cripple applies (the stronger effect)
 
 Example: A unit with 20 base damage that is Crippled deals 10 damage (20 × 0.50 = 10).
+
+### Effect: Fatigued (X)
+Fatigued is a debuff effect that lasts X turns. A fatigued unit is Weakened AND has additional restrictions.
+
+A Fatigued unit:
+- Deals 25% less damage (same as Weaken)
+- Cannot only play Simple cards
+- Cannot Move
+
+A unit becomes Fatigued(1) when they use the Move action. This effectively means that after moving, a unit cannot attack or play any other card until their next turn.
 
 ## Auras
 Auras are like effects but last until end of combat.

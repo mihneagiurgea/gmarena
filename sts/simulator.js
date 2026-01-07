@@ -273,10 +273,10 @@ function simulateGame(verbose = false) {
 
     if (move.type === 'move') {
       const zoneName = ZONE_NAMES[move.targetZone];
-      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Weakened]`);
+      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Fatigued]`);
       currentUnit.zone = move.targetZone;
-      // Apply Weaken (1)
-      applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
+      // Apply Fatigued (1)
+      applyEffect(currentUnit, 'fatigued', currentUnit.id, 1);
       advanceTurn(state);
       continue;
     }
@@ -284,9 +284,9 @@ function simulateGame(verbose = false) {
     // Handle moveAndPlay: move first, then play card
     if (move.type === 'moveAndPlay') {
       const zoneName = ZONE_NAMES[move.targetZone];
-      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Weakened]`);
+      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Fatigued]`);
       currentUnit.zone = move.targetZone;
-      applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
+      applyEffect(currentUnit, 'fatigued', currentUnit.id, 1);
       // Fall through to card execution below
     }
 

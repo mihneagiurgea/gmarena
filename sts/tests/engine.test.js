@@ -11,7 +11,8 @@ const { loadEngine } = require('./loader');
 const engine = loadEngine();
 const {
   createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard, hasEffect,
-  isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned, applyEffect, gameState
+  isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned, applyEffect, gameState,
+  isSimpleCard, moveUnit
 } = engine;
 
 describe('applyDamage', () => {
@@ -542,5 +543,139 @@ describe('Weaken and Cripple effects', () => {
     executeCardEffects(mage, warrior, card);
     // Heal: 15 + 5 = 20, not affected by Weaken
     assert.strictEqual(warrior.hp, 70);
+  });
+});
+
+describe('isSimpleCard', () => {
+  test('damage-only card is simple', () => {
+    const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+    assert.strictEqual(isSimpleCard(card), true);
+  });
+
+  test('block-only card is simple', () => {
+    const card = { name: 'Defend', effects: { block: 10 }, target: 'self' };
+    assert.strictEqual(isSimpleCard(card), true);
+  });
+
+  test('damage+taunt card is NOT simple', () => {
+    const card = { name: 'Shield Bash', effects: { damage: 10, taunt: 2 }, target: 'enemy' };
+    assert.strictEqual(isSimpleCard(card), false);
+  });
+
+  test('damage+block card is NOT simple', () => {
+    const card = { name: 'Strike and Guard', effects: { damage: 10, block: 5 }, target: 'enemy' };
+    assert.strictEqual(isSimpleCard(card), false);
+  });
+
+  test('heal card is NOT simple', () => {
+    const card = { name: 'Heal', effects: { heal: 15 }, target: 'ally' };
+    assert.strictEqual(isSimpleCard(card), false);
+  });
+
+  test('auraBonus card is NOT simple', () => {
+    const card = { name: 'Empower', effects: { auraBonus: 3 }, target: 'ally' };
+    assert.strictEqual(isSimpleCard(card), false);
+  });
+
+  test('card with no effects is NOT simple', () => {
+    const card = { name: 'Nothing', target: 'self' };
+    assert.strictEqual(isSimpleCard(card), false);
+  });
+});
+
+describe('Fatigued effect', () => {
+  function setupGameState(units) {
+    gameState.units = units;
+  }
+
+  test('Fatigued reduces damage by 25% (same as Weaken)', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus
+    const target = createUnit('t', 'Target', 'orc', 'opponent');
+    const card = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+
+    // Apply Fatigued
+    applyEffect(warrior, 'fatigued', 'test', 1);
+
+    // Fatigued attack: (15 + 3) * 0.75 = 13.5 -> 13
+    const result = executeCardEffects(warrior, target, card);
+    assert.strictEqual(result.damage, 13);
+  });
+
+  test('Fatigued unit CAN play simple damage card', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    const simpleCard = { name: 'Attack', effects: { damage: 15 }, target: 'enemy' };
+
+    applyEffect(warrior, 'fatigued', 'test', 1);
+
+    assert.strictEqual(canPlayCard(warrior, simpleCard), true);
+  });
+
+  test('Fatigued unit CAN play simple block card', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    const defendCard = { name: 'Defend', effects: { block: 10 }, target: 'self' };
+
+    applyEffect(warrior, 'fatigued', 'test', 1);
+
+    assert.strictEqual(canPlayCard(warrior, defendCard), true);
+  });
+
+  test('Fatigued unit CANNOT play damage+taunt card', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    const shieldBash = { name: 'Shield Bash', effects: { damage: 10, taunt: 2 }, requires: 'melee', target: 'enemy' };
+
+    applyEffect(warrior, 'fatigued', 'test', 1);
+
+    assert.strictEqual(canPlayCard(warrior, shieldBash), false);
+  });
+
+  test('Fatigued unit CANNOT play auraBonus card', () => {
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    const empowerCard = { name: 'Empower', effects: { auraBonus: 3 }, target: 'ally' };
+
+    applyEffect(mage, 'fatigued', 'test', 1);
+
+    assert.strictEqual(canPlayCard(mage, empowerCard), false);
+  });
+
+  test('Fatigued unit CANNOT move', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 0; // Zone A
+    setupGameState([warrior]);
+
+    // Without fatigued, unit can move
+    assert.strictEqual(canMove(warrior), true);
+
+    // Apply fatigued
+    applyEffect(warrior, 'fatigued', 'test', 1);
+
+    // With fatigued, unit cannot move
+    assert.strictEqual(canMove(warrior), false);
+  });
+
+  test('moveUnit applies Fatigued (not Weaken)', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 0; // Zone A
+    setupGameState([warrior]);
+
+    // Move to zone X
+    moveUnit(warrior, 1);
+
+    assert.strictEqual(warrior.zone, 1);
+    assert.strictEqual(hasEffect(warrior, 'fatigued'), true);
+    assert.strictEqual(hasEffect(warrior, 'weaken'), false);
+  });
+
+  test('Cripple takes precedence over Fatigued', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player'); // +3 bonus
+    const target = createUnit('t', 'Target', 'orc', 'opponent');
+    const card = { name: 'Attack', effects: { damage: 20 }, target: 'enemy' };
+
+    // Apply both effects
+    applyEffect(warrior, 'fatigued', 'test', 1);
+    applyEffect(warrior, 'cripple', 'test', 1);
+
+    // Base: 20 + 3 = 23, Cripple: 23 * 0.5 = 11.5 -> 11
+    const result = executeCardEffects(warrior, target, card);
+    assert.strictEqual(result.damage, 11);
   });
 });

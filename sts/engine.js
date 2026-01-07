@@ -40,9 +40,39 @@ CARD_DATA.forEach(card => {
 });
 
 /**
+ * Check if a card is "Simple" - contains only damage OR only block
+ * Cards with auras, taunt+damage, heal, etc. are NOT simple
+ */
+function isSimpleCard(card) {
+  if (!card.effects) return false;
+
+  const effects = card.effects;
+  const hasDamage = effects.damage > 0;
+  const hasBlock = effects.block > 0;
+  const hasTaunt = effects.taunt > 0;
+  const hasHeal = effects.heal > 0;
+  const hasAuraBonus = effects.auraBonus !== undefined;
+
+  // Simple = ONLY damage OR ONLY block (nothing else)
+  if (hasDamage && !hasBlock && !hasTaunt && !hasHeal && !hasAuraBonus) {
+    return true; // Damage only
+  }
+  if (hasBlock && !hasDamage && !hasTaunt && !hasHeal && !hasAuraBonus) {
+    return true; // Block only
+  }
+
+  return false;
+}
+
+/**
  * Check if a unit can play a specific card
  */
 function canPlayCard(unit, card) {
+  // Fatigued units can only play Simple cards
+  if (hasEffect(unit, 'fatigued') && !isSimpleCard(card)) {
+    return false;
+  }
+
   if (!card.requires) return true; // Basic card, anyone can play
 
   // Parse comma-separated requirements
@@ -439,12 +469,13 @@ function executeCardEffects(attacker, target, card) {
   if (card.effects.damage) {
     const baseDamage = Math.max(0, card.effects.damage + (attacker.auras.bonus || 0));
 
-    // Apply Weaken (25% reduction) or Cripple (50% reduction)
+    // Apply Weaken/Fatigued (25% reduction) or Cripple (50% reduction)
     // Cripple takes precedence if both are present
+    // Fatigued includes Weaken effect
     let damageMultiplier = 1.0;
     if (hasEffect(attacker, 'cripple')) {
       damageMultiplier = 0.5;
-    } else if (hasEffect(attacker, 'weaken')) {
+    } else if (hasEffect(attacker, 'weaken') || hasEffect(attacker, 'fatigued')) {
       damageMultiplier = 0.75;
     }
 
@@ -709,20 +740,23 @@ function getValidMoveZones(unit) {
 
 /**
  * Check if unit can move (has valid move zones)
+ * Fatigued units cannot move
  */
 function canMove(unit) {
+  if (hasEffect(unit, 'fatigued')) return false;
   return getValidMoveZones(unit).length > 0;
 }
 
 /**
- * Move a unit to a target zone and apply Weaken (1)
+ * Move a unit to a target zone and apply Fatigued (1)
+ * Fatigued includes Weaken + cannot play complex cards + cannot move again
  */
 function moveUnit(unit, targetZone) {
   const validZones = getValidMoveZones(unit);
   if (validZones.includes(targetZone)) {
     unit.zone = targetZone;
-    // Apply Weaken (1) - self-inflicted, expires at end of turn
-    applyEffect(unit, 'weaken', unit.id, 1);
+    // Apply Fatigued (1) - self-inflicted, expires at end of turn
+    applyEffect(unit, 'fatigued', unit.id, 1);
     return true;
   }
   return false;

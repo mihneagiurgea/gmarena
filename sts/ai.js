@@ -142,9 +142,18 @@ function aiGetValidMoveZones(state, unit) {
 }
 
 /**
+ * Check if unit has a specific effect
+ */
+function aiHasEffect(unit, effectType) {
+  return unit.effects.some(e => e.type === effectType);
+}
+
+/**
  * Check if unit can move (has valid move zones)
+ * Fatigued units cannot move
  */
 function aiCanMove(state, unit) {
+  if (aiHasEffect(unit, 'fatigued')) return false;
   return aiGetValidMoveZones(state, unit).length > 0;
 }
 
@@ -189,7 +198,12 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 
     // Generate compound moves: move first, then play a card
     // This simulates the real game where move doesn't end turn
-    const movedUnit = { ...currentUnit, zone: targetZone };
+    // After moving, unit becomes Fatigued (can only play Simple cards)
+    const movedUnit = {
+      ...currentUnit,
+      zone: targetZone,
+      effects: [...currentUnit.effects, { type: 'fatigued', sourceId: currentUnit.id, duration: 1 }]
+    };
     const seenCardsAfterMove = new Set();
 
     for (let i = 0; i < hand.length; i++) {
@@ -225,12 +239,12 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 // ============================================================================
 
 /**
- * Move a unit to a target zone and apply Weaken (1)
+ * Move a unit to a target zone and apply Fatigued (1)
  */
 function aiMoveUnit(unit, targetZone, applyEffect) {
   unit.zone = targetZone;
-  // Apply Weaken (1) - self-inflicted
-  applyEffect(unit, 'weaken', unit.id, 1);
+  // Apply Fatigued (1) - self-inflicted
+  applyEffect(unit, 'fatigued', unit.id, 1);
 }
 
 /**

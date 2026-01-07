@@ -32,7 +32,7 @@ function loadEngine() {
       createUnit, applyDamage, resetBlock, executeCardEffects,
       isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
       isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
-      applyEffect, gameState
+      applyEffect, gameState, isSimpleCard, moveUnit
     };
   `;
 

@@ -539,7 +539,7 @@ function executeMove(targetZone) {
   if (!currentUnit) return;
 
   const zoneName = ZONE_NAMES[targetZone];
-  addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, currentUnit.team);
+  addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Fatigued]`, currentUnit.team);
   moveUnit(currentUnit, targetZone);
 
   // Clear move phase
@@ -552,7 +552,7 @@ function executeMove(targetZone) {
     z.onclick = null;
   });
 
-  // Re-render to show updated state (move does NOT end turn)
+  // Move does NOT end turn - unit can still play Simple cards while Fatigued
   renderUnits();
   renderHand();
 }
@@ -855,22 +855,22 @@ function runAI() {
 
   if (move.type === 'move') {
     const zoneName = ZONE_NAMES[move.targetZone];
-    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, team);
+    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Fatigued]`, team);
     moveUnit(currentUnit, move.targetZone);
-    // Move doesn't end turn - re-render and run AI again after a delay
+    // Move does NOT end turn - AI can still play Simple cards while Fatigued
     renderUnits();
     renderHand();
     setTimeout(() => runAI(), 500);
     return;
   }
 
-  // Handle moveAndPlay: move first, then play the card
+  // Handle moveAndPlay: move first, then play a Simple card
   if (move.type === 'moveAndPlay') {
     const zoneName = ZONE_NAMES[move.targetZone];
-    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, team);
+    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Fatigued]`, team);
     moveUnit(currentUnit, move.targetZone);
     renderUnits();
-    // Continue to play the card below
+    // Continue to play the Simple card below
   }
 
   // Play the card

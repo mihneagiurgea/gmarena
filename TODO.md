@@ -34,6 +34,7 @@
 
 - [ ] Add button to see simulation results: how many games, win rate, can click on a few games to see log: 3 random from each winner. 
 TBD how to show this UI.   
+- [ ] Fix zone lane UI styling (currently looks bad)
 - [ ] Improve UI to make it tablet-friendly
 - [ ] Improve UI / sprites
 - [ ] Better UI for playing card
