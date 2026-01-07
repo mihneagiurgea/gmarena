@@ -94,7 +94,7 @@ function createDeck(team) {
 }
 
 // ============================================================================
-// GAME STATE
+// GAME STATE (using GameState class from gamestate.js)
 // ============================================================================
 
 /**
@@ -129,26 +129,8 @@ function createDeck(team) {
  * @property {Auras} auras - Permanent damage reduction auras
  */
 
-/** @type {Object} */
-const gameState = {
-  turn: 1,
-  units: [],
-  turnOrder: [],
-  currentUnitIndex: 0,
-  phase: 'play', // 'play', 'targeting'
-  selectedCard: null,
-  validTargets: [],
-
-  // Control settings: 'human' or 'ai'
-  playerControl: 'human',
-  opponentControl: 'ai',
-
-  // Card state per team
-  playerDeck: [],
-  playerHand: [],
-  opponentDeck: [],
-  opponentHand: []
-};
+/** @type {GameState} */
+const gameState = new GameState();
 
 // ============================================================================
 // UNIT CREATION
@@ -302,9 +284,7 @@ function playCard(team, cardIndex) {
  * Get current team's hand
  */
 function getCurrentHand() {
-  const unit = getCurrentUnit();
-  if (!unit) return [];
-  return unit.team === 'player' ? gameState.playerHand : gameState.opponentHand;
+  return gameState.getCurrentHand();
 }
 
 // ============================================================================
@@ -539,19 +519,11 @@ function resetBlock(unit) {
  * @returns {Unit[]} Array of units that were removed
  */
 function removeDeadUnits() {
-  const deadUnits = gameState.units.filter(u => u.hp <= 0);
+  const deadUnits = gameState.getDeadUnits();
   deadUnits.forEach(unit => {
-    // Remove from turn order
-    const deadIndex = gameState.turnOrder.indexOf(unit.id);
-    gameState.turnOrder = gameState.turnOrder.filter(id => id !== unit.id);
-    // Adjust current index if needed
-    if (deadIndex !== -1 && deadIndex < gameState.currentUnitIndex) {
-      gameState.currentUnitIndex--;
-    }
-    // Remove any effects this unit had applied
     removeEffectsFromSource(unit.id);
+    gameState.removeUnit(unit.id);
   });
-  gameState.units = gameState.units.filter(u => u.hp > 0);
   return deadUnits;
 }
 
@@ -560,12 +532,7 @@ function removeDeadUnits() {
  * @returns {'ongoing' | 'victory' | 'defeat'}
  */
 function checkGameOver() {
-  const playerAlive = gameState.units.some(u => u.team === 'player');
-  const opponentAlive = gameState.units.some(u => u.team === 'opponent');
-
-  if (!playerAlive) return 'defeat';
-  if (!opponentAlive) return 'victory';
-  return 'ongoing';
+  return gameState.checkGameOver();
 }
 
 // ============================================================================
@@ -604,14 +571,14 @@ function getValidAttackTargets(unit) {
  * Get all enemies
  */
 function getAllEnemies(unit) {
-  return gameState.units.filter(u => u.team !== unit.team);
+  return gameState.getEnemies(unit);
 }
 
 /**
  * Get all allies (excluding self)
  */
 function getAllAllies(unit) {
-  return gameState.units.filter(u => u.team === unit.team && u.id !== unit.id);
+  return gameState.getAllies(unit);
 }
 
 /**
@@ -642,21 +609,14 @@ function getValidCardTargets(unit, card) {
 // ============================================================================
 
 function getCurrentUnit() {
-  if (gameState.turnOrder.length === 0) return null;
-  const unitId = gameState.turnOrder[gameState.currentUnitIndex];
-  return gameState.units.find(u => u.id === unitId) || null;
+  return gameState.getCurrentUnit();
 }
 
 /**
- * Check if a unit is controlled by the player
+ * Check if a unit is controlled by the player (human)
  */
 function isPlayerControlled(unit) {
-  if (!unit) return false;
-  if (unit.team === 'player') {
-    return gameState.playerControl === 'human';
-  } else {
-    return gameState.opponentControl === 'human';
-  }
+  return gameState.isHumanControlled(unit);
 }
 
 function getTauntCountInZone(zone, team) {
