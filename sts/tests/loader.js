@@ -22,17 +22,20 @@ function loadData() {
 
 function loadEngine() {
   const dataCode = loadFile('data.js');
+  const zonesCode = loadFile('zones.js');
   const engineCode = loadFile('engine.js');
 
   const wrappedCode = `
     ${dataCode}
+    ${zonesCode}
     ${engineCode}
     return {
       UNIT_DATA, CARD_DATA, DECK_DATA,
       createUnit, applyDamage, resetBlock, executeCardEffects,
       isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
       isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
-      applyEffect, gameState, isSimpleCard, moveUnit
+      applyEffect, gameState, isSimpleCard, moveUnit,
+      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils
     };
   `;
 
@@ -42,11 +45,13 @@ function loadEngine() {
 
 function loadEngineWithAI() {
   const dataCode = loadFile('data.js');
+  const zonesCode = loadFile('zones.js');
   const engineCode = loadFile('engine.js');
   const aiCode = loadFile('ai.js');
 
   const wrappedCode = `
     ${dataCode}
+    ${zonesCode}
     ${engineCode}
     ${aiCode}
     return {
@@ -55,7 +60,8 @@ function loadEngineWithAI() {
       isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
       isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
       applyEffect, gameState, isSimpleCard, moveUnit, getValidCardTargets,
-      generateMoves, getBestMove
+      generateMoves, getBestMove,
+      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils
     };
   `;
 

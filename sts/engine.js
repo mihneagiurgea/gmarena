@@ -2,32 +2,9 @@
  * Game Engine - Core game logic and state management
  * No DOM dependencies - pure game logic
  *
- * 4 zones in diamond layout:
- *       [X]
- *      /   \
- *   [A]     [B]
- *      \   /
- *       [Y]
- *
- * - Zone A: Team A starting zone (left)
- * - Zone B: Team B starting zone (right)
- * - Zone X: Top lane
- * - Zone Y: Bottom lane
- *
  * Card-based combat system inspired by Slay the Spire
+ * Zone layout defined in zones.js
  */
-
-const NUM_ZONES = 4;
-
-// Zone constants
-const ZONES = {
-  A: 0,  // Team A start (left)
-  X: 1,  // Top lane
-  Y: 2,  // Bottom lane
-  B: 3   // Team B start (right)
-};
-
-const ZONE_NAMES = ['A', 'X', 'Y', 'B'];
 
 // ============================================================================
 // CARD DEFINITIONS (built from cards-data.js)
@@ -331,38 +308,19 @@ function getCurrentHand() {
 }
 
 // ============================================================================
-// ZONE HELPER FUNCTIONS
+// ZONE HELPER FUNCTIONS (delegating to ZoneUtils from zones.js)
 // ============================================================================
 
-/**
- * Get all units in a specific zone
- */
 function getUnitsInZone(zone) {
-  return gameState.units.filter(u => u.zone === zone);
+  return ZoneUtils.getUnitsInZone(gameState.units, zone);
 }
 
-/**
- * Get adjacent zones for a given zone (diamond layout)
- *       [X]
- *      /   \
- *   [A]     [B]
- *      \   /
- *       [Y]
- * Connectivity: A↔X, A↔Y, X↔B, Y↔B
- */
 function getAdjacentZones(zone) {
-  if (zone === ZONES.A) return [ZONES.X, ZONES.Y];
-  if (zone === ZONES.X) return [ZONES.A, ZONES.B];
-  if (zone === ZONES.Y) return [ZONES.A, ZONES.B];
-  if (zone === ZONES.B) return [ZONES.X, ZONES.Y];
-  return [];
+  return ZoneUtils.getAdjacentZones(zone);
 }
 
-/**
- * Check if two zones are adjacent
- */
 function areZonesAdjacent(zone1, zone2) {
-  return getAdjacentZones(zone1).includes(zone2);
+  return ZoneUtils.areAdjacent(zone1, zone2);
 }
 
 // ============================================================================
@@ -701,50 +659,24 @@ function isPlayerControlled(unit) {
   }
 }
 
-/**
- * Count enemy units with taunt aura in a zone
- */
 function getTauntCountInZone(zone, team) {
-  return gameState.units.filter(u =>
-    u.zone === zone &&
-    u.team !== team &&
-    u.auras && u.auras.taunt > 0
-  ).length;
+  return ZoneUtils.getTauntCount(gameState.units, zone, team);
 }
 
-/**
- * Count team's units in a zone
- */
 function getTeamCountInZone(zone, team) {
-  return gameState.units.filter(u => u.zone === zone && u.team === team).length;
+  return ZoneUtils.getTeamCount(gameState.units, zone, team);
 }
 
-/**
- * Check if a unit is pinned in its current zone
- * Pinned if: teamCount <= enemy taunt count in same zone
- */
 function isPinned(unit) {
-  const teamCount = getTeamCountInZone(unit.zone, unit.team);
-  const tauntCount = getTauntCountInZone(unit.zone, unit.team);
-  return teamCount <= tauntCount;
+  return ZoneUtils.isPinned(gameState.units, unit);
 }
 
-/**
- * Get valid zones a unit can move to
- * Returns empty array if pinned or no adjacent zones
- */
 function getValidMoveZones(unit) {
-  if (isPinned(unit)) return [];
-  return getAdjacentZones(unit.zone);
+  return ZoneUtils.getValidMoveZones(gameState.units, unit);
 }
 
-/**
- * Check if unit can move (has valid move zones)
- * Fatigued units cannot move
- */
 function canMove(unit) {
-  if (hasEffect(unit, 'fatigued')) return false;
-  return getValidMoveZones(unit).length > 0;
+  return ZoneUtils.canMove(gameState.units, unit, hasEffect);
 }
 
 /**

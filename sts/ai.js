@@ -91,54 +91,10 @@ function cloneGameState(state) {
  * @property {number} [targetZone] - Zone to move to
  */
 
-// Zone constants for AI (must match engine.js)
-const AI_ZONES = { A: 0, X: 1, Y: 2, B: 3 };
+// Zone utilities delegated to ZoneUtils from zones.js
 
-/**
- * Get adjacent zones for a given zone (diamond layout)
- * A↔X, A↔Y, X↔B, Y↔B
- */
-function aiGetAdjacentZones(zone) {
-  if (zone === AI_ZONES.A) return [AI_ZONES.X, AI_ZONES.Y];
-  if (zone === AI_ZONES.X) return [AI_ZONES.A, AI_ZONES.B];
-  if (zone === AI_ZONES.Y) return [AI_ZONES.A, AI_ZONES.B];
-  if (zone === AI_ZONES.B) return [AI_ZONES.X, AI_ZONES.Y];
-  return [];
-}
-
-/**
- * Count enemy units with taunt aura in a zone
- */
-function aiGetTauntCount(state, zone, team) {
-  return state.units.filter(u =>
-    u.zone === zone &&
-    u.team !== team &&
-    u.auras && u.auras.taunt > 0
-  ).length;
-}
-
-/**
- * Count team's units in a zone
- */
-function aiGetTeamCount(state, zone, team) {
-  return state.units.filter(u => u.zone === zone && u.team === team).length;
-}
-
-/**
- * Check if unit is pinned (can't move due to taunt)
- */
-function aiIsPinned(state, unit) {
-  const teamCount = aiGetTeamCount(state, unit.zone, unit.team);
-  const tauntCount = aiGetTauntCount(state, unit.zone, unit.team);
-  return teamCount <= tauntCount;
-}
-
-/**
- * Get valid zones a unit can move to
- */
 function aiGetValidMoveZones(state, unit) {
-  if (aiIsPinned(state, unit)) return [];
-  return aiGetAdjacentZones(unit.zone);
+  return ZoneUtils.getValidMoveZones(state.units, unit);
 }
 
 /**
@@ -153,8 +109,7 @@ function aiHasEffect(unit, effectType) {
  * Fatigued units cannot move
  */
 function aiCanMove(state, unit) {
-  if (aiHasEffect(unit, 'fatigued')) return false;
-  return aiGetValidMoveZones(state, unit).length > 0;
+  return ZoneUtils.canMove(state.units, unit, aiHasEffect);
 }
 
 /**
