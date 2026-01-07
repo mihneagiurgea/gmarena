@@ -192,7 +192,9 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 
   // Add move actions and "move + card" compound moves for each valid zone
   // Only if unit can move (not Fatigued, not Pinned)
-  const validMoveZones = aiCanMove(state, currentUnit) ? aiGetValidMoveZones(state, currentUnit) : [];
+  // Ranged units should NOT move - they can attack from any zone, so moving only hurts them (Fatigued)
+  const shouldGenerateMoves = aiCanMove(state, currentUnit) && currentUnit.attackRange !== 'ranged';
+  const validMoveZones = shouldGenerateMoves ? aiGetValidMoveZones(state, currentUnit) : [];
   for (const targetZone of validMoveZones) {
     // Simple move (just move, no card play)
     moves.push({ type: 'move', targetZone });

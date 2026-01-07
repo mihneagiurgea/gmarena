@@ -82,7 +82,7 @@ describe('AI generateMoves', () => {
     assert.ok(playActions.length > 0, 'Should still be able to play Simple cards when Fatigued');
   });
 
-  test('Non-Fatigued unit CAN have move actions generated', () => {
+  test('Non-Fatigued melee unit CAN have move actions generated', () => {
     const orc = createUnit('o', 'Orc', 'orc', 'opponent');
     orc.zone = 3; // Zone B
     setupGameState([orc], [], ['attack']);
@@ -93,5 +93,33 @@ describe('AI generateMoves', () => {
     );
     const moveActions = moves.filter(m => m.type === 'move');
     assert.strictEqual(moveActions.length, 2, 'Should have 2 move actions (to X and Y) from Zone B');
+  });
+
+  test('Ranged unit should NOT have move actions generated (suboptimal play)', () => {
+    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent');
+    goblin.zone = 3; // Zone B
+    setupGameState([goblin], [], ['attack']);
+
+    // Ranged units can attack from any zone, so moving only hurts them (Fatigued)
+    const moves = generateMoves(
+      gameState, goblin, CARDS, canPlayCard, getValidCardTargets
+    );
+    const moveActions = moves.filter(m => m.type === 'move');
+    assert.strictEqual(moveActions.length, 0, 'Ranged units should NOT have move actions');
+  });
+
+  test('Ranged unit should NOT have moveAndPlay actions generated', () => {
+    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent');
+    goblin.zone = 3; // Zone B
+    const mage = createUnit('m', 'Mage', 'mage', 'player');
+    mage.zone = 0; // Zone A
+    setupGameState([goblin, mage], [], ['attack', 'attack']);
+
+    // Ranged units should not move, so no moveAndPlay either
+    const moves = generateMoves(
+      gameState, goblin, CARDS, canPlayCard, getValidCardTargets
+    );
+    const moveAndPlayActions = moves.filter(m => m.type === 'moveAndPlay');
+    assert.strictEqual(moveAndPlayActions.length, 0, 'Ranged units should NOT have moveAndPlay actions');
   });
 });
