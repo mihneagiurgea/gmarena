@@ -84,34 +84,68 @@ function cloneGameState(state) {
 
 /**
  * @typedef {Object} Move
- * @property {'play' | 'skip' | 'advance' | 'advanceAndPlay'} type
+ * @property {'play' | 'skip' | 'move' | 'moveAndPlay'} type
  * @property {string} [cardId] - Card to play
  * @property {number} [cardIndex] - Index in hand
  * @property {string} [targetId] - Target unit ID
+ * @property {number} [targetZone] - Zone to move to
  */
 
+// Zone constants for AI (must match engine.js)
+const AI_ZONES = { A: 0, X: 1, Y: 2, B: 3 };
+
 /**
- * Check if unit can advance toward the enemy zone
- * Player: can advance if not at Zone B (zone < 2)
- * Opponent: can advance if not at Zone A (zone > 0)
+ * Get adjacent zones for a given zone (diamond layout)
+ * A↔X, A↔Y, X↔B, Y↔B
  */
-function aiCanAdvance(unit) {
-  if (unit.team === 'player') {
-    return unit.zone < 2; // Zone B = 2
-  } else {
-    return unit.zone > 0; // Zone A = 0
-  }
+function aiGetAdjacentZones(zone) {
+  if (zone === AI_ZONES.A) return [AI_ZONES.X, AI_ZONES.Y];
+  if (zone === AI_ZONES.X) return [AI_ZONES.A, AI_ZONES.B];
+  if (zone === AI_ZONES.Y) return [AI_ZONES.A, AI_ZONES.B];
+  if (zone === AI_ZONES.B) return [AI_ZONES.X, AI_ZONES.Y];
+  return [];
 }
 
 /**
- * Get the zone a unit will move to when advancing
+ * Count enemy units with taunt aura in a zone
  */
-function aiGetAdvanceTargetZone(unit) {
-  if (unit.team === 'player') {
-    return unit.zone + 1;
-  } else {
-    return unit.zone - 1;
-  }
+function aiGetTauntCount(state, zone, team) {
+  return state.units.filter(u =>
+    u.zone === zone &&
+    u.team !== team &&
+    u.auras && u.auras.taunt > 0
+  ).length;
+}
+
+/**
+ * Count team's units in a zone
+ */
+function aiGetTeamCount(state, zone, team) {
+  return state.units.filter(u => u.zone === zone && u.team === team).length;
+}
+
+/**
+ * Check if unit is pinned (can't move due to taunt)
+ */
+function aiIsPinned(state, unit) {
+  const teamCount = aiGetTeamCount(state, unit.zone, unit.team);
+  const tauntCount = aiGetTauntCount(state, unit.zone, unit.team);
+  return teamCount <= tauntCount;
+}
+
+/**
+ * Get valid zones a unit can move to
+ */
+function aiGetValidMoveZones(state, unit) {
+  if (aiIsPinned(state, unit)) return [];
+  return aiGetAdjacentZones(unit.zone);
+}
+
+/**
+ * Check if unit can move (has valid move zones)
+ */
+function aiCanMove(state, unit) {
+  return aiGetValidMoveZones(state, unit).length > 0;
 }
 
 /**
@@ -147,29 +181,31 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
     }
   }
 
-  // Add advance move and "advance + card" compound moves if unit can advance
-  if (aiCanAdvance(currentUnit)) {
-    // Simple advance (just move, no card play)
-    moves.push({ type: 'advance' });
+  // Add move actions and "move + card" compound moves for each valid zone
+  const validMoveZones = aiGetValidMoveZones(state, currentUnit);
+  for (const targetZone of validMoveZones) {
+    // Simple move (just move, no card play)
+    moves.push({ type: 'move', targetZone });
 
-    // Generate compound moves: advance first, then play a card
-    // This simulates the real game where advance doesn't end turn
-    const advancedUnit = { ...currentUnit, zone: aiGetAdvanceTargetZone(currentUnit) };
-    const seenCardsAfterAdvance = new Set();
+    // Generate compound moves: move first, then play a card
+    // This simulates the real game where move doesn't end turn
+    const movedUnit = { ...currentUnit, zone: targetZone };
+    const seenCardsAfterMove = new Set();
 
     for (let i = 0; i < hand.length; i++) {
       const cardId = hand[i];
-      if (seenCardsAfterAdvance.has(cardId)) continue;
-      seenCardsAfterAdvance.add(cardId);
+      if (seenCardsAfterMove.has(cardId)) continue;
+      seenCardsAfterMove.add(cardId);
 
       const card = CARDS[cardId];
-      if (!card || !canPlayCard(advancedUnit, card)) continue;
+      if (!card || !canPlayCard(movedUnit, card)) continue;
 
-      // Get targets from the advanced position
-      const { targets } = getValidCardTargets(advancedUnit, card);
+      // Get targets from the moved position
+      const { targets } = getValidCardTargets(movedUnit, card);
       for (const target of targets) {
         moves.push({
-          type: 'advanceAndPlay',
+          type: 'moveAndPlay',
+          targetZone,
           cardId,
           cardIndex: i,
           targetId: target.id,
@@ -189,14 +225,12 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
 // ============================================================================
 
 /**
- * Advance a unit toward the enemy zone and apply Weaken (1)
+ * Move a unit to a target zone and apply Weaken (1)
  */
-function aiAdvanceUnit(unit, applyEffect) {
-  if (aiCanAdvance(unit)) {
-    unit.zone = aiGetAdvanceTargetZone(unit);
-    // Apply Weaken (1) - self-inflicted
-    applyEffect(unit, 'weaken', unit.id, 1);
-  }
+function aiMoveUnit(unit, targetZone, applyEffect) {
+  unit.zone = targetZone;
+  // Apply Weaken (1) - self-inflicted
+  applyEffect(unit, 'weaken', unit.id, 1);
 }
 
 /**
@@ -216,16 +250,16 @@ function applyMove(state, move, CARDS, executeCardEffects, applyDamage, applyEff
     return state;
   }
 
-  if (move.type === 'advance') {
-    // Advance to next zone and apply Weaken, then end turn
-    aiAdvanceUnit(currentUnit, applyEffect);
+  if (move.type === 'move') {
+    // Move to target zone and apply Weaken, then end turn
+    aiMoveUnit(currentUnit, move.targetZone, applyEffect);
     advanceTurn(state);
     return state;
   }
 
-  if (move.type === 'advanceAndPlay') {
-    // Advance first (applies Weaken), then play a card
-    aiAdvanceUnit(currentUnit, applyEffect);
+  if (move.type === 'moveAndPlay') {
+    // Move first (applies Weaken), then play a card
+    aiMoveUnit(currentUnit, move.targetZone, applyEffect);
     // Fall through to play card logic below
   }
 
@@ -342,10 +376,9 @@ function evaluateState(state, team) {
       score += w.allyTaunted;
     }
 
-    // Zone positioning for melee units
+    // Zone positioning for melee units (melee can only attack same zone)
     if (ally.attackRange === 'melee') {
-      const validZones = [ally.zone, ally.zone - 1, ally.zone + 1].filter(z => z >= 0 && z <= 2);
-      const hasTargetsInRange = enemies.some(e => validZones.includes(e.zone));
+      const hasTargetsInRange = enemies.some(e => e.zone === ally.zone);
       if (hasTargetsInRange) {
         score += w.meleeCanAttack;
       } else {
@@ -373,8 +406,7 @@ function evaluateState(state, team) {
 
     // Bonus when enemy melee units can't reach us (they're stuck)
     if (enemy.attackRange === 'melee') {
-      const enemyValidZones = [enemy.zone, enemy.zone - 1, enemy.zone + 1].filter(z => z >= 0 && z <= 2);
-      const enemyHasTargets = allies.some(a => enemyValidZones.includes(a.zone));
+      const enemyHasTargets = allies.some(a => a.zone === enemy.zone);
       if (!enemyHasTargets) {
         score += w.meleeCanAttack; // Enemy is stuck, good for us
       }

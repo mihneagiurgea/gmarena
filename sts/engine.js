@@ -2,24 +2,32 @@
  * Game Engine - Core game logic and state management
  * No DOM dependencies - pure game logic
  *
- * 3 zones: A - X - B
- * - Zone A: Team A starting zone
- * - Zone X: Middle zone (melee combat)
- * - Zone B: Team B starting zone
+ * 4 zones in diamond layout:
+ *       [X]
+ *      /   \
+ *   [A]     [B]
+ *      \   /
+ *       [Y]
+ *
+ * - Zone A: Team A starting zone (left)
+ * - Zone B: Team B starting zone (right)
+ * - Zone X: Top lane
+ * - Zone Y: Bottom lane
  *
  * Card-based combat system inspired by Slay the Spire
  */
 
-const NUM_ZONES = 3;
+const NUM_ZONES = 4;
 
 // Zone constants
 const ZONES = {
-  A: 0,  // Team A start
-  X: 1,  // Middle (melee)
-  B: 2   // Team B start
+  A: 0,  // Team A start (left)
+  X: 1,  // Top lane
+  Y: 2,  // Bottom lane
+  B: 3   // Team B start (right)
 };
 
-const ZONE_NAMES = ['A', 'X', 'B'];
+const ZONE_NAMES = ['A', 'X', 'Y', 'B'];
 
 // ============================================================================
 // CARD DEFINITIONS (built from cards-data.js)
@@ -304,13 +312,19 @@ function getUnitsInZone(zone) {
 }
 
 /**
- * Get adjacent zones for a given zone
- * A ↔ X ↔ B
+ * Get adjacent zones for a given zone (diamond layout)
+ *       [X]
+ *      /   \
+ *   [A]     [B]
+ *      \   /
+ *       [Y]
+ * Connectivity: A↔X, A↔Y, X↔B, Y↔B
  */
 function getAdjacentZones(zone) {
-  if (zone === ZONES.A) return [ZONES.X];
+  if (zone === ZONES.A) return [ZONES.X, ZONES.Y];
   if (zone === ZONES.X) return [ZONES.A, ZONES.B];
-  if (zone === ZONES.B) return [ZONES.X];
+  if (zone === ZONES.Y) return [ZONES.A, ZONES.B];
+  if (zone === ZONES.B) return [ZONES.X, ZONES.Y];
   return [];
 }
 
@@ -575,7 +589,7 @@ function checkGameOver() {
  * Rules:
  * - If taunted, must attack one of the taunters
  * - Ranged: can attack any enemy in any zone
- * - Melee: can attack enemies in same zone or adjacent zone
+ * - Melee: can only attack enemies in the same zone
  */
 function getValidAttackTargets(unit) {
   const activeTaunters = getActiveTaunters(unit);
@@ -591,9 +605,8 @@ function getValidAttackTargets(unit) {
     // Ranged can attack any enemy
     return { targets: enemies, mustAttackTaunters: false };
   } else {
-    // Melee can attack same zone or adjacent zone
-    const validZones = [unit.zone, ...getAdjacentZones(unit.zone)];
-    const validEnemies = enemies.filter(e => validZones.includes(e.zone));
+    // Melee can only attack enemies in the same zone
+    const validEnemies = enemies.filter(e => e.zone === unit.zone);
     return { targets: validEnemies, mustAttackTaunters: false };
   }
 }
@@ -658,40 +671,74 @@ function isPlayerControlled(unit) {
 }
 
 /**
- * Check if unit can advance toward the enemy zone
- * Player: can advance if not at Zone B (zone < 2)
- * Opponent: can advance if not at Zone A (zone > 0)
+ * Count enemy units with taunt aura in a zone
  */
-function canAdvance(unit) {
-  if (unit.team === 'player') {
-    return unit.zone < ZONES.B;
-  } else {
-    return unit.zone > ZONES.A;
-  }
+function getTauntCountInZone(zone, team) {
+  return gameState.units.filter(u =>
+    u.zone === zone &&
+    u.team !== team &&
+    u.auras && u.auras.taunt > 0
+  ).length;
 }
 
 /**
- * Get the zone a unit will move to when advancing
- * Player: zone++ (A→X→B)
- * Opponent: zone-- (B→X→A)
+ * Count team's units in a zone
  */
-function getAdvanceTargetZone(unit) {
-  if (unit.team === 'player') {
-    return unit.zone + 1;
-  } else {
-    return unit.zone - 1;
-  }
+function getTeamCountInZone(zone, team) {
+  return gameState.units.filter(u => u.zone === zone && u.team === team).length;
 }
 
 /**
- * Advance a unit toward the enemy zone and apply Weaken (1)
- * Player: A -> X -> B
- * Opponent: B -> X -> A
+ * Check if a unit is pinned in its current zone
+ * Pinned if: teamCount <= enemy taunt count in same zone
  */
-function advanceUnit(unit) {
-  if (canAdvance(unit)) {
-    unit.zone = getAdvanceTargetZone(unit);
+function isPinned(unit) {
+  const teamCount = getTeamCountInZone(unit.zone, unit.team);
+  const tauntCount = getTauntCountInZone(unit.zone, unit.team);
+  return teamCount <= tauntCount;
+}
+
+/**
+ * Get valid zones a unit can move to
+ * Returns empty array if pinned or no adjacent zones
+ */
+function getValidMoveZones(unit) {
+  if (isPinned(unit)) return [];
+  return getAdjacentZones(unit.zone);
+}
+
+/**
+ * Check if unit can move (has valid move zones)
+ */
+function canMove(unit) {
+  return getValidMoveZones(unit).length > 0;
+}
+
+/**
+ * Move a unit to a target zone and apply Weaken (1)
+ */
+function moveUnit(unit, targetZone) {
+  const validZones = getValidMoveZones(unit);
+  if (validZones.includes(targetZone)) {
+    unit.zone = targetZone;
     // Apply Weaken (1) - self-inflicted, expires at end of turn
     applyEffect(unit, 'weaken', unit.id, 1);
+    return true;
   }
+  return false;
+}
+
+// Legacy aliases for backward compatibility during transition
+function canAdvance(unit) {
+  return canMove(unit);
+}
+
+function getAdvanceTargetZone(unit) {
+  const validZones = getValidMoveZones(unit);
+  return validZones.length > 0 ? validZones[0] : unit.zone;
+}
+
+function advanceUnit(unit) {
+  const targetZone = getAdvanceTargetZone(unit);
+  moveUnit(unit, targetZone);
 }

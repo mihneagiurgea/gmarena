@@ -77,6 +77,14 @@ function createZones() {
   gridEl.innerHTML = '';
   gridEl.className = 'zones-container';
 
+  // Add lanes between connected zones
+  const lanes = ['a-x', 'a-y', 'x-b', 'y-b'];
+  lanes.forEach(conn => {
+    const lane = document.createElement('div');
+    lane.className = `zone-lane ${conn}`;
+    gridEl.appendChild(lane);
+  });
+
   for (let zone = 0; zone < NUM_ZONES; zone++) {
     const zoneEl = document.createElement('div');
     zoneEl.className = 'zone';
@@ -157,6 +165,12 @@ function renderUnits() {
         tauntedEl.textContent = '⚔️';
         tauntedEl.title = `Taunted by: ${tauntInfo}`;
         unitWrapper.appendChild(tauntedEl);
+      }
+
+      // Pinned indicator (shows when unit can't move due to taunt)
+      if (isPinned(unit)) {
+        unitWrapper.classList.add('pinned');
+        unitWrapper.title = 'Pinned by enemy taunters';
       }
 
       container.appendChild(unitWrapper);
@@ -311,7 +325,7 @@ function renderHand() {
   const hand = getCurrentHand();
 
   if (gameState.phase === 'play') {
-    const unitCanAdvance = canAdvance(currentUnit);
+    const unitCanMove = canMove(currentUnit);
 
     // Group cards by ID and count duplicates
     const cardCounts = {};
@@ -347,13 +361,13 @@ function renderHand() {
     // Right section: Advance option (if available) and End Turn
     html += '<div class="hand-end-turn">';
 
-    // Show Advance option on the right if available (key: A)
-    if (unitCanAdvance) {
+    // Show Move option on the right if available (key: M)
+    if (unitCanMove) {
       html += `
-        <div class="card advance-option" data-action="advance">
-          <div class="card-key">A</div>
-          <div class="card-name">Advance</div>
-          <div class="card-desc">Move to next zone and Weaken (1)</div>
+        <div class="card advance-option" data-action="move">
+          <div class="card-key">M</div>
+          <div class="card-name">Move</div>
+          <div class="card-desc">Move to adjacent zone [Weakened]</div>
         </div>
       `;
     }
@@ -396,7 +410,67 @@ function renderHand() {
 
     handEl.innerHTML = html;
     bindTargetEvents();
+
+  } else if (gameState.phase === 'moving') {
+    // Show zone selection for move
+    let html = '<div class="hand-cards">';
+
+    gameState.validMoveZones.forEach((zoneId, index) => {
+      const zoneName = ZONE_NAMES[zoneId];
+      html += `
+        <div class="card target-card" data-zone-id="${zoneId}">
+          <div class="card-key">${index + 1}</div>
+          <div class="card-name">Zone ${zoneName}</div>
+          <div class="card-desc">Move here</div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    html += `
+      <div class="hand-end-turn">
+        <div class="card cancel-card" data-action="cancel-move">
+          <div class="card-key">Esc</div>
+          <div class="card-name">Cancel</div>
+        </div>
+      </div>
+    `;
+
+    handEl.innerHTML = html;
+    bindMoveEvents();
   }
+}
+
+function bindMoveEvents() {
+  const handEl = document.getElementById('options');
+
+  // Zone selection
+  handEl.querySelectorAll('.card[data-zone-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      const zoneId = parseInt(card.dataset.zoneId);
+      executeMove(zoneId);
+    });
+  });
+
+  // Cancel
+  const cancelCard = handEl.querySelector('[data-action="cancel-move"]');
+  if (cancelCard) {
+    cancelCard.addEventListener('click', cancelMove);
+  }
+}
+
+function cancelMove() {
+  gameState.phase = 'play';
+  gameState.validMoveZones = [];
+
+  // Clear zone highlights
+  document.querySelectorAll('.zone.move-target').forEach(z => {
+    z.classList.remove('move-target');
+    z.onclick = null;
+  });
+
+  renderHand();
 }
 
 function bindCardEvents() {
@@ -410,10 +484,10 @@ function bindCardEvents() {
     });
   });
 
-  // Advance action (key: A)
-  const advanceCard = handEl.querySelector('[data-action="advance"]');
-  if (advanceCard) {
-    advanceCard.addEventListener('click', executeAdvance);
+  // Move action (key: M)
+  const moveCard = handEl.querySelector('[data-action="move"]');
+  if (moveCard) {
+    moveCard.addEventListener('click', enterMovePhase);
   }
 
   // Skip turn
@@ -424,17 +498,61 @@ function bindCardEvents() {
 }
 
 /**
- * Execute advance action (move to zone X without playing a card)
+ * Enter move phase - show zone selection UI
  */
-function executeAdvance() {
+function enterMovePhase() {
   const currentUnit = getCurrentUnit();
-  if (!currentUnit || !canAdvance(currentUnit)) return;
+  if (!currentUnit || !canMove(currentUnit)) return;
 
-  const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
-  addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, currentUnit.team);
-  advanceUnit(currentUnit);
+  gameState.phase = 'moving';
+  gameState.validMoveZones = getValidMoveZones(currentUnit);
+  renderHand();
+  highlightMoveZones();
+}
 
-  // Re-render to show updated state (advance does NOT end turn)
+/**
+ * Highlight valid move destination zones
+ */
+function highlightMoveZones() {
+  // Clear previous highlights
+  document.querySelectorAll('.zone.move-target').forEach(z => {
+    z.classList.remove('move-target');
+    z.onclick = null;
+  });
+
+  if (gameState.phase !== 'moving') return;
+
+  gameState.validMoveZones.forEach(zoneId => {
+    const zoneEl = document.querySelector(`.zone[data-zone="${zoneId}"]`);
+    if (zoneEl) {
+      zoneEl.classList.add('move-target');
+      zoneEl.onclick = () => executeMove(zoneId);
+    }
+  });
+}
+
+/**
+ * Execute move to a specific zone
+ */
+function executeMove(targetZone) {
+  const currentUnit = getCurrentUnit();
+  if (!currentUnit) return;
+
+  const zoneName = ZONE_NAMES[targetZone];
+  addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, currentUnit.team);
+  moveUnit(currentUnit, targetZone);
+
+  // Clear move phase
+  gameState.phase = 'play';
+  gameState.validMoveZones = [];
+
+  // Clear zone highlights
+  document.querySelectorAll('.zone.move-target').forEach(z => {
+    z.classList.remove('move-target');
+    z.onclick = null;
+  });
+
+  // Re-render to show updated state (move does NOT end turn)
   renderUnits();
   renderHand();
 }
@@ -735,22 +853,22 @@ function runAI() {
     return;
   }
 
-  if (move.type === 'advance') {
-    const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
-    addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, team);
-    advanceUnit(currentUnit);
-    // Advance doesn't end turn - re-render and run AI again after a delay
+  if (move.type === 'move') {
+    const zoneName = ZONE_NAMES[move.targetZone];
+    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, team);
+    moveUnit(currentUnit, move.targetZone);
+    // Move doesn't end turn - re-render and run AI again after a delay
     renderUnits();
     renderHand();
     setTimeout(() => runAI(), 500);
     return;
   }
 
-  // Handle advanceAndPlay: advance first, then play the card
-  if (move.type === 'advanceAndPlay') {
-    const nextZone = ZONE_NAMES[getAdvanceTargetZone(currentUnit)];
-    addLogEntry(`${currentUnit.name} → Zone ${nextZone} [Weakened]`, team);
-    advanceUnit(currentUnit);
+  // Handle moveAndPlay: move first, then play the card
+  if (move.type === 'moveAndPlay') {
+    const zoneName = ZONE_NAMES[move.targetZone];
+    addLogEntry(`${currentUnit.name} → Zone ${zoneName} [Weakened]`, team);
+    moveUnit(currentUnit, move.targetZone);
     renderUnits();
     // Continue to play the card below
   }
@@ -821,10 +939,10 @@ document.addEventListener('keydown', (event) => {
   if (gameState.phase === 'play') {
     if (key === 'e' || key === 'E') {
       executeSkip();
-    } else if (key === 'a' || key === 'A') {
-      // Advance action (any unit not at Zone B)
-      if (canAdvance(currentUnit)) {
-        executeAdvance();
+    } else if (key === 'm' || key === 'M') {
+      // Move action
+      if (canMove(currentUnit)) {
+        enterMovePhase();
       }
     } else {
       const num = parseInt(key);
@@ -851,6 +969,17 @@ document.addEventListener('keydown', (event) => {
       if (!isNaN(num) && num >= 1) {
         if (num <= gameState.validTargets.length) {
           executeCardOnTarget(num - 1);
+        }
+      }
+    }
+  } else if (gameState.phase === 'moving') {
+    if (key === 'Escape') {
+      cancelMove();
+    } else {
+      const num = parseInt(key);
+      if (!isNaN(num) && num >= 1) {
+        if (num <= gameState.validMoveZones.length) {
+          executeMove(gameState.validMoveZones[num - 1]);
         }
       }
     }

@@ -7,11 +7,25 @@ Each player has a deck of 10-15 cards that are NOT unique.
 
 ## Zones 
 
-There are 3 zones, one next to each other on a line, numbered from left to right as such:
-A - X - B. A zone can have 1 or more units in it, including enemy units.
+There are 4 zones: 
+ - two start zones A and B, one for each team 
+ - 2 other zones that represent separate "lanes"; we'll name these X and Y.
+Connectivity of these zones is:
+ - A - X
+ - A - Y
+ - X - B
+ - Y - B 
+A zone can have 1 or more units in it, including enemy units.
 
 At the start of the game, all units from Team A are assigned to zone A, and all units
 from Team B are assigned to zone B.
+
+### Action: Move
+During a "Move" action, a unit can move to any adjacent zone, if the unit not "Pinned".
+If a team has N units in a zone and their opponent has T units with Taunt:
+ - if N > T: the team is not Pinned in that zone
+ - if N <= T: the team is Pinned in that zone
+If a team is Pinned in a zone, then no units from that team and that zone are "Pinned".   
 
 ## Unit Stats
 Units have the following stats:
@@ -30,15 +44,12 @@ At the start of game:
 ## Playing your Turn
 The controlling player chooses a card from their hand and plays it, potentially selecting a target unit, depending on the card.
 
-### Advance (Key: A)
-Any unit can play Advance to move toward the enemy zone:
-- Player units (Team A): Zone A → Zone X → Zone B
-- Opponent units (Team B): Zone B → Zone X → Zone A
+### Move (Key: A)
+Any unit can play Move to move to an adjacent zone.
 
-Playing Advance:
+Playing Move:
 - Does **not** end the turn (the unit can still play a card)
 - Applies **Weaken (1)** to the unit (expires at end of turn)
-- Cannot advance past the enemy's starting zone
 
 Then, at the end of the turn:
  - all effects' duration is decremented by 1; if the duration is 0, the effect ends
@@ -55,8 +66,8 @@ Ranged attacks (including spells) can target any unit from any zone, e.g. a unit
 from zone A can attack a unit from zone X or B.
 
 ## Melee Attacks
-Melee attacks can target any unit from either the same zone, or an adjacent zone,
-e.g. a unit from zone X can attack a unit from zone X or B.
+Melee attacks can target any unit from the same zone, but NOT from an adjacent zone,
+e.g. a unit from A can target other units from A, but no units from zone X.
 
 ## Effects
 

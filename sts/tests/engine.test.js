@@ -11,7 +11,7 @@ const { loadEngine } = require('./loader');
 const engine = loadEngine();
 const {
   createUnit, applyDamage, resetBlock, executeCardEffects, canPlayCard, hasEffect,
-  isAttackCard, canAdvance, applyEffect
+  isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned, applyEffect, gameState
 } = engine;
 
 describe('applyDamage', () => {
@@ -361,47 +361,116 @@ describe('isAttackCard', () => {
   });
 });
 
-describe('canAdvance', () => {
-  test('player unit in Zone A can advance', () => {
+describe('canMove (4-zone diamond layout)', () => {
+  // Setup: gameState.units must be set for isPinned check
+  function setupGameState(units) {
+    gameState.units = units;
+  }
+
+  test('player unit in Zone A can move (to X or Y)', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 0; // Zone A
-    assert.strictEqual(canAdvance(warrior), true);
+    setupGameState([warrior]);
+    assert.strictEqual(canMove(warrior), true);
+    // Should have 2 valid zones (X and Y)
+    assert.deepStrictEqual(getValidMoveZones(warrior), [1, 2]);
   });
 
-  test('player unit in Zone X can advance', () => {
+  test('player unit in Zone X can move (to A or B)', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
     warrior.zone = 1; // Zone X
-    assert.strictEqual(canAdvance(warrior), true);
+    setupGameState([warrior]);
+    assert.strictEqual(canMove(warrior), true);
+    assert.deepStrictEqual(getValidMoveZones(warrior), [0, 3]);
   });
 
-  test('player unit in Zone B cannot advance', () => {
+  test('player unit in Zone Y can move (to A or B)', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    warrior.zone = 2; // Zone B
-    assert.strictEqual(canAdvance(warrior), false);
+    warrior.zone = 2; // Zone Y
+    setupGameState([warrior]);
+    assert.strictEqual(canMove(warrior), true);
+    assert.deepStrictEqual(getValidMoveZones(warrior), [0, 3]);
   });
 
-  test('ranged player unit can advance', () => {
-    const archer = createUnit('a', 'Archer', 'archer', 'player');
-    archer.zone = 0; // Zone A
-    assert.strictEqual(canAdvance(archer), true);
+  test('player unit in Zone B can move (to X or Y)', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 3; // Zone B
+    setupGameState([warrior]);
+    assert.strictEqual(canMove(warrior), true);
+    assert.deepStrictEqual(getValidMoveZones(warrior), [1, 2]);
   });
 
-  test('opponent unit in Zone B can advance', () => {
+  test('opponent unit in Zone B can move (to X or Y)', () => {
     const orc = createUnit('o', 'Orc', 'orc', 'opponent');
-    orc.zone = 2; // Zone B
-    assert.strictEqual(canAdvance(orc), true);
+    orc.zone = 3; // Zone B
+    setupGameState([orc]);
+    assert.strictEqual(canMove(orc), true);
   });
 
-  test('opponent unit in Zone X can advance', () => {
-    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
-    orc.zone = 1; // Zone X
-    assert.strictEqual(canAdvance(orc), true);
-  });
-
-  test('opponent unit in Zone A cannot advance', () => {
+  test('opponent unit in Zone A can move (to X or Y)', () => {
     const orc = createUnit('o', 'Orc', 'orc', 'opponent');
     orc.zone = 0; // Zone A
-    assert.strictEqual(canAdvance(orc), false);
+    setupGameState([orc]);
+    assert.strictEqual(canMove(orc), true);
+  });
+});
+
+describe('isPinned (taunt blocks movement)', () => {
+  function setupGameState(units) {
+    gameState.units = units;
+  }
+
+  test('unit is pinned when enemy taunter is in same zone', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 1; // Zone X
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 1; // Zone X - same zone
+    orc.auras = { taunt: 1 }; // Orc has taunt aura
+    setupGameState([warrior, orc]);
+
+    // 1 player vs 1 taunter: 1 <= 1, so pinned
+    assert.strictEqual(isPinned(warrior), true);
+    assert.strictEqual(canMove(warrior), false);
+  });
+
+  test('unit is not pinned when outnumbering taunters', () => {
+    const warrior1 = createUnit('w1', 'Warrior 1', 'warrior', 'player');
+    warrior1.zone = 1;
+    const warrior2 = createUnit('w2', 'Warrior 2', 'warrior', 'player');
+    warrior2.zone = 1;
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 1;
+    orc.auras = { taunt: 1 };
+    setupGameState([warrior1, warrior2, orc]);
+
+    // 2 players vs 1 taunter: 2 > 1, so not pinned
+    assert.strictEqual(isPinned(warrior1), false);
+    assert.strictEqual(canMove(warrior1), true);
+  });
+
+  test('unit is not pinned when no taunters in zone', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 1;
+    const orc = createUnit('o', 'Orc', 'orc', 'opponent');
+    orc.zone = 3; // Different zone
+    orc.auras = { taunt: 1 };
+    setupGameState([warrior, orc]);
+
+    // No taunters in warrior's zone
+    assert.strictEqual(isPinned(warrior), false);
+    assert.strictEqual(canMove(warrior), true);
+  });
+
+  test('enemy without taunt aura does not pin', () => {
+    const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
+    warrior.zone = 1;
+    const goblin = createUnit('g', 'Goblin', 'goblin', 'opponent');
+    goblin.zone = 1;
+    goblin.auras = {}; // No taunt
+    setupGameState([warrior, goblin]);
+
+    assert.strictEqual(isPinned(warrior), false);
+    assert.strictEqual(canMove(warrior), true);
   });
 });
 

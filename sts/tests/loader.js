@@ -31,7 +31,8 @@ function loadEngine() {
       UNIT_DATA, CARD_DATA, DECK_DATA,
       createUnit, applyDamage, resetBlock, executeCardEffects,
       isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
-      isAttackCard, canAdvance, applyEffect
+      isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
+      applyEffect, gameState
     };
   `;
 

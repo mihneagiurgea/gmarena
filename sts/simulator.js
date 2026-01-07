@@ -80,9 +80,9 @@ function createInitialState() {
   const playerUnits = createUnitsFromTypes(TEAM_DATA.player, 'player');
   const opponentUnits = createUnitsFromTypes(TEAM_DATA.opponent, 'opponent');
 
-  // Set zones
+  // Set zones (diamond layout: A=0, X=1, Y=2, B=3)
   playerUnits.forEach(u => u.zone = 0);    // Zone A
-  opponentUnits.forEach(u => u.zone = 2);  // Zone B
+  opponentUnits.forEach(u => u.zone = 3);  // Zone B
 
   const allUnits = [...playerUnits, ...opponentUnits];
 
@@ -230,10 +230,9 @@ function simulateGame(verbose = false) {
         }
 
         const enemies = state.units.filter(u => u.team !== unit.team);
-        // For melee, check zones (simplified - all in zone 1 after advance)
+        // Melee can only attack enemies in the same zone
         if (unit.attackRange === 'melee') {
-          const validZones = [unit.zone, unit.zone - 1, unit.zone + 1].filter(z => z >= 0 && z <= 2);
-          return { targets: enemies.filter(e => validZones.includes(e.zone)), mustAttackTaunters: false };
+          return { targets: enemies.filter(e => e.zone === unit.zone), mustAttackTaunters: false };
         }
         return { targets: enemies, mustAttackTaunters: false };
       }
@@ -270,26 +269,28 @@ function simulateGame(verbose = false) {
       continue;
     }
 
-    if (move.type === 'advance') {
-      const nextZone = currentUnit.team === 'player' ? currentUnit.zone + 1 : currentUnit.zone - 1;
-      if (verbose) console.log(`  -> Advances to Zone ${['A', 'X', 'B'][nextZone]} and is Weakened`);
-      currentUnit.zone = nextZone;
+    const ZONE_NAMES = ['A', 'X', 'Y', 'B'];
+
+    if (move.type === 'move') {
+      const zoneName = ZONE_NAMES[move.targetZone];
+      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Weakened]`);
+      currentUnit.zone = move.targetZone;
       // Apply Weaken (1)
       applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
       advanceTurn(state);
       continue;
     }
 
-    // Handle advanceAndPlay: advance first, then play card
-    if (move.type === 'advanceAndPlay') {
-      const nextZone = currentUnit.team === 'player' ? currentUnit.zone + 1 : currentUnit.zone - 1;
-      if (verbose) console.log(`  -> Advances to Zone ${['A', 'X', 'B'][nextZone]} and is Weakened`);
-      currentUnit.zone = nextZone;
+    // Handle moveAndPlay: move first, then play card
+    if (move.type === 'moveAndPlay') {
+      const zoneName = ZONE_NAMES[move.targetZone];
+      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Weakened]`);
+      currentUnit.zone = move.targetZone;
       applyEffect(currentUnit, 'weaken', currentUnit.id, 1);
       // Fall through to card execution below
     }
 
-    // Execute move (play or advanceAndPlay)
+    // Execute card (play or moveAndPlay)
     const card = CARDS[move.cardId];
     const target = state.units.find(u => u.id === move.targetId);
 
