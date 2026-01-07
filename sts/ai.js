@@ -191,7 +191,8 @@ function generateMoves(state, currentUnit, CARDS, canPlayCard, getValidCardTarge
   }
 
   // Add move actions and "move + card" compound moves for each valid zone
-  const validMoveZones = aiGetValidMoveZones(state, currentUnit);
+  // Only if unit can move (not Fatigued, not Pinned)
+  const validMoveZones = aiCanMove(state, currentUnit) ? aiGetValidMoveZones(state, currentUnit) : [];
   for (const targetZone of validMoveZones) {
     // Simple move (just move, no card play)
     moves.push({ type: 'move', targetZone });
