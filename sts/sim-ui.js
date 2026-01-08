@@ -140,13 +140,37 @@ function playSimCard(state, team, cardIndex) {
 /**
  * Run a single simulated game with the given seed
  * @param {number} seed - The RNG seed
- * @returns {{ result: string, turns: number }} Game result
+ * @returns {{ result: string, turns: number, survivors: number, maxUnits: number, totalHp: number, maxHp: number }} Game result
  */
 function runSimulatedGame(seed) {
   initRNG(seed);
 
   const state = createSimInitialState();
   const maxTurns = 200;
+
+  // Track initial team stats
+  const initialStats = {
+    player: {
+      units: state.units.filter(u => u.team === 'player').length,
+      maxHp: state.units.filter(u => u.team === 'player').reduce((sum, u) => sum + u.maxHp, 0)
+    },
+    opponent: {
+      units: state.units.filter(u => u.team === 'opponent').length,
+      maxHp: state.units.filter(u => u.team === 'opponent').reduce((sum, u) => sum + u.maxHp, 0)
+    }
+  };
+
+  // Helper to get winner stats
+  function getWinnerStats(result) {
+    const winnerTeam = result === 'victory' ? 'player' : 'opponent';
+    const survivors = state.units.filter(u => u.team === winnerTeam);
+    return {
+      survivors: survivors.length,
+      maxUnits: initialStats[winnerTeam].units,
+      totalHp: survivors.reduce((sum, u) => sum + u.hp, 0),
+      maxHp: initialStats[winnerTeam].maxHp
+    };
+  }
 
   const gameFns = {
     CARDS,
@@ -194,7 +218,8 @@ function runSimulatedGame(seed) {
 
     const result = checkSimGameOver(state);
     if (result !== 'ongoing') {
-      return { result, turns: state.turn };
+      const stats = getWinnerStats(result);
+      return { result, turns: state.turn, ...stats };
     }
 
     const move = getBestMove(state, gameFns);
@@ -243,7 +268,8 @@ function runSimulatedGame(seed) {
 
     const afterResult = checkSimGameOver(state);
     if (afterResult !== 'ongoing') {
-      return { result: afterResult, turns: state.turn };
+      const stats = getWinnerStats(afterResult);
+      return { result: afterResult, turns: state.turn, ...stats };
     }
 
     advanceSimTurn(state);
@@ -252,10 +278,13 @@ function runSimulatedGame(seed) {
   // Timeout - determine winner by remaining HP
   const playerHp = state.units.filter(u => u.team === 'player').reduce((sum, u) => sum + u.hp, 0);
   const opponentHp = state.units.filter(u => u.team !== 'player').reduce((sum, u) => sum + u.hp, 0);
+  const result = playerHp > opponentHp ? 'victory' : 'defeat';
+  const stats = getWinnerStats(result);
 
   return {
-    result: playerHp > opponentHp ? 'victory' : 'defeat',
-    turns: maxTurns
+    result,
+    turns: maxTurns,
+    ...stats
   };
 }
 
@@ -309,16 +338,17 @@ function displayResults(results, numGames) {
 
   // Display first 5 player wins
   playerWinsList.innerHTML = '';
-  const playerSeeds = results.player.slice(0, 5);
-  if (playerSeeds.length === 0) {
+  const playerGames = results.player.slice(0, 5);
+  if (playerGames.length === 0) {
     playerWinsList.innerHTML = '<div class="no-wins">No wins</div>';
   } else {
-    playerSeeds.forEach(seed => {
+    playerGames.forEach(game => {
       const item = document.createElement('div');
       item.className = 'seed-item';
       item.innerHTML = `
-        <span class="seed-number">Seed ${seed}</span>
-        <a href="index.html?seed=${seed}" class="play-link">Play</a>
+        <span class="seed-number">Game #${game.gameNum}</span>
+        <span class="game-summary">${game.survivors}/${game.maxUnits} units, ${game.totalHp}/${game.maxHp} HP</span>
+        <a href="index.html?seed=${game.seed}" class="play-link">Play</a>
       `;
       playerWinsList.appendChild(item);
     });
@@ -326,16 +356,17 @@ function displayResults(results, numGames) {
 
   // Display first 5 opponent wins
   opponentWinsList.innerHTML = '';
-  const opponentSeeds = results.opponent.slice(0, 5);
-  if (opponentSeeds.length === 0) {
+  const opponentGames = results.opponent.slice(0, 5);
+  if (opponentGames.length === 0) {
     opponentWinsList.innerHTML = '<div class="no-wins">No wins</div>';
   } else {
-    opponentSeeds.forEach(seed => {
+    opponentGames.forEach(game => {
       const item = document.createElement('div');
       item.className = 'seed-item';
       item.innerHTML = `
-        <span class="seed-number">Seed ${seed}</span>
-        <a href="index.html?seed=${seed}" class="play-link">Play</a>
+        <span class="seed-number">Game #${game.gameNum}</span>
+        <span class="game-summary">${game.survivors}/${game.maxUnits} units, ${game.totalHp}/${game.maxHp} HP</span>
+        <a href="index.html?seed=${game.seed}" class="play-link">Play</a>
       `;
       opponentWinsList.appendChild(item);
     });
@@ -369,6 +400,9 @@ async function runSimulation() {
   // Set AI config for faster simulation
   setAIConfig({ maxDepth: 2 });
 
+  // Seed offset: K = timestamp % 10000, seeds run from K+1 to K+N
+  const seedOffset = Date.now() % 10000;
+
   const results = {
     player: [],
     opponent: [],
@@ -376,19 +410,29 @@ async function runSimulation() {
   };
 
   // Run simulations with yielding to UI
-  for (let seed = 1; seed <= numGames; seed++) {
+  for (let gameNum = 1; gameNum <= numGames; gameNum++) {
+    const seed = seedOffset + gameNum;
     const gameResult = runSimulatedGame(seed);
 
+    const gameInfo = {
+      gameNum,
+      seed,
+      survivors: gameResult.survivors,
+      maxUnits: gameResult.maxUnits,
+      totalHp: gameResult.totalHp,
+      maxHp: gameResult.maxHp
+    };
+
     if (gameResult.result === 'victory') {
-      results.player.push(seed);
+      results.player.push(gameInfo);
     } else {
-      results.opponent.push(seed);
+      results.opponent.push(gameInfo);
     }
     results.totalTurns += gameResult.turns;
 
     // Update progress every game (or batch for large runs)
-    if (seed % Math.max(1, Math.floor(numGames / 100)) === 0 || seed === numGames) {
-      updateProgress(seed, numGames);
+    if (gameNum % Math.max(1, Math.floor(numGames / 100)) === 0 || gameNum === numGames) {
+      updateProgress(gameNum, numGames);
       // Yield to UI to prevent freezing
       await new Promise(resolve => setTimeout(resolve, 0));
     }
