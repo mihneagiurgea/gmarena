@@ -397,9 +397,6 @@ async function runSimulation() {
   progressSection.classList.remove('hidden');
   resultsSection.classList.add('hidden');
 
-  // Set AI config for faster simulation
-  setAIConfig({ maxDepth: 2 });
-
   // Seed offset: K = timestamp % 10000, seeds run from K+1 to K+N
   const seedOffset = Date.now() % 10000;
 

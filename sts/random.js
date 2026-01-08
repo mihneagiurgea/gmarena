@@ -82,7 +82,7 @@ function initRNG(seed = null) {
 
 function getRNG() {
   if (!rng) {
-    rng = new SeededRandom();
+    throw new Error('RNG not initialized. Call initRNG(seed) first.');
   }
   return rng;
 }
