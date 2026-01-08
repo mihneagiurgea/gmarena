@@ -77,13 +77,20 @@ function createZones() {
   gridEl.innerHTML = '';
   gridEl.className = 'zones-container';
 
-  // Add lanes between connected zones
-  const lanes = ['a-x', 'a-y', 'x-b', 'y-b'];
-  lanes.forEach(conn => {
-    const lane = document.createElement('div');
-    lane.className = `zone-lane ${conn}`;
-    gridEl.appendChild(lane);
-  });
+  // Add SVG lanes between connected zones
+  // Grid: columns 2fr 1fr 2fr (40% 20% 40%), rows 1fr 2fr 1fr (25% 50% 25%)
+  // Zone centers: A(20,50), X(50,12.5), B(80,50), Y(50,87.5)
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'zone-lanes-svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = `
+    <line class="zone-lane-line" x1="32" y1="42" x2="44" y2="22" />
+    <line class="zone-lane-line" x1="32" y1="58" x2="44" y2="78" />
+    <line class="zone-lane-line" x1="56" y1="22" x2="68" y2="42" />
+    <line class="zone-lane-line" x1="56" y1="78" x2="68" y2="58" />
+  `;
+  gridEl.appendChild(svg);
 
   for (let zone = 0; zone < NUM_ZONES; zone++) {
     const zoneEl = document.createElement('div');
