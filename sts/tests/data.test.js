@@ -17,8 +17,32 @@ const VALID_ATTACK_TYPE = ['physical', 'magic'];
 const VALID_TARGET = ['enemy', 'ally', 'self', 'any'];
 const VALID_REQUIRES = ['melee', 'ranged', 'physical', 'magic'];
 
-// Build card lookup for cross-reference checks
-const cardIds = new Set(CARD_DATA.map(c => c.id));
+// Convert card name to camelCase ID (same as engine.js)
+function nameToId(name) {
+  return name
+    .split(' ')
+    .map((word, i) => i === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+}
+
+// Build card lookup for cross-reference checks (derive IDs from names)
+const cardIds = new Set(CARD_DATA.map(c => nameToId(c.name)));
+
+// Parse deck string format: "Card Name x 5, Card Name x 2, Card Name"
+function parseDeck(deckStr) {
+  const result = {};
+  const entries = deckStr.split(',').map(s => s.trim());
+  for (const entry of entries) {
+    const match = entry.match(/^(.+?)\s*(?:x\s*(\d+))?$/i);
+    if (match) {
+      const cardName = match[1].trim();
+      const count = match[2] ? parseInt(match[2], 10) : 1;
+      const cardId = nameToId(cardName);
+      result[cardId] = count;
+    }
+  }
+  return result;
+}
 
 describe('units-data.js', () => {
   test('UNIT_DATA is defined', () => {
@@ -71,16 +95,15 @@ describe('cards-data.js', () => {
     assert.ok(Array.isArray(CARD_DATA), 'CARD_DATA should be an array');
   });
 
-  test('card IDs are unique', () => {
-    const ids = CARD_DATA.map(c => c.id);
-    const uniqueIds = new Set(ids);
-    assert.strictEqual(ids.length, uniqueIds.size, 'All card IDs should be unique');
+  test('card names are unique', () => {
+    const names = CARD_DATA.map(c => c.name);
+    const uniqueNames = new Set(names);
+    assert.strictEqual(names.length, uniqueNames.size, 'All card names should be unique');
   });
 
   for (const card of CARD_DATA) {
-    describe(`card: ${card.id}`, () => {
+    describe(`card: ${card.name}`, () => {
       test('has required fields', () => {
-        assert.ok(typeof card.id === 'string', 'id should be a string');
         assert.ok(typeof card.name === 'string', 'name should be a string');
         assert.ok(typeof card.description === 'string', 'description should be a string');
       });
@@ -118,11 +141,14 @@ describe('decks-data.js', () => {
     assert.ok(typeof DECK_DATA === 'object', 'DECK_DATA should be an object');
   });
 
-  for (const [team, deck] of Object.entries(DECK_DATA)) {
+  for (const [team, deckStr] of Object.entries(DECK_DATA)) {
     describe(`deck: ${team}`, () => {
-      test('is not empty', () => {
-        assert.ok(Object.keys(deck).length > 0, 'deck should not be empty');
+      test('is a non-empty string', () => {
+        assert.ok(typeof deckStr === 'string', 'deck should be a string');
+        assert.ok(deckStr.length > 0, 'deck should not be empty');
       });
+
+      const deck = parseDeck(deckStr);
 
       for (const [cardId, count] of Object.entries(deck)) {
         test(`card "${cardId}" exists in CARD_DATA`, () => {

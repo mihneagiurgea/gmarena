@@ -7,13 +7,26 @@
  */
 
 // ============================================================================
-// CARD DEFINITIONS (built from cards-data.js)
+// CARD DEFINITIONS (built from data.js)
 // ============================================================================
 
-// Build CARDS object from CARD_DATA array
+/**
+ * Convert card name to camelCase ID
+ * "Shield Bash" -> "shieldBash", "Attack" -> "attack"
+ */
+function nameToId(name) {
+  return name
+    .split(' ')
+    .map((word, i) => i === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+}
+
+// Build CARDS object from CARD_DATA array, deriving ID from name
 const CARDS = {};
 CARD_DATA.forEach(card => {
-  CARDS[card.id] = card;
+  const id = nameToId(card.name);
+  card.id = id; // Add id to card object for convenience
+  CARDS[id] = card;
 });
 
 /**
@@ -76,16 +89,27 @@ function getPlayableCards(unit) {
 }
 
 /**
- * Create a deck of cards for a team from DECK_DATA
+ * Parse deck definition string into array of card IDs
+ * Format: "Attack x 5, Shield Bash x 2, Fireball" (count defaults to 1)
  * @returns {string[]} Array of card IDs
  */
 function createDeck(team) {
-  const deckDef = DECK_DATA[team];
+  const deckStr = DECK_DATA[team];
   const deck = [];
 
-  for (const [cardId, count] of Object.entries(deckDef)) {
-    for (let i = 0; i < count; i++) {
-      deck.push(cardId);
+  // Split by comma and parse each entry
+  const entries = deckStr.split(',').map(s => s.trim());
+  for (const entry of entries) {
+    // Match "Card Name x Count" or just "Card Name" (count=1)
+    const match = entry.match(/^(.+?)\s*(?:x\s*(\d+))?$/i);
+    if (match) {
+      const cardName = match[1].trim();
+      const count = match[2] ? parseInt(match[2], 10) : 1;
+      const cardId = nameToId(cardName);
+
+      for (let i = 0; i < count; i++) {
+        deck.push(cardId);
+      }
     }
   }
 
