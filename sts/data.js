@@ -67,33 +67,30 @@ const UNIT_DATA = {
 //
 // CARD STRUCTURE:
 // {
-//   id: string,           // Unique identifier (used internally)
-//   name: string,         // Display name
+//   name: string,         // Display name (also used to derive internal ID)
 //   description: string,  // What the card does (shown to player)
 //   requires: null | string,  // null = Basic card, string = Tech card requirements
 //                             // Values: 'melee', 'ranged', 'physical', 'magic' (comma-separated)
 //   effects: {
 //     damage: number,     // Base damage (unit's bonus aura is added)
-//     taunt: number,      // Apply Taunt X to target
 //     heal: number,       // Heal target (unit's bonus aura is added)
 //     block: number,      // Gain block
 //     auraBonus: number,  // Grant permanent bonus aura to target
 //   },
 //   target: 'enemy' | 'ally' | 'self' | 'any',
 // }
+//
+// Card IDs are auto-derived from name: "Shield Bash" -> "shieldBash"
 
 const CARD_DATA = [
   // Basic cards (any unit can play)
   {
-    id: 'attack',
     name: 'Attack',
     description: 'Deal {damage} damage',
     effects: { damage: 15 },
     target: 'enemy'
   },
-
   {
-    id: 'defend',
     name: 'Defend',
     description: 'Gain {block} Block',
     effects: { block: 18 },
@@ -102,17 +99,15 @@ const CARD_DATA = [
 
   // Tech cards - Melee
   {
-    id: 'shieldBash',
     name: 'Shield Bash',
     description: 'Deal {damage} damage. Gain {block} Block',
     requires: 'melee',
-    effects: { damage: 10, block: 8 },
+    effects: { damage: 9, block: 9 },
     target: 'enemy'
   },
 
   // Tech cards - Magic
   {
-    id: 'fireball',
     name: 'Fireball',
     description: 'Deal {damage} damage',
     requires: 'magic',
@@ -120,7 +115,6 @@ const CARD_DATA = [
     target: 'enemy'
   },
   {
-    id: 'heal',
     name: 'Heal',
     description: 'Heal {heal} HP',
     requires: 'magic',
@@ -128,7 +122,6 @@ const CARD_DATA = [
     target: 'ally'
   },
   {
-    id: 'magicShield',
     name: 'Magic Shield',
     description: 'Gain {block} Block',
     requires: 'magic',
@@ -136,7 +129,6 @@ const CARD_DATA = [
     target: 'ally'
   },
   {
-    id: 'flamingBlade',
     name: 'Flaming Blade',
     description: 'Grant +{auraBonus} bonus',
     requires: 'magic',
@@ -150,23 +142,12 @@ const CARD_DATA = [
 // ============================================================================
 //
 // Define starting deck for each team.
-// Format: { cardId: count, ... }
-// Card IDs must match those defined in CARD_DATA above.
+// Format: "Card Name x Count, Card Name x Count, ..."
+// Card names must match those defined in CARD_DATA above.
 
 const DECK_DATA = {
-  player: {
-    attack: 5,
-    defend: 4,
-    shieldBash: 2,
-    fireball: 1,
-    heal: 1,
-    magicShield: 1,
-    flamingBlade: 1,
-  },
-
-  opponent: {
-    attack: 10
-  }
+  player: 'Attack x 5, Shield Bash x 2, Fireball x 4, Magic Shield x 2, Flaming Blade x 2',
+  opponent: 'Attack x 15'
 };
 
 // ============================================================================
