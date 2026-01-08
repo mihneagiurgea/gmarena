@@ -348,7 +348,7 @@ function displayResults(results, numGames) {
       item.innerHTML = `
         <span class="seed-number">Game #${game.gameNum}</span>
         <span class="game-summary">${game.survivors}/${game.maxUnits} units, ${game.totalHp}/${game.maxHp} HP</span>
-        <a href="index.html?seed=${game.seed}" class="play-link">Play</a>
+        <a href="index.html?seed=${game.seed}&player=ai&opponent=ai" class="play-link">Play</a>
       `;
       playerWinsList.appendChild(item);
     });
@@ -366,7 +366,7 @@ function displayResults(results, numGames) {
       item.innerHTML = `
         <span class="seed-number">Game #${game.gameNum}</span>
         <span class="game-summary">${game.survivors}/${game.maxUnits} units, ${game.totalHp}/${game.maxHp} HP</span>
-        <a href="index.html?seed=${game.seed}" class="play-link">Play</a>
+        <a href="index.html?seed=${game.seed}&player=ai&opponent=ai" class="play-link">Play</a>
       `;
       opponentWinsList.appendChild(item);
     });

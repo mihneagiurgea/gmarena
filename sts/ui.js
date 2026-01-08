@@ -847,6 +847,9 @@ function endTurn() {
 // ============================================================================
 
 function runAI() {
+  // Don't run if game is over
+  if (checkGameOver() !== 'ongoing') return;
+
   const currentUnit = getCurrentUnit();
   if (!currentUnit || isPlayerControlled(currentUnit)) return;
 
@@ -1028,6 +1031,22 @@ function initRNGFromParams() {
   initRNG(seed);
 }
 
+/**
+ * Initialize control settings from URL params (player=ai/human, opponent=ai/human)
+ */
+function initControlFromParams() {
+  const params = new URLSearchParams(window.location.search);
+  const playerParam = params.get('player');
+  const opponentParam = params.get('opponent');
+
+  if (playerParam === 'ai' || playerParam === 'human') {
+    gameState.playerControl = playerParam;
+  }
+  if (opponentParam === 'ai' || opponentParam === 'human') {
+    gameState.opponentControl = opponentParam;
+  }
+}
+
 function initGame() {
   // Initialize units
   gameState.units = createInitialUnits();
@@ -1111,6 +1130,10 @@ function initOptionsUI() {
   // Player control toggle
   const playerControl = document.getElementById('player-control');
   if (playerControl) {
+    // Sync button state with gameState
+    playerControl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === gameState.playerControl);
+    });
     playerControl.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         playerControl.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
@@ -1124,6 +1147,10 @@ function initOptionsUI() {
   // Opponent control toggle
   const opponentControl = document.getElementById('opponent-control');
   if (opponentControl) {
+    // Sync button state with gameState
+    opponentControl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === gameState.opponentControl);
+    });
     opponentControl.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         opponentControl.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
@@ -1133,6 +1160,9 @@ function initOptionsUI() {
       });
     });
   }
+
+  // Trigger AI if both are AI-controlled on load
+  onControlChanged();
 }
 
 function onControlChanged() {
@@ -1149,5 +1179,6 @@ function onControlChanged() {
 
 // Start the game
 initRNGFromParams();
+initControlFromParams();
 initGame();
 initOptionsUI();
