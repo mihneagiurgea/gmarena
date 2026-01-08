@@ -311,7 +311,7 @@ function drawCardsForTeam(state, team) {
   const handLimit = 5;
 
   while (hand.length < handLimit && deck.length > 0) {
-    const idx = Math.floor(Math.random() * deck.length);
+    const idx = getRNG().randomInt(deck.length);
     hand.push(deck.splice(idx, 1)[0]);
   }
 }

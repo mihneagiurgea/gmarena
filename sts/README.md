@@ -153,3 +153,16 @@ See `data.js` for the full card definition format and examples.
 
 # UI (User Interface)
 We will rename the "Action Section" to the "Hand Section", where we'll display each card in hand.
+
+# Simulation 
+The Simulation is a different view / mode, in which we will simulate AI vs. AI battle a number of times and show the results.
+
+First part of the Simulation UI is to ask what we're simulating. For now, the only input is how many games to simulate (default 50),
+but this number can be changed. In the future we might add more controls. The form will also contain a "Run simulation" button, 
+which advances to the second part.
+
+The second part will run the simulation for the number of games N specified, starting from seed=1, all the way up to seed=N.
+Once the simulation is run, it will display the aggregate results in one section of the UI. 
+In another section of the UI, it will show the first 5 games that were won by each opponent, with a link to the Play section,
+parametrized with the seed for that game.
+

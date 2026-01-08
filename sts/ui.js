@@ -1007,6 +1007,27 @@ document.addEventListener('keydown', (event) => {
 // INITIALIZATION
 // ============================================================================
 
+/**
+ * Initialize RNG from URL seed parameter or generate new seed
+ */
+function initRNGFromParams() {
+  const params = new URLSearchParams(window.location.search);
+  const seedParam = params.get('seed');
+
+  let seed;
+  if (seedParam !== null) {
+    seed = parseInt(seedParam, 10);
+    if (isNaN(seed)) {
+      console.warn(`[RNG] Invalid seed parameter "${seedParam}", using timestamp`);
+      seed = Date.now();
+    }
+  } else {
+    seed = Date.now();
+  }
+
+  initRNG(seed);
+}
+
 function initGame() {
   // Initialize units
   gameState.units = createInitialUnits();
@@ -1030,7 +1051,7 @@ function initGame() {
   renderTurnOrder();
   renderHand();
 
-  addLogEntry('Game started. Fight!');
+  addLogEntry(`Game started. Seed: ${getRNG().getSeed()}`);
 
   // If first unit is AI-controlled, start AI
   const firstUnit = getCurrentUnit();
@@ -1127,5 +1148,6 @@ function onControlChanged() {
 }
 
 // Start the game
+initRNGFromParams();
 initGame();
 initOptionsUI();

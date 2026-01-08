@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GM Arena - Simulation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #1a1a2e;
+      color: #e8e8e8;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4a9eff;
+      text-shadow: 0 0 30px rgba(74, 158, 255, 0.5);
+      margin-bottom: 40px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .section {
+      background: #16213e;
+      border: 2px solid #2a3a5a;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      color: #4a9eff;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Configuration Section */
+    .config-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .config-label {
+      color: #8892a0;
+      white-space: nowrap;
+    }
+
+    .config-input {
+      flex: 1;
+      max-width: 120px;
+      padding: 10px 14px;
+      background: #1a1a2e;
+      border: 2px solid #2a3a5a;
+      border-radius: 6px;
+      color: #e8e8e8;
+      font-family: inherit;
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    .config-input:focus {
+      outline: none;
+      border-color: #4a9eff;
+    }
+
+    .run-button {
+      width: 100%;
+      padding: 14px 24px;
+      background: #4a9eff;
+      border: none;
+      border-radius: 6px;
+      color: #1a1a2e;
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .run-button:hover:not(:disabled) {
+      background: #6bb3ff;
+      box-shadow: 0 0 20px rgba(74, 158, 255, 0.4);
+    }
+
+    .run-button:disabled {
+      background: #3a4a6a;
+      cursor: not-allowed;
+    }
+
+    /* Progress Section */
+    .progress-container {
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-bg {
+      height: 24px;
+      background: #1a1a2e;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4a9eff, #6bb3ff);
+      width: 0%;
+      transition: width 0.1s ease;
+    }
+
+    .progress-text {
+      text-align: center;
+      color: #8892a0;
+      font-size: 0.9rem;
+      margin-top: 8px;
+    }
+
+    /* Results Section */
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #2a3a5a;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: #8892a0;
+    }
+
+    .stat-value {
+      font-weight: 600;
+    }
+
+    .player-color {
+      color: #4ade80;
+    }
+
+    .opponent-color {
+      color: #f87171;
+    }
+
+    .wins-section {
+      margin-top: 24px;
+    }
+
+    .wins-title {
+      font-size: 0.95rem;
+      color: #8892a0;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .wins-title.player {
+      color: #4ade80;
+    }
+
+    .wins-title.opponent {
+      color: #f87171;
+    }
+
+    .seed-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .seed-number {
+      color: #e8e8e8;
+    }
+
+    .play-link {
+      color: #4a9eff;
+      text-decoration: none;
+      padding: 4px 12px;
+      border: 1px solid #4a9eff;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    .play-link:hover {
+      background: #4a9eff;
+      color: #1a1a2e;
+    }
+
+    .no-wins {
+      color: #5a6070;
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Back Link */
+    .back-link {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid #2a3a5a;
+      border-radius: 8px;
+      color: #8892a0;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .back-link:hover {
+      border-color: #4a9eff;
+      color: #e8e8e8;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simulation</h1>
+
+  <div class="container">
+    <!-- Configuration Section -->
+    <div class="section">
+      <div class="section-title">Configuration</div>
+      <div class="config-row">
+        <span class="config-label">Number of games:</span>
+        <input type="number" id="num-games" class="config-input" value="50" min="1" max="1000">
+      </div>
+      <button id="run-button" class="run-button">Run Simulation</button>
+    </div>
+
+    <!-- Progress Section -->
+    <div id="progress-section" class="section hidden">
+      <div class="section-title">Progress</div>
+      <div class="progress-container">
+        <div class="progress-bar-bg">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="progress-text" class="progress-text">0 / 0</div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-section" class="section hidden">
+      <div class="section-title">Results</div>
+      <div id="aggregate-results"></div>
+
+      <div class="wins-section">
+        <div class="wins-title player">Player Wins (first 5)</div>
+        <div id="player-wins-list"></div>
+      </div>
+
+      <div class="wins-section">
+        <div class="wins-title opponent">Opponent Wins (first 5)</div>
+        <div id="opponent-wins-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <a href="../index.html" class="back-link">Back to Menu</a>
+
+  <!-- Load game files -->
+  <script src="data.js"></script>
+  <script src="random.js"></script>
+  <script src="zones.js"></script>
+  <script src="gamestate.js"></script>
+  <script src="engine.js"></script>
+  <script src="ai.js"></script>
+  <script src="sim-ui.js"></script>
+</body>
+</html>

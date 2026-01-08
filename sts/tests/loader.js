@@ -22,12 +22,15 @@ function loadData() {
 
 function loadEngine() {
   const dataCode = loadFile('data.js');
+  const randomCode = loadFile('random.js');
   const zonesCode = loadFile('zones.js');
   const gamestateCode = loadFile('gamestate.js');
   const engineCode = loadFile('engine.js');
 
   const wrappedCode = `
     ${dataCode}
+    ${randomCode}
+    initRNG(12345); // Fixed seed for deterministic tests
     ${zonesCode}
     ${gamestateCode}
     ${engineCode}
@@ -37,7 +40,8 @@ function loadEngine() {
       isMeleeUnit, isRangedUnit, canPlayCard, hasEffect,
       isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
       applyEffect, gameState, isSimpleCard, moveUnit,
-      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils, GameState
+      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils, GameState,
+      SeededRandom, initRNG, getRNG
     };
   `;
 
@@ -47,6 +51,7 @@ function loadEngine() {
 
 function loadEngineWithAI() {
   const dataCode = loadFile('data.js');
+  const randomCode = loadFile('random.js');
   const zonesCode = loadFile('zones.js');
   const gamestateCode = loadFile('gamestate.js');
   const engineCode = loadFile('engine.js');
@@ -54,6 +59,8 @@ function loadEngineWithAI() {
 
   const wrappedCode = `
     ${dataCode}
+    ${randomCode}
+    initRNG(12345); // Fixed seed for deterministic tests
     ${zonesCode}
     ${gamestateCode}
     ${engineCode}
@@ -65,7 +72,8 @@ function loadEngineWithAI() {
       isAttackCard, canAdvance, canMove, getValidMoveZones, isPinned,
       applyEffect, gameState, isSimpleCard, moveUnit, getValidCardTargets,
       generateMoves, getBestMove,
-      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils, GameState
+      ZONES, ZONE_NAMES, NUM_ZONES, ZoneUtils, GameState,
+      SeededRandom, initRNG, getRNG
     };
   `;
 

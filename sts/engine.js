@@ -240,12 +240,7 @@ function createInitialUnits() {
  * Shuffle array randomly (Fisher-Yates)
  */
 function shuffleArray(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+  return getRNG().shuffle(array);
 }
 
 /**
@@ -274,7 +269,7 @@ function playCard(team, cardIndex) {
   const cardId = hand.splice(cardIndex, 1)[0];
 
   // Shuffle the card back into the deck
-  const insertIndex = Math.floor(Math.random() * (deck.length + 1));
+  const insertIndex = getRNG().randomInt(deck.length + 1);
   deck.splice(insertIndex, 0, cardId);
 
   return cardId;

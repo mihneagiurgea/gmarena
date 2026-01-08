@@ -1,65 +1,9 @@
 /**
- * Game Simulator - Runs AI vs AI battles
- *
- * Usage: node simulator.js [numGames] [--verbose]
- *
- * Example:
- *   node simulator.js 100
- *   node simulator.js 50 --verbose
+ * Simulation UI - Browser-based AI vs AI simulation
  */
 
-const fs = require('fs');
-const path = require('path');
-
 // ============================================================================
-// LOAD GAME FILES
-// ============================================================================
-
-function loadFile(filename) {
-  return fs.readFileSync(path.join(__dirname, filename), 'utf8');
-}
-
-function loadGame() {
-  const dataCode = loadFile('data.js');
-  const randomCode = loadFile('random.js');
-  const zonesCode = loadFile('zones.js');
-  const gamestateCode = loadFile('gamestate.js');
-  const engineCode = loadFile('engine.js');
-  const aiCode = loadFile('ai.js');
-
-  const wrappedCode = `
-    ${dataCode}
-    ${randomCode}
-    ${zonesCode}
-    ${gamestateCode}
-    ${engineCode}
-    ${aiCode}
-    return {
-      UNIT_DATA, CARD_DATA, DECK_DATA, TEAM_DATA, CARDS,
-      createUnit, applyDamage, resetBlock, executeCardEffects,
-      canPlayCard, getValidCardTargets, applyEffect, hasEffect,
-      shuffleArray, createDeck, drawCards,
-      getBestMove, setAIConfig, getAIConfig,
-      initRNG, getRNG,
-    };
-  `;
-
-  const fn = new Function(wrappedCode);
-  return fn();
-}
-
-const game = loadGame();
-const {
-  UNIT_DATA, CARD_DATA, DECK_DATA, TEAM_DATA, CARDS,
-  createUnit, applyDamage, executeCardEffects,
-  canPlayCard, getValidCardTargets, applyEffect,
-  shuffleArray, createDeck, drawCards,
-  getBestMove, setAIConfig,
-  initRNG, getRNG,
-} = game;
-
-// ============================================================================
-// GAME STATE INITIALIZATION
+// GAME STATE INITIALIZATION (adapted from simulator.js)
 // ============================================================================
 
 function createUnitsFromTypes(types, team) {
@@ -83,21 +27,16 @@ function createUnitsFromTypes(types, team) {
   });
 }
 
-function createInitialState() {
-  // Create units from TEAM_DATA
+function createSimInitialState() {
   const playerUnits = createUnitsFromTypes(TEAM_DATA.player, 'player');
   const opponentUnits = createUnitsFromTypes(TEAM_DATA.opponent, 'opponent');
 
-  // Set zones (diamond layout: A=0, X=1, Y=2, B=3)
   playerUnits.forEach(u => u.zone = 0);    // Zone A
   opponentUnits.forEach(u => u.zone = 3);  // Zone B
 
   const allUnits = [...playerUnits, ...opponentUnits];
-
-  // Randomize turn order
   const turnOrder = shuffleArray(allUnits.map(u => u.id));
 
-  // Create decks
   const playerDeck = shuffleArray(createDeck('player'));
   const opponentDeck = shuffleArray(createDeck('opponent'));
 
@@ -117,7 +56,6 @@ function createInitialState() {
     opponentHand: [],
   };
 
-  // Draw initial hands
   drawCardsForTeam(state, 'player');
   drawCardsForTeam(state, 'opponent');
 
@@ -138,13 +76,13 @@ function drawCardsForTeam(state, team) {
 // GAME SIMULATION
 // ============================================================================
 
-function getCurrentUnit(state) {
+function getCurrentSimUnit(state) {
   if (state.turnOrder.length === 0) return null;
   const unitId = state.turnOrder[state.currentUnitIndex];
   return state.units.find(u => u.id === unitId) || null;
 }
 
-function checkGameOver(state) {
+function checkSimGameOver(state) {
   const playerAlive = state.units.some(u => u.team === 'player');
   const opponentAlive = state.units.some(u => u.team !== 'player');
 
@@ -153,7 +91,7 @@ function checkGameOver(state) {
   return 'ongoing';
 }
 
-function removeDeadUnits(state) {
+function removeSimDeadUnits(state) {
   const deadUnits = state.units.filter(u => u.hp <= 0);
   deadUnits.forEach(unit => {
     const deadIndex = state.turnOrder.indexOf(unit.id);
@@ -161,7 +99,6 @@ function removeDeadUnits(state) {
     if (deadIndex !== -1 && deadIndex < state.currentUnitIndex) {
       state.currentUnitIndex--;
     }
-    // Remove effects from this source
     state.units.forEach(u => {
       u.effects = u.effects.filter(e => e.sourceId !== unit.id);
     });
@@ -170,53 +107,51 @@ function removeDeadUnits(state) {
   return deadUnits;
 }
 
-function advanceTurn(state) {
-  const currentUnit = getCurrentUnit(state);
+function advanceSimTurn(state) {
+  const currentUnit = getCurrentSimUnit(state);
   if (currentUnit) {
-    // Decrement effects
     currentUnit.effects.forEach(e => e.duration--);
     currentUnit.effects = currentUnit.effects.filter(e => e.duration > 0);
-    // Reset block
     currentUnit.block = 0;
   }
 
-  // Move to next unit
   state.currentUnitIndex = (state.currentUnitIndex + 1) % state.turnOrder.length;
   state.turn++;
 
-  // Draw cards for next unit's team
-  const nextUnit = getCurrentUnit(state);
+  const nextUnit = getCurrentSimUnit(state);
   if (nextUnit) {
     drawCardsForTeam(state, nextUnit.team);
   }
 }
 
-function playCard(state, team, cardIndex) {
+function playSimCard(state, team, cardIndex) {
   const hand = team === 'player' ? state.playerHand : state.opponentHand;
   const deck = team === 'player' ? state.playerDeck : state.opponentDeck;
 
   if (cardIndex < 0 || cardIndex >= hand.length) return null;
 
   const cardId = hand.splice(cardIndex, 1)[0];
-  // Shuffle back into deck
   const insertIndex = getRNG().randomInt(deck.length + 1);
   deck.splice(insertIndex, 0, cardId);
 
   return cardId;
 }
 
-function simulateGame(verbose = false, seed = null) {
-  // Initialize RNG for this game (new seed each game if not specified)
-  initRNG(seed !== null ? seed : Date.now() + Math.floor(Math.random() * 1000000));
+/**
+ * Run a single simulated game with the given seed
+ * @param {number} seed - The RNG seed
+ * @returns {{ result: string, turns: number }} Game result
+ */
+function runSimulatedGame(seed) {
+  initRNG(seed);
 
-  const state = createInitialState();
-  const maxTurns = 200; // Prevent infinite loops
+  const state = createSimInitialState();
+  const maxTurns = 200;
 
   const gameFns = {
     CARDS,
     canPlayCard,
     getValidCardTargets: (unit, card) => {
-      // Simplified getValidCardTargets for simulation
       const targetType = card.target || 'enemy';
 
       if (targetType === 'self') {
@@ -229,7 +164,6 @@ function simulateGame(verbose = false, seed = null) {
       }
 
       if (targetType === 'enemy') {
-        // Check taunt
         const tauntEffects = unit.effects.filter(e => e.type === 'taunt');
         if (tauntEffects.length > 0) {
           const taunters = tauntEffects
@@ -241,7 +175,6 @@ function simulateGame(verbose = false, seed = null) {
         }
 
         const enemies = state.units.filter(u => u.team !== unit.team);
-        // Melee can only attack enemies in the same zone
         if (unit.attackRange === 'melee') {
           return { targets: enemies.filter(e => e.zone === unit.zone), mustAttackTaunters: false };
         }
@@ -256,158 +189,230 @@ function simulateGame(verbose = false, seed = null) {
   };
 
   while (state.turn < maxTurns) {
-    const currentUnit = getCurrentUnit(state);
+    const currentUnit = getCurrentSimUnit(state);
     if (!currentUnit) break;
 
-    const result = checkGameOver(state);
+    const result = checkSimGameOver(state);
     if (result !== 'ongoing') {
-      if (verbose) {
-        console.log(`Game over after ${state.turn} turns: ${result}`);
-      }
-      return result;
+      return { result, turns: state.turn };
     }
 
-    // Get AI move
     const move = getBestMove(state, gameFns);
 
-    if (verbose) {
-      console.log(`Turn ${state.turn}: ${currentUnit.name} (${currentUnit.team})`);
-    }
-
     if (move.type === 'skip') {
-      if (verbose) console.log(`  -> Skips turn`);
-      advanceTurn(state);
+      advanceSimTurn(state);
       continue;
     }
-
-    const ZONE_NAMES = ['A', 'X', 'Y', 'B'];
 
     if (move.type === 'move') {
-      const zoneName = ZONE_NAMES[move.targetZone];
-      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Fatigued]`);
       currentUnit.zone = move.targetZone;
-      // Apply Fatigued (1)
       applyEffect(currentUnit, 'fatigued', currentUnit.id, 1);
-      advanceTurn(state);
+      advanceSimTurn(state);
       continue;
     }
 
-    // Handle moveAndPlay: move first, then play card
     if (move.type === 'moveAndPlay') {
-      const zoneName = ZONE_NAMES[move.targetZone];
-      if (verbose) console.log(`  -> Moves to Zone ${zoneName} [Fatigued]`);
       currentUnit.zone = move.targetZone;
       applyEffect(currentUnit, 'fatigued', currentUnit.id, 1);
-      // Fall through to card execution below
     }
 
-    // Execute card (play or moveAndPlay)
     const card = CARDS[move.cardId];
     const target = state.units.find(u => u.id === move.targetId);
 
     if (!card || !target) {
-      advanceTurn(state);
+      advanceSimTurn(state);
       continue;
     }
 
-    // Find and play card
     const hand = currentUnit.team === 'player' ? state.playerHand : state.opponentHand;
     const cardIndex = hand.indexOf(move.cardId);
     if (cardIndex === -1) {
-      advanceTurn(state);
+      advanceSimTurn(state);
       continue;
     }
 
-    playCard(state, currentUnit.team, cardIndex);
-
-    // Execute effects
+    playSimCard(state, currentUnit.team, cardIndex);
     const effectResult = executeCardEffects(currentUnit, target, card);
 
-    if (verbose) {
-      console.log(`  -> ${card.name} on ${target.name}: ${effectResult.message}`);
-    }
-
-    // Apply damage
     if (effectResult.damage > 0) {
       const died = applyDamage(target, effectResult.damage, currentUnit.attackType);
       if (died) {
-        const deadUnits = removeDeadUnits(state);
-        if (verbose) {
-          deadUnits.forEach(u => console.log(`  -> ${u.name} has fallen!`));
-        }
+        removeSimDeadUnits(state);
       }
     }
 
-    // Check game over after damage
-    const afterResult = checkGameOver(state);
+    const afterResult = checkSimGameOver(state);
     if (afterResult !== 'ongoing') {
-      if (verbose) {
-        console.log(`Game over after ${state.turn} turns: ${afterResult}`);
-      }
-      return afterResult;
+      return { result: afterResult, turns: state.turn };
     }
 
-    advanceTurn(state);
+    advanceSimTurn(state);
   }
 
-  // If we hit max turns, count remaining HP
+  // Timeout - determine winner by remaining HP
   const playerHp = state.units.filter(u => u.team === 'player').reduce((sum, u) => sum + u.hp, 0);
   const opponentHp = state.units.filter(u => u.team !== 'player').reduce((sum, u) => sum + u.hp, 0);
 
-  if (verbose) {
-    console.log(`Game timed out at ${maxTurns} turns. Player HP: ${playerHp}, Opponent HP: ${opponentHp}`);
-  }
-
-  return playerHp > opponentHp ? 'victory' : 'defeat';
+  return {
+    result: playerHp > opponentHp ? 'victory' : 'defeat',
+    turns: maxTurns
+  };
 }
 
 // ============================================================================
-// MAIN
+// UI FUNCTIONS
 // ============================================================================
 
-function main() {
-  const args = process.argv.slice(2);
-  const numGames = parseInt(args.find(a => !a.startsWith('-')) || '100', 10);
-  const verbose = args.includes('--verbose') || args.includes('-v');
+let isRunning = false;
 
-  console.log('='.repeat(60));
-  console.log('GAME SIMULATOR - AI vs AI');
-  console.log('='.repeat(60));
-  console.log(`Running ${numGames} games...`);
-  console.log();
+function updateProgress(current, total) {
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+  const percent = Math.round((current / total) * 100);
 
-  // Optionally reduce AI depth for faster simulation
-  if (!verbose) {
-    setAIConfig({ maxDepth: 2 }); // Faster for bulk simulation
+  progressBar.style.width = `${percent}%`;
+  progressText.textContent = `${current} / ${total}`;
+}
+
+function displayResults(results, numGames) {
+  const resultsSection = document.getElementById('results-section');
+  const aggregateResults = document.getElementById('aggregate-results');
+  const playerWinsList = document.getElementById('player-wins-list');
+  const opponentWinsList = document.getElementById('opponent-wins-list');
+
+  // Calculate stats
+  const playerWins = results.player.length;
+  const opponentWins = results.opponent.length;
+  const playerPercent = ((playerWins / numGames) * 100).toFixed(1);
+  const opponentPercent = ((opponentWins / numGames) * 100).toFixed(1);
+  const avgTurns = (results.totalTurns / numGames).toFixed(1);
+
+  // Display aggregate results
+  aggregateResults.innerHTML = `
+    <div class="stat-row">
+      <span class="stat-label">Games played:</span>
+      <span class="stat-value">${numGames}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Player wins:</span>
+      <span class="stat-value player-color">${playerWins} (${playerPercent}%)</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Opponent wins:</span>
+      <span class="stat-value opponent-color">${opponentWins} (${opponentPercent}%)</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Avg turns/game:</span>
+      <span class="stat-value">${avgTurns}</span>
+    </div>
+  `;
+
+  // Display first 5 player wins
+  playerWinsList.innerHTML = '';
+  const playerSeeds = results.player.slice(0, 5);
+  if (playerSeeds.length === 0) {
+    playerWinsList.innerHTML = '<div class="no-wins">No wins</div>';
+  } else {
+    playerSeeds.forEach(seed => {
+      const item = document.createElement('div');
+      item.className = 'seed-item';
+      item.innerHTML = `
+        <span class="seed-number">Seed ${seed}</span>
+        <a href="index.html?seed=${seed}" class="play-link">Play</a>
+      `;
+      playerWinsList.appendChild(item);
+    });
   }
 
-  const results = { victory: 0, defeat: 0 };
-  const startTime = Date.now();
+  // Display first 5 opponent wins
+  opponentWinsList.innerHTML = '';
+  const opponentSeeds = results.opponent.slice(0, 5);
+  if (opponentSeeds.length === 0) {
+    opponentWinsList.innerHTML = '<div class="no-wins">No wins</div>';
+  } else {
+    opponentSeeds.forEach(seed => {
+      const item = document.createElement('div');
+      item.className = 'seed-item';
+      item.innerHTML = `
+        <span class="seed-number">Seed ${seed}</span>
+        <a href="index.html?seed=${seed}" class="play-link">Play</a>
+      `;
+      opponentWinsList.appendChild(item);
+    });
+  }
 
-  for (let i = 0; i < numGames; i++) {
-    if (verbose) {
-      console.log(`\n--- Game ${i + 1} ---`);
-    } else if ((i + 1) % 10 === 0) {
-      process.stdout.write(`\rProgress: ${i + 1}/${numGames}`);
+  resultsSection.classList.remove('hidden');
+}
+
+async function runSimulation() {
+  if (isRunning) return;
+
+  const numGamesInput = document.getElementById('num-games');
+  const numGames = parseInt(numGamesInput.value, 10) || 50;
+
+  if (numGames < 1 || numGames > 1000) {
+    alert('Please enter a number between 1 and 1000');
+    return;
+  }
+
+  isRunning = true;
+  const runButton = document.getElementById('run-button');
+  runButton.disabled = true;
+  runButton.textContent = 'Running...';
+
+  const progressSection = document.getElementById('progress-section');
+  const resultsSection = document.getElementById('results-section');
+
+  progressSection.classList.remove('hidden');
+  resultsSection.classList.add('hidden');
+
+  // Set AI config for faster simulation
+  setAIConfig({ maxDepth: 2 });
+
+  const results = {
+    player: [],
+    opponent: [],
+    totalTurns: 0
+  };
+
+  // Run simulations with yielding to UI
+  for (let seed = 1; seed <= numGames; seed++) {
+    const gameResult = runSimulatedGame(seed);
+
+    if (gameResult.result === 'victory') {
+      results.player.push(seed);
+    } else {
+      results.opponent.push(seed);
     }
+    results.totalTurns += gameResult.turns;
 
-    const result = simulateGame(verbose);
-    results[result]++;
+    // Update progress every game (or batch for large runs)
+    if (seed % Math.max(1, Math.floor(numGames / 100)) === 0 || seed === numGames) {
+      updateProgress(seed, numGames);
+      // Yield to UI to prevent freezing
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
   }
 
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+  displayResults(results, numGames);
 
-  console.log('\n');
-  console.log('='.repeat(60));
-  console.log('RESULTS');
-  console.log('='.repeat(60));
-  console.log(`Games played:    ${numGames}`);
-  console.log(`Time elapsed:    ${elapsed}s`);
-  console.log(`Avg per game:    ${(elapsed / numGames * 1000).toFixed(0)}ms`);
-  console.log();
-  console.log(`Player wins:     ${results.victory} (${(results.victory / numGames * 100).toFixed(1)}%)`);
-  console.log(`Opponent wins:   ${results.defeat} (${(results.defeat / numGames * 100).toFixed(1)}%)`);
-  console.log('='.repeat(60));
+  isRunning = false;
+  runButton.disabled = false;
+  runButton.textContent = 'Run Simulation';
 }
 
-main();
+function initSimulation() {
+  const runButton = document.getElementById('run-button');
+  runButton.addEventListener('click', runSimulation);
+
+  // Allow Enter key in input
+  const numGamesInput = document.getElementById('num-games');
+  numGamesInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      runSimulation();
+    }
+  });
+}
+
+// Initialize when DOM is ready
+initSimulation();
