@@ -436,6 +436,7 @@ async function runSimulation() {
   }
 
   displayResults(results, numGames);
+  progressSection.classList.add('hidden');
 
   isRunning = false;
   runButton.disabled = false;

@@ -1503,6 +1503,16 @@ html, body {
   50% { opacity: 1; transform: scale(1.1); }
 }
 
+/* Taunt aura indicator - shows shield on units with Taunt aura */
+.taunt-aura-indicator {
+  position: absolute;
+  bottom: -2px;
+  left: -4px;
+  font-size: 14px;
+  z-index: 15;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
 /* Block indicator - shows shield with block amount */
 .block-indicator {
   position: absolute;

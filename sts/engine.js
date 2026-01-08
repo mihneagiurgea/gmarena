@@ -26,15 +26,14 @@ function isSimpleCard(card) {
   const effects = card.effects;
   const hasDamage = effects.damage > 0;
   const hasBlock = effects.block > 0;
-  const hasTaunt = effects.taunt > 0;
   const hasHeal = effects.heal > 0;
   const hasAuraBonus = effects.auraBonus !== undefined;
 
   // Simple = ONLY damage OR ONLY block (nothing else)
-  if (hasDamage && !hasBlock && !hasTaunt && !hasHeal && !hasAuraBonus) {
+  if (hasDamage && !hasBlock && !hasHeal && !hasAuraBonus) {
     return true; // Damage only
   }
-  if (hasBlock && !hasDamage && !hasTaunt && !hasHeal && !hasAuraBonus) {
+  if (hasBlock && !hasDamage && !hasHeal && !hasAuraBonus) {
     return true; // Block only
   }
 
@@ -392,20 +391,17 @@ function executeCardEffects(attacker, target, card) {
   // Build effect tags for message
   const effects = [];
 
-  // Apply taunt effect (from card or attacker's aura when dealing damage)
-  const cardTaunt = card.effects.taunt || 0;
-  const auraTaunt = (result.damage > 0 && attacker.auras.taunt) ? attacker.auras.taunt : 0;
-  const totalTaunt = Math.max(cardTaunt, auraTaunt);
-
-  if (totalTaunt > 0) {
-    applyEffect(target, 'taunt', attacker.id, totalTaunt);
-    result.effects.push(`Taunt (${totalTaunt})`);
-    effects.push(`Taunt ${totalTaunt}`);
+  // Apply taunt effect from attacker's aura when dealing damage
+  if (result.damage > 0 && attacker.auras.taunt) {
+    applyEffect(target, 'taunt', attacker.id, attacker.auras.taunt);
+    result.effects.push(`Taunt (${attacker.auras.taunt})`);
+    effects.push(`Taunt ${attacker.auras.taunt}`);
   }
 
-  // Apply block to target (for self/ally targeting cards)
+  // Apply block - to self if attacking enemy, otherwise to target
   if (card.effects.block) {
-    target.block += card.effects.block;
+    const blockTarget = (card.target === 'enemy') ? attacker : target;
+    blockTarget.block += card.effects.block;
     result.effects.push(`+${card.effects.block} Block`);
   }
 

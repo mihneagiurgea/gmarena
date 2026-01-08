@@ -557,11 +557,6 @@ describe('isSimpleCard', () => {
     assert.strictEqual(isSimpleCard(card), true);
   });
 
-  test('damage+taunt card is NOT simple', () => {
-    const card = { name: 'Shield Bash', effects: { damage: 10, taunt: 2 }, target: 'enemy' };
-    assert.strictEqual(isSimpleCard(card), false);
-  });
-
   test('damage+block card is NOT simple', () => {
     const card = { name: 'Strike and Guard', effects: { damage: 10, block: 5 }, target: 'enemy' };
     assert.strictEqual(isSimpleCard(card), false);
@@ -619,9 +614,9 @@ describe('Fatigued effect', () => {
     assert.strictEqual(canPlayCard(warrior, defendCard), true);
   });
 
-  test('Fatigued unit CANNOT play damage+taunt card', () => {
+  test('Fatigued unit CANNOT play damage+block card', () => {
     const warrior = createUnit('w', 'Warrior', 'warrior', 'player');
-    const shieldBash = { name: 'Shield Bash', effects: { damage: 10, taunt: 2 }, requires: 'melee', target: 'enemy' };
+    const shieldBash = { name: 'Shield Bash', effects: { damage: 10, block: 8 }, requires: 'melee', target: 'enemy' };
 
     applyEffect(warrior, 'fatigued', 'test', 1);
 

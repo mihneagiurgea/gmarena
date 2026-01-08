@@ -104,9 +104,9 @@ const CARD_DATA = [
   {
     id: 'shieldBash',
     name: 'Shield Bash',
-    description: 'Deal {damage} damage and Taunt ({taunt})',
+    description: 'Deal {damage} damage. Gain {block} Block',
     requires: 'melee',
-    effects: { damage: 10, taunt: 2 },
+    effects: { damage: 10, block: 8 },
     target: 'enemy'
   },
 

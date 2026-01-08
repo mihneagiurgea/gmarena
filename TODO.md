@@ -16,8 +16,6 @@
 
 ## UI/UX
 
-- [ ] Add button to see simulation results: how many games, win rate, can click on a few games to see log: 3 random from each winner. 
-TBD how to show this UI.   
 - [ ] Fix zone lane UI styling (currently looks bad)
 - [ ] Improve UI to make it tablet-friendly
 - [ ] Improve UI / sprites
@@ -41,6 +39,5 @@ TBD how to show this UI.
 ## Code
 - Delete the other folders?
 - Can we further simplify the code before we move further?
-- Rewrite to TypeScript?
 
 

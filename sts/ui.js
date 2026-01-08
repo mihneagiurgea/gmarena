@@ -164,6 +164,15 @@ function renderUnits() {
         unitWrapper.appendChild(blockEl);
       }
 
+      // Taunt aura indicator (shows when unit HAS taunt aura)
+      if (unit.auras?.taunt) {
+        const tauntEl = document.createElement('div');
+        tauntEl.className = 'taunt-aura-indicator';
+        tauntEl.textContent = '🛡️';
+        tauntEl.title = 'Taunt: Forces nearby enemies to attack this unit';
+        unitWrapper.appendChild(tauntEl);
+      }
+
       // Taunted status indicator (shows when unit is under taunt effect)
       if (hasEffect(unit, 'taunt')) {
         const tauntedEl = document.createElement('div');
