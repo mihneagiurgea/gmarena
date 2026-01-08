@@ -609,23 +609,36 @@ function showUnitInfo(unit) {
     return;
   }
 
+  const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
+
   let statsHtml = `HP: ${unit.hp}/${unit.maxHp}<br>`;
   if (unit.block > 0) {
     statsHtml += `<span style="color: #60a5fa;">Block: ${unit.block}</span><br>`;
   }
-  statsHtml += `Zone: ${ZONE_NAMES[unit.zone]}<br>`;
-  statsHtml += `Range: ${unit.attackRange}<br>`;
-  statsHtml += `Type: ${unit.attackType}<br>`;
-  statsHtml += `Damage Bonus: ${unit.damageBonus >= 0 ? '+' : ''}${unit.damageBonus}<br>`;
+  statsHtml += `${capitalize(unit.attackRange)}, ${capitalize(unit.attackType)}<br>`;
 
-  // Show taunt effects on this unit with duration
-  if (hasEffect(unit, 'taunt')) {
-    const tauntEffects = getEffects(unit, 'taunt');
-    const tauntInfo = tauntEffects.map(e => {
-      const taunter = gameState.units.find(u => u.id === e.sourceId);
-      return taunter ? `${taunter.name} (${e.duration})` : null;
-    }).filter(Boolean).join(', ');
-    statsHtml += `<span style="color: #ef4444;">Taunted by: ${tauntInfo}</span>`;
+  // Show auras
+  const auras = [];
+  if (unit.auras?.bonus) {
+    const sign = unit.auras.bonus >= 0 ? '+' : '';
+    auras.push(`${sign}${unit.auras.bonus} Damage`);
+  }
+  if (unit.auras?.taunt) {
+    auras.push('Taunt');
+  }
+  if (unit.auras?.armor) {
+    auras.push(`Armor ${unit.auras.armor}`);
+  }
+  if (unit.auras?.resistance) {
+    auras.push(`Resistance ${unit.auras.resistance}`);
+  }
+  if (auras.length > 0) {
+    statsHtml += `<span style="color: #a78bfa;">${auras.join(', ')}</span><br>`;
+  }
+
+  // Show if unit is pinned
+  if (isPinned(unit)) {
+    statsHtml += `<span style="color: #ef4444;">Pinned</span>`;
   }
 
   unitInfo.innerHTML = `
